@@ -20,15 +20,17 @@ Command Execution 也不应无限扩张生命周期端口。Filesystem、Termina
 
 1. 保持 `SandboxProvider` 为 Provider Lifecycle Port；新增候选独立端口 `SandboxCommandExecutor`，通过同一 `SandboxProviderId` 在 Composition/Registry 绑定。
 2. `RuntimeCapability::Terminal` 代表第一版有界非交互 Command Execution。只有 Lifecycle Provider、Command Executor 和对应 Common Conformance 全部存在时，Descriptor 才能声明该 Capability。
-3. 公共候选类型使用 `SandboxCommandExecutionRequest`、`SandboxCommandLimits`、`SandboxCommandExecutionResult`、`SandboxCommandExitStatus` 与类型化 `SandboxCommandExecutionError`。存在歧义的字段和变量全部使用 `sandbox_*` 前缀。
-4. 请求保留 `TenantId`、`SandboxWorkspaceId`、`SandboxSessionId`、`SandboxId`、`SandboxRuntimeBindingId`、`SandboxFencingToken` 与共享 `OperationId`。Command Operation 字段使用 `sandbox_command_operation_id`，不创建重复的 `SandboxOperationId`。
-5. 第一版只接受 Typed Executable + Bounded Argv + Logical Relative Working Directory。Shell String、Implicit Shell、PTY、Network、Browser、Port、Secret Value 和任意 Host Root 不进入本契约。
-6. stdout/stderr 以有界 Byte Buffer 表达，并分别报告 Truncated；Result 不把非 UTF-8 强制转换为有损 String。Terminal Streaming/Replay 在后续独立 Requirement 中定义，不能用无界 Channel 代替。
-7. Command Executor 在启动副作用前验证 Workspace Attachment、Provider Readiness、Policy、当前 Lease/Fencing 与幂等 Request Fingerprint。Stale Token、Operation Conflict 或 Capability 缺失均在启动前关闭失败。
-8. Timeout、Cancellation、Output Hard Limit、Lease Lost 和 Provider Shutdown 使用同一个有界 Descendant Cleanup Contract。Provider-specific Cleanup Mechanism 由 Adapter 实现并通过 Common + Platform-specific Conformance 证明。
+3. 公共候选类型使用 `SandboxCommandExecutionRequest`、`SandboxCommandCancellationRequest`、`SandboxCommandLimits`、`SandboxCommandExecutionResult`、`SandboxCommandExitStatus` 与类型化 `SandboxCommandExecutionError`。存在歧义的字段和变量全部使用 `sandbox_*` 前缀。
+4. Execution/Cancel Request 保留服务器拥有的 `traceId`、`TenantId`、`SandboxWorkspaceId`、`SandboxSessionId`、`SandboxId`、`SandboxRuntimeBindingId`、`SandboxFencingToken` 与共享 `OperationId`。Command/Cancel Operation 字段分别使用 `sandbox_command_operation_id`/`sandbox_cancellation_operation_id`，不创建重复的 `SandboxOperationId`。
+5. 第一版只接受 Typed Executable + Bounded Argv + Portable ASCII Logical Relative Working Directory。`.` 是唯一 Workspace Root，子路径只使用 `/`；允许多个点与内部空格的常见安全目录名，绝对路径、任意反斜杠、Traversal、空 Segment、首空格、尾点/空格、控制符、Windows 非法字符、Device/Console Alias/ADS、Shell String、Implicit Shell、PTY、Network、Browser、Port、Secret Value 和任意 Host Root 不进入本契约。
+6. stdout/stderr 以有界 Byte Buffer 表达，并分别报告 Truncated；Result 不把非 UTF-8 强制转换为有损 String，Captured Byte Count 与解码结果一致。Result 使用 `sandbox_command_result_replayed` 明确表达 Command Result 重放，并返回 Cleanup Status/Duration；Succeeded 必须是 Exit Code 0，Failed 必须是非零 Exit 或 Signal，Output-limit 与 Truncated 双向一致，已开始 Command 的 Process Count 至少为 1。Terminal Streaming/Replay 在后续独立 Requirement 中定义，不能用无界 Channel 代替。
+7. Command Executor 在启动副作用前验证 Workspace Attachment、Provider Readiness、Policy、当前 Lease/Fencing 与幂等 Request Fingerprint。Fingerprint 由 Service 使用域隔离、版本化长度前缀 Encoding 派生，Executor 独立重算，`traceId` 不参与语义 Hash；Stale Token、Fingerprint Mismatch、Operation Conflict 或 Capability 缺失均在启动前关闭失败。
+8. Cancel 使用完整 Ownership/Fencing Context、目标 Command Operation、独立 Cancellation Operation 与派生指纹；取消本身幂等并返回目标 Command 的终态 Result。Timeout、Cancellation、Output Hard Limit、Lease Lost 和 Provider Shutdown 使用同一个有界 Descendant Cleanup Contract。Provider-specific Cleanup Mechanism 由 Adapter 实现并通过 Common + Platform-specific Conformance 证明。
 9. Command、Argument、Environment Value、Logical/Physical Path、Output、Host PID、API Socket、microVM Identity 与 `SandboxProviderAllocationRef` 不进入 Metric Label 或普通 Operational Log。Trace 只记录安全 Operation/Provider/Outcome/Duration 属性。
-10. Service/Registry 通过端口存在性与 Descriptor Capability 交叉校验：声明 Terminal 但没有 Executor、或注册 Executor 但 Provider Identity 不匹配时，Provider 保持 Unavailable。
-11. 本 ADR 不批准 Interactive PTY、Shell Capability、Secret Injection、Network、Browser、Port Forward、Docker Provider、HTTP/RPC、SDK 或 Deployment Profile。
+10. 已接受并启动的 Command 始终收敛为终态 Result；Executor 使用持久化 first-terminal Compare-and-swap 仲裁 Exit、Timeout、Cancel、Output、Resource 与 Fencing 竞争，首个持久化 Primary Terminal Fact 胜出，后到信号只能取得同一结果。Terminal Result 在有界 Cleanup 完成或明确失败后持久化；Cleanup Failure 不重写 Primary Outcome，必须显式返回并触发 Binding Quarantine 与 Provider Unavailable。Timeout、Cancelled、Output Limit、Resource Exhausted 与 Fencing Lost 不作为可盲重试 Error。Error 只表达启动前拒绝或权威 Result 不可获得；`result-unavailable`、`operation-in-progress` 与 `provider-unavailable` 只能用同一 Operation+Fingerprint 查询/重放，禁止自动创建新 Operation。
+11. Service/Registry 通过端口存在性与 Descriptor Capability 交叉校验：声明 Terminal 但没有 Executor、或注册 Executor 但 Provider Identity 不匹配时，Provider 保持 Unavailable。
+12. Executable、Argv、Working Directory、Environment Name/Value、Canonical Request、stdout/stderr、Cleanup 与 Durable HA Replay 都有独立硬上限；字符限制不能替代 UTF-8 Byte Limit。
+13. 本 ADR 不批准 Interactive PTY、Shell Capability、Secret Injection、Network、Browser、Port Forward、Docker Provider、HTTP/RPC、SDK 或 Deployment Profile。
 
 ## Alternatives
 
@@ -56,7 +58,7 @@ Command Execution 也不应无限扩张生命周期端口。Filesystem、Termina
 
 ## Verification
 
-- Contract Test 验证请求字段、Bound、Byte Output、Error Taxonomy、Debug Redaction 与 `sandbox_*` Naming。
+- Contract Test 验证 Execution/Cancel 字段、Canonical Fingerprint、Idempotency、跨平台 Path/Console Alias、UTF-8 Byte Bound、Byte Output、Outcome/Exit/Truncation、Terminal Race、Cleanup/Quarantine、Terminal Result/Error Partition、Error Retry Taxonomy、Debug Redaction 与 `sandbox_*` Naming。
 - Registry/Service Test 验证 Terminal Descriptor 与 Executor 端口的一致性并关闭失败。
 - Common Conformance 运行在 Local 和 Firecracker，覆盖 Argv、No-shell、Timeout、Cancellation、Output Limit、Working-directory Escape、Environment Deny、Stale Fencing、Idempotency 与 Cleanup。
 - 实际 Local Host 与 Linux KVM Firecracker Smoke 必须执行同一命令场景；Fake Executor 只用于 Service Unit Test。
@@ -67,4 +69,3 @@ Command Execution 也不应无限扩张生命周期端口。Filesystem、Termina
 Supersedes: none.
 
 Superseded by: none.
-

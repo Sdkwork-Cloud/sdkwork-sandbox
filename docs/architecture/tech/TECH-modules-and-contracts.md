@@ -24,7 +24,7 @@ Parent: [Technical Architecture](TECH_ARCHITECTURE.md)
 
 The L0 event and observability contract candidate is authored under [`apis/async/`](../../../apis/async/), governed by `REQ-2026-0010` (`draft`), its proposed ADR, and the pending human review. It defines the Sandbox event envelope/catalog, transactional Outbox semantics, `SandboxAuditRecord`, structured logs, metrics, traces, backpressure, and fact separation; no event runtime, exporter, worker, migration, API, SDK, or deployment profile is implemented.
 
-The L0 command contract candidate is authored under [`apis/commands/`](../../../apis/commands/), governed by `REQ-2026-0007` (`draft`), its proposed ADR, and the pending human review. It defines bounded executable/Argv request, binary-safe result, safe error taxonomy, and common conformance scenarios only; no Rust `SandboxCommandExecutor`, host process, or provider implementation is present.
+The L0 command contract candidate is authored under [`apis/commands/`](../../../apis/commands/), governed by `REQ-2026-0007` (`draft`), its proposed ADR, and the pending human review. It defines bounded executable/Argv and fenced cancellation requests, portable logical paths, server-owned trace correlation, Service-derived/Executor-verified canonical fingerprints, Tenant+Provider idempotency, durable first-terminal arbitration, outcome-consistent binary-safe terminal results, explicit cleanup/quarantine, same-operation result-unavailable retry, pre-start/result-unavailable errors, and common conformance scenarios only; no Rust `SandboxCommandExecutor`, host process, or provider implementation is present.
 
 | Crate | Layer Role | 当前 Contract |
 | --- | --- | --- |
@@ -48,7 +48,7 @@ The L0 command contract candidate is authored under [`apis/commands/`](../../../
 
 每个组件拥有 `README.md`、`specs/README.md` 与 `specs/component.spec.json`。空 Contract 是刻意设计：Public Type、Port、Dependency、Event、Config Key 和 Entrypoint 必须随可实施 Requirement 一起到达。
 
-Local Provider 的 Fake Host Boundary 仅在测试配置中编译，验证逻辑相对路径、Typed Argv、环境白名单和边界拒绝；它没有公共导出、没有 Host I/O，不改变 Gate 0 对真实 Host Command 和 Local Capability 的禁止。
+Local Provider 的 Fake Host Boundary 仅在测试配置中编译，验证 `.` Workspace Root、跨平台逻辑相对路径/Windows Device 拒绝、Typed Argv、环境白名单和 UTF-8 Byte 边界；它没有公共导出、没有 Host I/O，不改变 Gate 0 对真实 Host Command 和 Local Capability 的禁止。
 
 Firecracker Artifact Compatibility 当前只有 repository-level `specs/sandbox-firecracker-artifact-compatibility.contract.json`。它定义 draft `SandboxFirecrackerArtifactManifest`、精确 Architecture Tuple、Evidence、只读原子 Materialization、Revocation 与 Rollback；不创建 Rust Crate/Port、Artifact Builder/Downloader/Resolver、Runtime Path、Config、Release Artifact 或 `MicroVm` Assurance。
 

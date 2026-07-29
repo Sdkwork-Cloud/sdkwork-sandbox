@@ -14,7 +14,7 @@ Risk: critical - multi-tenant isolation claim, privileged Host boundary, KVM/Jai
 
 ## Scope And Inputs
 
-本 Review 请求人工评审 Firecracker Provider 的公共命名、`MicroVm` Assurance、Linux KVM Target、Host Isolation Broker/Jailer、Artifact Integrity、Guest Block Device Workspace、private Vsock、Resource/Network Isolation、Node Trust、Admission/Placement/Capacity 前置、Fencing State、Cleanup 与第一版 Capability Exclusion。评审输入包括 REQ-2026-0008、REQ-2026-0011/0012/0013/0014/0015/0016/0017 及对应 ADR/Review、Command Execution Review、Workspace Attachment ADR、Provider Delivery Plan、`SECURITY_SPEC.md`、`PRIVACY_SPEC.md`、`DRIVE_SPEC.md`、`DEPLOYMENT_SPEC.md`、`RUNTIME_DIRECTORY_SPEC.md`、`OBSERVABILITY_SPEC.md`、`PERFORMANCE_SPEC.md`、`SUPPLY_CHAIN_SECURITY_SPEC.md` 与 `TEST_SPEC.md`。
+本 Review 请求人工评审 Firecracker Provider 的公共命名、`MicroVm` Assurance、Linux KVM Target、Host Isolation Broker/Jailer、Artifact Integrity、Guest Block Device Workspace、private Vsock、Resource/Network Isolation、Node Trust、Admission/Placement/Capacity 与 PostgreSQL Quota/Capacity Persistence 前置、Fencing State、Cleanup 与第一版 Capability Exclusion。评审输入包括 REQ-2026-0008、REQ-2026-0011 至 REQ-2026-0018 及对应 ADR/Review、Command Execution Review、Workspace Attachment ADR、Provider Delivery Plan、`SECURITY_SPEC.md`、`PRIVACY_SPEC.md`、`DRIVE_SPEC.md`、`DEPLOYMENT_SPEC.md`、`RUNTIME_DIRECTORY_SPEC.md`、`OBSERVABILITY_SPEC.md`、`PERFORMANCE_SPEC.md`、`SUPPLY_CHAIN_SECURITY_SPEC.md` 与 `TEST_SPEC.md`。
 
 当前 Windows 环境不能产生 MicroVm Assurance Evidence。本 Review 是 Design/Gate Review，不是 Provider、KVM 或商业发布完成证明。
 
@@ -25,6 +25,7 @@ Risk: critical - multi-tenant isolation claim, privileged Host boundary, KVM/Jai
 - `specs/sandbox-firecracker-artifact-compatibility.contract.json` and its 7 focused static tests define the draft `SandboxFirecrackerArtifactManifest`, exact roles/tuple, evidence, no-download staging, revocation, rollback, readiness and ownership boundary; they publish no real Artifact and authorize no runtime.
 - `specs/sandbox-multi-tenant-scheduling.contract.json` and its 10 focused static tests require Atomic Admission, trusted Node Inventory, Hard Placement Filter and confirmed PostgreSQL Capacity Reservation before Firecracker Provider Allocate; they authorize no Scheduler, database or Provider runtime.
 - `specs/sandbox-node-trust-and-inventory.contract.json` and its 10 focused static tests require single-use Bootstrap, Key-bound short-lived Machine Identity, TLS 1.3 mutual authentication, independent Attestation Verification, Control-plane Verified Inventory, Rotation/Revocation and Drain/Quarantine before a Cloud Firecracker Node becomes schedulable; they authorize no Node Agent, PKI/CA/HSM, Verifier, database or runtime.
+- `specs/sandbox-quota-and-capacity-persistence.contract.json` and its 13 focused static tests keep PostgreSQL as the proposed Tenant Quota/Admission Reservation/Node Capacity/Capacity Reservation authority, block implementation on SQL Subject alignment, and require global lock order, CAS/Fencing, quarantine and PITR evidence; they authorize no table, migration, repository, scheduler or Provider runtime.
 - This evidence makes FC-01..FC-11 machine-reviewable but is not real Artifact, signature, KVM, Jailer, cgroup, netns, Vsock, cleanup, tenant residue, supply-chain release or rollback evidence.
 
 ## Decision Matrix
@@ -87,3 +88,27 @@ Allowed outcome: `Approved`, `Changes requested`, or `Rejected`。`Approved with
 ## Implementation Gate
 
 当前推荐人工 Outcome 为 `Changes requested`，直到 Pre-review Blocker 形成具体 Authority 和 Owner。REQ-2026-0008 保持 `draft`、ADR 保持 `proposed`；在批准前不创建 Firecracker Crate，不实现 Host Broker/KVM/Jailer/netns，不新增部署配置，也不声明 `IsolationAssurance::MicroVm` Capability。
+
+## Close-Out Checklist (Reviewer 执行项)
+
+Review Approved 前必须逐项核验：
+
+- [ ] REQ-STATUS: 对应 REQ 处于 `ready` 或 `accepted`
+- [ ] ADR-STATUS: 对应 ADR 处于 `accepted`
+- [ ] ARCH-REVIEW: 接口契约、命名、Port 边界、L0-L6 分层符合 COMPONENT_SPEC
+- [ ] SEC-REVIEW: 数据分类、红字规则、零化清理、Secret 流、并发控制符合 SECURITY_SPEC
+- [ ] PERF-REVIEW: 有界 Page/Buffer、低 Cardinality Metric 符合 PERFORMANCE_SPEC
+- [ ] OBS-REVIEW: Trace/Audit/Event/Outbox/Meter 符合 OBSERVABILITY_SPEC
+- [ ] TEST-EVIDENCE: Unit Test 全量通过；Contract Test 通过
+- [ ] DEPENDENCY-DIRECTION: cargo tree 方向正确
+- [ ] EVIDENCE-SIGN-OFF: 对应 Verification Review 接受状态非 pending
+- [ ] HUMAN-DECISION: Decision Matrix 每条均 Approved 或 Changes + 替代方案
+
+## Exit Gate
+
+1. 全部 Checklist 勾选
+2. 所有 Reviewer Role 表决 Approved
+3. REQ 进入 `ready`，ADR 进入 `accepted`
+4. Gate 0 `implementationAuthorized` 最后一个 Review 通过后可置 true
+
+未经上述门禁，禁止进入 V1 实现阶段。

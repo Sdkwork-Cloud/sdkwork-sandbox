@@ -24,7 +24,7 @@ Risk: critical - privileged host operations, local IPC authentication, grant aut
 | --- | --- |
 | `specs/sandbox-host-isolation-broker.contract.json` | Draft typed boundary fixes eight operations, Grant/transport/privilege/fencing/readiness/audit/bounds and forbidden input/output contracts; `implementationAuthorized` is `false`. |
 | `tests/contract/sandbox-host-isolation-broker.contract.test.mjs` | PASS (6/6); static candidate verification only, not runtime or privilege evidence. |
-| Complete repository contract suite | `node --test tests/contract/*.test.mjs` PASS (104/104), including Provider, Command, Artifact, Workspace, Network, Resource/Usage, Scheduling/Capacity, Node Trust/Verified Inventory, PostgreSQL Quota/Capacity Persistence, Observability, Service Host, and lifecycle persistence boundaries. |
+| Complete repository contract suite | `node --test tests/contract/*.test.mjs` PASS (107/107), including Provider, Command Execution/Cancel, Artifact, Workspace, Network, Resource/Usage, Scheduling/Capacity, Node Trust/Verified Inventory, PostgreSQL Quota/Capacity Persistence, Observability, Service Host, and lifecycle persistence boundaries. |
 | Cargo and SDKWORK repository gates | Workspace Format/Check/Test/Clippy plus Documentation, Packages Layout, strict Component Ports, Layering, Rust Composition, Naming, Docs-debt, Baseline and Diff checks PASS. |
 | Firecracker Provider Review | FC-03/FC-04/FC-05/FC-08/FC-09 consume this candidate boundary but remain pending. |
 | REQ-2026-0013 Workspace Block Device Review | Defines the draft authorized opaque Attachment Reference, encryption/fencing/sanitization/residue boundary consumed by `sandbox_attach_workspace_device`; it remains unimplemented and pending. |
@@ -81,3 +81,27 @@ Allowed outcome: `Approved`, `Changes requested`, or `Rejected`. `Approved with 
 ## Implementation Gate
 
 REQ-2026-0011 remains `draft`, ADR remains `proposed`, and this Review remains `pending-human-review`. Until every required reviewer records `Approved` and the blocking authorities are resolved, do not create the Broker component, public port, daemon, socket, config key, service unit, privileged Host operation or deployment profile.
+
+## Close-Out Checklist (Reviewer 执行项)
+
+Review Approved 前必须逐项核验：
+
+- [ ] REQ-STATUS: 对应 REQ 处于 `ready` 或 `accepted`
+- [ ] ADR-STATUS: 对应 ADR 处于 `accepted`
+- [ ] ARCH-REVIEW: 接口契约、命名、Port 边界、L0-L6 分层符合 COMPONENT_SPEC
+- [ ] SEC-REVIEW: 数据分类、红字规则、零化清理、Secret 流、并发控制符合 SECURITY_SPEC
+- [ ] PERF-REVIEW: 有界 Page/Buffer、低 Cardinality Metric 符合 PERFORMANCE_SPEC
+- [ ] OBS-REVIEW: Trace/Audit/Event/Outbox/Meter 符合 OBSERVABILITY_SPEC
+- [ ] TEST-EVIDENCE: Unit Test 全量通过；Contract Test 通过
+- [ ] DEPENDENCY-DIRECTION: cargo tree 方向正确
+- [ ] EVIDENCE-SIGN-OFF: 对应 Verification Review 接受状态非 pending
+- [ ] HUMAN-DECISION: Decision Matrix 每条均 Approved 或 Changes + 替代方案
+
+## Exit Gate
+
+1. 全部 Checklist 勾选
+2. 所有 Reviewer Role 表决 Approved
+3. REQ 进入 `ready`，ADR 进入 `accepted`
+4. Gate 0 `implementationAuthorized` 最后一个 Review 通过后可置 true
+
+未经上述门禁，禁止进入 V1 实现阶段。

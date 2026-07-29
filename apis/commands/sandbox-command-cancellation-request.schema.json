@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sdkwork.dev/sandbox/commands/sandbox-command-cancellation-request.schema.v1.json",
+  "title": "SandboxCommandCancellationRequest",
+  "description": "Candidate tenant-scoped and fenced cancellation request for one Sandbox command operation. REQ-2026-0007 remains draft.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "traceId",
+    "tenantId",
+    "sandboxProviderId",
+    "sandboxWorkspaceId",
+    "sandboxSessionId",
+    "sandboxId",
+    "sandboxRuntimeBindingId",
+    "sandboxFencingToken",
+    "sandboxCommandOperationId",
+    "sandboxCancellationOperationId",
+    "sandboxCancellationRequestFingerprint"
+  ],
+  "properties": {
+    "traceId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "x-sdkwork-authority": "server-owned-command-trace"
+    },
+    "tenantId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "sandboxProviderId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "sandboxWorkspaceId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "sandboxSessionId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "sandboxId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "sandboxRuntimeBindingId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "sandboxFencingToken": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9223372036854775807
+    },
+    "sandboxCommandOperationId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "sandboxCancellationOperationId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "sandboxCancellationRequestFingerprint": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "readOnly": true,
+      "x-sdkwork-authority": "sandbox-service-derived",
+      "x-sdkwork-executor-verification": "required"
+    }
+  },
+  "x-sdkwork-status": "draft",
+  "x-sdkwork-requirement-id": "REQ-2026-0007",
+  "x-sdkwork-target-operation": "sandboxCommandOperationId",
+  "x-sdkwork-no-arbitrary-reason": true
+}

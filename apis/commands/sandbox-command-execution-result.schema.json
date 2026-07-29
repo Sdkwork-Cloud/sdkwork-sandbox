@@ -9,6 +9,8 @@
     "traceId",
     "sandboxProviderId",
     "sandboxCommandOperationId",
+    "sandboxRequestFingerprint",
+    "sandboxCommandResultReplayed",
     "sandboxOutcome",
     "sandboxExitStatus",
     "sandboxStdoutBase64",
@@ -17,6 +19,8 @@
     "sandboxStderrTruncated",
     "sandboxStartedAt",
     "sandboxFinishedAt",
+    "sandboxCleanupStatus",
+    "sandboxCleanupDurationMs",
     "sandboxResourceUsage"
   ],
   "properties": {
@@ -32,6 +36,13 @@
     "sandboxCommandOperationId": {
       "type": "string",
       "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "sandboxRequestFingerprint": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "sandboxCommandResultReplayed": {
+      "type": "boolean"
     },
     "sandboxOutcome": {
       "type": "string",
@@ -96,13 +107,22 @@
     "sandboxStderrTruncated": { "type": "boolean" },
     "sandboxStartedAt": { "type": "string", "format": "date-time" },
     "sandboxFinishedAt": { "type": "string", "format": "date-time" },
+    "sandboxCleanupStatus": {
+      "type": "string",
+      "enum": ["not-required", "completed", "failed"]
+    },
+    "sandboxCleanupDurationMs": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 60000
+    },
     "sandboxResourceUsage": {
       "type": "object",
       "additionalProperties": false,
       "required": [
         "sandboxDurationMs",
-        "sandboxStdoutBytes",
-        "sandboxStderrBytes",
+        "sandboxStdoutCapturedBytes",
+        "sandboxStderrCapturedBytes",
         "sandboxProcessCount"
       ],
       "properties": {
@@ -111,25 +131,125 @@
           "minimum": 0,
           "maximum": 86400000
         },
-        "sandboxStdoutBytes": {
+        "sandboxStdoutCapturedBytes": {
           "type": "integer",
           "minimum": 0,
           "maximum": 67108864
         },
-        "sandboxStderrBytes": {
+        "sandboxStderrCapturedBytes": {
           "type": "integer",
           "minimum": 0,
           "maximum": 67108864
         },
         "sandboxProcessCount": {
           "type": "integer",
-          "minimum": 0,
+          "minimum": 1,
           "maximum": 128
         }
       }
     }
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "sandboxOutcome": { "const": "succeeded" } },
+        "required": ["sandboxOutcome"]
+      },
+      "then": {
+        "properties": {
+          "sandboxExitStatus": {
+            "type": "object",
+            "required": ["sandboxExitKind", "sandboxExitCode"],
+            "properties": {
+              "sandboxExitKind": { "const": "exited" },
+              "sandboxExitCode": { "const": 0 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "sandboxOutcome": { "const": "failed" } },
+        "required": ["sandboxOutcome"]
+      },
+      "then": {
+        "properties": {
+          "sandboxExitStatus": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": ["sandboxExitKind", "sandboxExitCode"],
+                "properties": {
+                  "sandboxExitKind": { "const": "exited" },
+                  "sandboxExitCode": { "type": "integer", "minimum": 1, "maximum": 255 }
+                }
+              },
+              {
+                "type": "object",
+                "required": ["sandboxExitKind", "sandboxSignalName"],
+                "properties": { "sandboxExitKind": { "const": "signaled" } }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "sandboxOutcome": { "const": "output-limit" } },
+        "required": ["sandboxOutcome"]
+      },
+      "then": {
+        "anyOf": [
+          {
+            "properties": { "sandboxStdoutTruncated": { "const": true } },
+            "required": ["sandboxStdoutTruncated"]
+          },
+          {
+            "properties": { "sandboxStderrTruncated": { "const": true } },
+            "required": ["sandboxStderrTruncated"]
+          }
+        ]
+      }
+    },
+    {
+      "if": {
+        "anyOf": [
+          {
+            "properties": { "sandboxStdoutTruncated": { "const": true } },
+            "required": ["sandboxStdoutTruncated"]
+          },
+          {
+            "properties": { "sandboxStderrTruncated": { "const": true } },
+            "required": ["sandboxStderrTruncated"]
+          }
+        ]
+      },
+      "then": {
+        "properties": { "sandboxOutcome": { "const": "output-limit" } }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "sandboxOutcome": {
+            "enum": ["timed-out", "cancelled", "output-limit", "resource-exhausted", "fencing-lost"]
+          }
+        },
+        "required": ["sandboxOutcome"]
+      },
+      "then": {
+        "properties": {
+          "sandboxCleanupStatus": { "enum": ["completed", "failed"] }
+        }
+      }
+    }
+  ],
   "x-sdkwork-status": "draft",
   "x-sdkwork-requirement-id": "REQ-2026-0007",
-  "x-sdkwork-output-encoding": "base64-binary"
+  "x-sdkwork-output-encoding": "base64-binary",
+  "x-sdkwork-terminal-outcome-authority": true,
+  "x-sdkwork-terminal-arbitration": "executor-durable-first-terminal-cas",
+  "x-sdkwork-cleanup-failure-policy": "explicit-result-and-binding-quarantine"
 }

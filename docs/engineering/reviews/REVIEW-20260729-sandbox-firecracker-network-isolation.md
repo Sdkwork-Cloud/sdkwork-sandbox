@@ -24,7 +24,7 @@ Risk: critical - tenant network isolation, cloud metadata and host control-plane
 | --- | --- |
 | `specs/sandbox-firecracker-network-isolation.contract.json` | Draft Policy/Mechanism boundary; `implementationAuthorized` is `false` and runtime/netns/firewall/Tap are explicitly forbidden. |
 | `tests/contract/sandbox-firecracker-network-isolation.contract.test.mjs` | PASS (8/8); static candidate checks cover ownership, DenyAll, permanent denial, binding isolation, grants, atomic verification, cleanup, telemetry/audit and bounds; not runtime evidence. |
-| Complete repository contract suite | `node --test tests/contract/*.test.mjs` PASS (104/104), including Firecracker Resource Isolation/Usage, Multi-tenant Scheduling/Capacity, Node Trust/Verified Inventory, and PostgreSQL Quota/Capacity Persistence boundaries. |
+| Complete repository contract suite | `node --test tests/contract/*.test.mjs` PASS (107/107), including Command Execution/Cancel, Firecracker Resource Isolation/Usage, Multi-tenant Scheduling/Capacity, Node Trust/Verified Inventory, and PostgreSQL Quota/Capacity Persistence boundaries. |
 | Cargo workspace gates | `cargo fmt --all -- --check`, offline Check/Test and all-target Clippy with `-D warnings` PASS; 41 unit tests passed and the external PostgreSQL test remained explicitly ignored without `SDKWORK_SANDBOX_TEST_DATABASE_URL`. |
 | SDKWORK repository gates | Documentation, packages layout, strict component ports, application layering, Rust composition, identity naming, docs-debt, repository baseline and `git diff --check` PASS. |
 | `specs/sandbox-provider-delivery-gates.contract.json` | Firecracker Preflight consumes this contract and cannot report Network/MicroVm readiness while it remains draft or unverified. |
@@ -77,3 +77,27 @@ Allowed outcome: `Approved`, `Changes requested`, or `Rejected`. `Approved with 
 ## Implementation Gate
 
 REQ-2026-0014 remains `draft`, ADR remains `proposed`, and this Review remains `pending-human-review`. Until every required reviewer records `Approved` and blocking authorities are resolved, do not create a public Port/Crate, Provider/Broker Network Runtime, netns, Tap, firewall/rule, route, DNS proxy, runtime path, config, service unit or deployment profile.
+
+## Close-Out Checklist (Reviewer 执行项)
+
+Review Approved 前必须逐项核验：
+
+- [ ] REQ-STATUS: 对应 REQ 处于 `ready` 或 `accepted`
+- [ ] ADR-STATUS: 对应 ADR 处于 `accepted`
+- [ ] ARCH-REVIEW: 接口契约、命名、Port 边界、L0-L6 分层符合 COMPONENT_SPEC
+- [ ] SEC-REVIEW: 数据分类、红字规则、零化清理、Secret 流、并发控制符合 SECURITY_SPEC
+- [ ] PERF-REVIEW: 有界 Page/Buffer、低 Cardinality Metric 符合 PERFORMANCE_SPEC
+- [ ] OBS-REVIEW: Trace/Audit/Event/Outbox/Meter 符合 OBSERVABILITY_SPEC
+- [ ] TEST-EVIDENCE: Unit Test 全量通过；Contract Test 通过
+- [ ] DEPENDENCY-DIRECTION: cargo tree 方向正确
+- [ ] EVIDENCE-SIGN-OFF: 对应 Verification Review 接受状态非 pending
+- [ ] HUMAN-DECISION: Decision Matrix 每条均 Approved 或 Changes + 替代方案
+
+## Exit Gate
+
+1. 全部 Checklist 勾选
+2. 所有 Reviewer Role 表决 Approved
+3. REQ 进入 `ready`，ADR 进入 `accepted`
+4. Gate 0 `implementationAuthorized` 最后一个 Review 通过后可置 true
+
+未经上述门禁，禁止进入 V1 实现阶段。

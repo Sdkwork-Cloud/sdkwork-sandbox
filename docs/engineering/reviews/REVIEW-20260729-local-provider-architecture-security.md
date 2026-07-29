@@ -41,19 +41,41 @@ Local 只面向 Single-user Standalone Development，不承载不可信多租户
 
 1. Lifecycle Provider SPI 与 Agents Workspace Attachment ADR 仍为 `proposed`；Local 不能在其公共命名和 Ownership 未接受时进入真实 Host 实现。
 2. `SandboxCommandExecutor` 尚待 [Command Architecture/Security Review](REVIEW-20260729-sandbox-command-execution-architecture-security.md)。
-3. Windows Job Object、Linux cgroup v2 与 Filesystem OS Primitive 的具体 Rust Dependency、Version、License、Advisory 和最低 Rust Version 尚未形成供应链记录。
+3. 下述候选供应链记录已形成，但 `cap-std` 未声明 MSRV，Linux race-free cgroup attach 仍无获批实现边界，且 RustSec 在线数据库刷新失败；因此精确 Runtime Dependency Set 仍未获批。
 4. macOS 普通 Process Group/Session 不能阻止子进程自行创建新 Session；在等价机制获批前声明 Terminal 会违反 Descendant Cleanup Acceptance Criterion。
 5. Windows、Linux 与未来 macOS Real Host Runner Owner 尚未记录。没有真实平台证据时不得把 Mock/Fake Test 作为 Capability Evidence。
 
 推荐选择 LOCAL-03 的渐进式 Capability：先验证 Windows 与 Linux；macOS Descriptor 不声明 Terminal，而不是跳过失败测试后继续宣称跨平台支持。该选择会收窄 REQ-2026-0003 的首版目标，必须由 Product/Architecture Owner 明确接受并更新 Requirement。
 
+## Candidate Dependency And Supply-chain Assessment
+
+本节只记录 2026-07-29 的 Gate 0 候选评估，不向正式 Cargo Workspace 添加 Runtime Dependency，也不授权 Host IO 或 Process Spawn。
+
+| Dependency | Candidate use | Version / feature boundary | License / MSRV | Gate 0 conclusion |
+| --- | --- | --- | --- | --- |
+| `process-wrap` | Windows suspended spawn + Job Object；Unix Process Group；Tokio Child supervision | `9.1.0`，`default-features = false`，仅候选 `tokio1`、`creation-flags`、`job-object`、`kill-on-drop`、`process-group` | `Apache-2.0 OR MIT`；Rust `1.87.0` | **Conditional candidate**。Windows 实现先设置 `CREATE_SUSPENDED`，绑定 Kill-on-close Job/Completion Port 后再 Resume，方向符合无抢跑要求；Unix Process Group 不能替代 Linux cgroup 或 macOS 等价 Supervisor。 |
+| `cap-std` | 从已授权 Workspace Attachment Handle 派生 Capability-relative File Operations | `4.0.2`，`default-features = false` | `Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT`；crate 未声明 MSRV | **Conditional candidate**。Provider 内禁止 `open_ambient_*`、`create_ambient_*` 和 Parent Ambient Authority；仍需 Windows Reparse/ADS/File Identity 与 Unix Symlink/Mount/Rename Race 实机证据。MSRV 未关闭前不得批准。 |
+| `tokio` | 已有 Workspace Async Runtime，候选增加受限 `process` feature | `1.48.0`，不另建版本权威 | `MIT`；Rust `1.71` | **Existing dependency candidate**。只能在 Command Port 获批后由根 `Cargo.toml` 统一增加 Feature；不能单独提供 Descendant Containment。 |
+| `cgroups-rs` | 曾评估 Linux cgroup v2/systemd 管理 | `0.5.1`，`default-features = false` | `MIT OR Apache-2.0`；crate 未声明 MSRV | **Not selected**。API/依赖覆盖通用 cgroup/systemd 权限面并含内部 `unsafe`；spawn 后再 attach 不能证明无逃逸窗口。只有独立安全评审证明 race-free pre-exec/launcher/broker 绑定、最小权限和清理语义后才可重新考虑。 |
+
+候选锁文件精确包含上述版本，并在 Windows x86_64、`rustc 1.92.0` 下完成 `cargo check`。`cargo audit --no-fetch` 使用本机 2026-07-21 更新的 1166 条 RustSec Advisory 缓存扫描 146 个跨目标依赖且未报告 Vulnerability；在线刷新因 GitHub IO 失败，因此这只是候选快照，Ready/Release Gate 必须使用当日在线 Advisory DB 重新审计。Cargo Metadata License 扫描显示第三方包均声明 License；当前环境未安装 `cargo-deny`，正式采用前仍需 License Allowlist、Duplicate/Source/Ban 与 Feature Review。Linux Target 未安装，本轮没有 Linux Compile 或 Runtime Evidence。
+
+## Platform Conformance Test Design
+
+| Platform | Fail-closed preflight and spawn boundary | Required negative/fault evidence | Terminal claim |
+| --- | --- | --- | --- |
+| Windows | 验证 Job Object/Nested Job/Breakaway Policy；以 suspended state 创建进程，配置 Kill-on-close + Completion Port，绑定成功后才 Resume；任何配置、绑定、恢复或观察失败均终止并 Quarantine Binding。 | Parent/Child/Grandchild、Detached/Breakaway Attempt、Timeout、Cancel、Output Limit、Provider Crash、Handle Close、重复 Stop/Destroy；最终 Active Process 为零且无临时 Allocation/Handle Residue。 | 仅在真实 Windows Runner 全矩阵通过后声明。 |
+| Linux | 要求 unified cgroup v2、受控 delegated subtree、`cgroup.kill`/`cgroup.events`/PID Controller；每个 `sandbox_runtime_binding_id` 使用独立 Scope。必须由获批 Launcher/Broker 在用户代码执行前完成 race-free cgroup membership；spawn 后写 `cgroup.procs` 和 Process Group 均不能单独作为保证。 | Double-fork、`setsid`、Process Group Escape、Fork Storm、Timeout、Cancel、Output Limit、Lease/Fencing Lost、Provider Crash、重复 Cleanup；`populated=0`、PID/temporary scope/residue 为零。 | Race-free attach 与真实 Linux Runner 未通过前不声明。 |
+| macOS | Process Group/Session 只能作为进程控制辅助，不能证明阻止 detached descendant。 | Descriptor Capability Denial、请求 Terminal Fail-closed、无静默回退；未来机制必须补 Detached Child、Timeout/Cancel/Crash/Residue 全矩阵。 | 当前明确不声明。 |
+| All filesystem-capable platforms | Workspace Attachment 只注入已打开 Capability Handle；Provider 不从 ID 推导 Path、不接收 Host Root，命令生命周期内不重新获取 Ambient Authority。 | Windows Reparse/Device/ADS/Hardlink/File Identity Swap；Unix Symlink/Mount/Rename Race/`..`；Open-before-check/Check-before-open TOCTOU；失败均不越过 Workspace Root。 | 只有对应平台实机矩阵通过才声明 Filesystem。 |
+
 ## Required Evidence Before Ready
 
-- Gate 0 Fake Host Boundary 已有 5 个纯数据负向测试，覆盖 Logical Relative Path、Windows 设备路径、Executable/Environment Allowlist、Typed Argv 与请求边界；这些测试不访问 Host、不启动进程，不替代以下真实平台证据。
+- Gate 0 Fake Host Boundary 已有 5 个纯数据边界/负向测试，覆盖 Logical Relative Path、Windows 设备路径、Executable/Environment Allowlist、Typed Argv 与请求边界；Executable 语法先于 Allowlist，七项输入上限直接与共享 Command Contract 交叉校验。这些测试不访问 Host、不启动进程，不替代以下真实平台证据。
 - 接受 Lifecycle、Workspace Attachment、Command Execution 与本 ADR 的人工记录。
-- Dependency/Supply-chain Record：Capability Filesystem、Windows API、Unix/Linux Process/Cgroup 使用的精确 Crate/Version/License/Advisory/MSRV。
-- Windows Job Object 与 Linux cgroup v2 Preflight、Kill-on-close/Delegation、Timeout、Cancel、Detached Child、Output Limit 与 Residue Test Design。
-- Windows Reparse/Device/ADS 与 Unix Symlink/Mount/Rename Race Negative Test Design。
+- 人工接受最终 Dependency Set；关闭 `cap-std` MSRV、Linux race-free cgroup attach、Fresh RustSec、License Allowlist、Feature/Source/Ban 与 Linux Compile Gate。
+- 在真实 Runner 实施并通过上述 Windows Job Object、Linux cgroup v2 与 macOS Capability Denial Conformance；静态设计不能替代结果。
+- 在真实 Runner 实施并通过上述 Windows Reparse/Device/ADS/File Identity 与 Unix Symlink/Mount/Rename Race Negative Test。
 - Provider Descriptor/CLI Known Limitation Copy，明确 `HostUser` 不是多租户隔离。
 
 ## Human Outcome
@@ -70,3 +92,27 @@ Allowed outcome: `Approved`, `Changes requested`, or `Rejected`。当前五项 P
 ## Implementation Gate
 
 当前推荐人工 Outcome 为 `Changes requested`，直到 Reviewer 明确接受平台切片并关闭 Dependency/Runner Blocker。REQ-2026-0003 保持 `draft`、ADR 保持 `proposed`；禁止真实 Host Command、Filesystem Mutation、Secret Injection 或发布 Composition。
+
+## Close-Out Checklist (Reviewer 执行项)
+
+Review Approved 前必须逐项核验：
+
+- [ ] REQ-STATUS: 对应 REQ 处于 `ready` 或 `accepted`
+- [ ] ADR-STATUS: 对应 ADR 处于 `accepted`
+- [ ] ARCH-REVIEW: 接口契约、命名、Port 边界、L0-L6 分层符合 COMPONENT_SPEC
+- [ ] SEC-REVIEW: 数据分类、红字规则、零化清理、Secret 流、并发控制符合 SECURITY_SPEC
+- [ ] PERF-REVIEW: 有界 Page/Buffer、低 Cardinality Metric 符合 PERFORMANCE_SPEC
+- [ ] OBS-REVIEW: Trace/Audit/Event/Outbox/Meter 符合 OBSERVABILITY_SPEC
+- [ ] TEST-EVIDENCE: Unit Test 全量通过；Contract Test 通过
+- [ ] DEPENDENCY-DIRECTION: cargo tree 方向正确
+- [ ] EVIDENCE-SIGN-OFF: 对应 Verification Review 接受状态非 pending
+- [ ] HUMAN-DECISION: Decision Matrix 每条均 Approved 或 Changes + 替代方案
+
+## Exit Gate
+
+1. 全部 Checklist 勾选
+2. 所有 Reviewer Role 表决 Approved
+3. REQ 进入 `ready`，ADR 进入 `accepted`
+4. Gate 0 `implementationAuthorized` 最后一个 Review 通过后可置 true
+
+未经上述门禁，禁止进入 V1 实现阶段。

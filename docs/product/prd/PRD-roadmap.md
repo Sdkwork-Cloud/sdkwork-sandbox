@@ -20,7 +20,7 @@ Parent: [SDKWork Sandbox PRD](PRD.md)
 
 交付顺序固定为 Local Provider -> 共享 Command/Terminal Conformance -> Firecracker Provider。Docker Provider 本阶段不实施、不作为测试替代、不作为 Capability 或 Assurance 回退。
 
-`REQ-2026-0007` 当前已有 `apis/commands/` draft request/result/error schemas、error catalog 和静态 Contract Test；这些文件只固定 provider-neutral 命名、边界和 conformance 场景，不授权 Rust Port、Host Process 或 Provider 实现。
+`REQ-2026-0007` 当前已有 `apis/commands/` draft Execution/Cancel Request、Result/Error Schema、Canonical Fingerprint/Idempotency/Terminal Completion Catalog 和静态 Contract Test；它们固定 `.` Workspace Root、可移植 Path/Windows Device 与 Console Alias/UTF-8 Byte Bound、Fenced Cancel、Command Result Replay、Result-unavailable 同 Operation 重试、durable first-terminal CAS、Outcome/Exit/Truncation、Cleanup Status/Binding Quarantine 与“已启动后终态 Result、启动前/结果不可得 Error”的共享语义，只用于人审输入，不授权 Rust Port、Host Process 或 Provider 实现。
 
 候选需求切片：
 

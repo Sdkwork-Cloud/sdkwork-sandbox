@@ -29,11 +29,11 @@
         "unsupported-capability",
         "policy-denied",
         "stale-fencing",
-        "timeout",
-        "cancelled",
-        "output-limit",
-        "resource-exhausted",
+        "idempotency-conflict",
+        "operation-in-progress",
+        "command-not-found",
         "provider-unavailable",
+        "result-unavailable",
         "internal-failure"
       ]
     },
@@ -50,7 +50,46 @@
       "maximum": 60000
     }
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "sandboxErrorCode": {
+            "enum": ["stale-fencing", "operation-in-progress", "provider-unavailable", "result-unavailable"]
+          }
+        },
+        "required": ["sandboxErrorCode"]
+      },
+      "then": {
+        "properties": { "sandboxRetryable": { "const": true } }
+      },
+      "else": {
+        "properties": { "sandboxRetryable": { "const": false } }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "sandboxErrorCode": {
+            "enum": ["operation-in-progress", "provider-unavailable", "result-unavailable"]
+          }
+        },
+        "required": ["sandboxErrorCode"]
+      },
+      "else": {
+        "not": { "required": ["sandboxRetryAfterMs"] }
+      }
+    }
+  ],
   "x-sdkwork-status": "draft",
   "x-sdkwork-requirement-id": "REQ-2026-0007",
-  "x-sdkwork-detail-policy": "safe-message-only"
+  "x-sdkwork-detail-policy": "safe-message-only",
+  "x-sdkwork-pre-start-or-result-unavailable-only": true,
+  "x-sdkwork-retry-policy": "code-bound-prerequisites",
+  "x-sdkwork-retry-prerequisites": {
+    "stale-fencing": "new-fencing-authority",
+    "operation-in-progress": "same-operation-and-fingerprint",
+    "provider-unavailable": "same-operation-and-fingerprint",
+    "result-unavailable": "same-operation-and-fingerprint"
+  }
 }

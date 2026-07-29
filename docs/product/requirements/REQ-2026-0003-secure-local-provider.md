@@ -66,7 +66,9 @@ Decision: [ADR-20260728: Local Provider Assurance And Host Boundaries](../../arc
 
 ## Gate 0 Progress
 
-2026-07-29 已在 `sdkwork-sandbox-provider-local` 增加仅 `#[cfg(test)]` 编译的 Fake Host Boundary，5 个测试覆盖 Logical Relative Path 逃逸/Windows 设备路径、Typed Argv 无 Shell 解析、Executable/Environment Allowlist、参数与环境边界。仓库级 `specs/sandbox-provider-delivery-gates.contract.json` 同时固定 Local Kind `local`、Assurance `HostUser`、standalone 范围、平台监督证据、默认拒绝 Network/Browser/Port Forward 和禁止 Assurance 提升，并保持 `implementationAuthorized: false`。该 Harness 与机器契约均不访问 Host Filesystem、不启动进程、不导出 Provider Port，也不构成真实平台能力证据；本需求仍保持 `draft`，等待人工架构/安全评审和真实平台 Runner 证据。
+2026-07-29 已在 `sdkwork-sandbox-provider-local` 增加仅 `#[cfg(test)]` 编译的 Fake Host Boundary，5 个测试覆盖 Logical Relative Path 逃逸/Windows 设备路径、Typed Argv 无 Shell 解析、Executable/Environment Allowlist、参数与环境边界。Executable 语法校验先于 Allowlist，显式 Allowlist 不能放行 Command String 或 Path；Executable、Argument、Working Directory 与 Environment 的七项上限由 Rust Test 直接读取 `apis/commands/sandbox-command-contract.json` 交叉校验，防止 Provider Harness 与共享契约漂移。仓库级 `specs/sandbox-provider-delivery-gates.contract.json` 同时固定 Local Kind `local`、Assurance `HostUser`、standalone 范围、平台监督证据、默认拒绝 Network/Browser/Port Forward 和禁止 Assurance 提升，并保持 `implementationAuthorized: false`。该 Harness 与机器契约均不访问 Host Filesystem、不启动进程、不导出 Provider Port，也不构成真实平台能力证据；本需求仍保持 `draft`，等待人工架构/安全评审和真实平台 Runner 证据。
+
+同日 Gate 0 供应链评估将 `process-wrap 9.1.0` 作为 Windows suspended Job Object/POSIX Process Group 条件候选、`cap-std 4.0.2` 作为 Capability Directory 条件候选，并拒绝直接采用 `cgroups-rs 0.5.1` 作为现成安全保证。候选依赖图在 Windows/Rust 1.92 完成锁定、编译、License Metadata 和离线 RustSec 扫描，但 `cap-std` MSRV、Fresh Online Advisory、Linux Compile、race-free cgroup attach、真实 Runner 与人工 Dependency/Security Review 均未关闭；具体证据与平台测试矩阵见 [Local Provider Architecture And Security Review](../../engineering/reviews/REVIEW-20260729-local-provider-architecture-security.md)。
 
 ## Verification Plan
 

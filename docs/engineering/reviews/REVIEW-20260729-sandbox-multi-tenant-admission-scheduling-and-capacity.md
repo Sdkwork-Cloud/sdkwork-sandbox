@@ -26,7 +26,7 @@ Risk: critical - tenant admission, entitlement input, quota race, node trust, pl
 | `specs/sandbox-node-trust-and-inventory.contract.json` | REQ-2026-0017 draft Gate binds Machine Identity, Attestation and Inventory revisions into the only verified projection this Scheduler contract may consume; all Node Trust runtime remains unauthorized. |
 | `specs/sandbox-quota-and-capacity-persistence.contract.json` | REQ-2026-0018 draft Gate defines four PostgreSQL State/Reservation aggregates, SQL subject migration, global lock/CAS/fencing, fail-closed expiry, RLS/roles and recovery objectives; no table or repository is authorized. |
 | `node --test tests/contract/sandbox-multi-tenant-scheduling.contract.test.mjs` | PASS (10/10); static checks cover authority, atomic admission, hard filters, node eligibility, durable capacity reservation, resource binding, fencing/recovery, errors/bounds, event/metric and privacy. |
-| `node --test tests/contract/*.test.mjs` | PASS (104/104); complete repository contract suite includes Provider, Broker, Workspace, Network, Resource/Usage, Observability, Multi-tenant Scheduling/Capacity, Node Trust/Verified Inventory, and PostgreSQL Quota/Capacity Persistence boundaries. |
+| `node --test tests/contract/*.test.mjs` | PASS (107/107); complete repository contract suite includes Provider, Command Execution/Cancel, Broker, Workspace, Network, Resource/Usage, Observability, Multi-tenant Scheduling/Capacity, Node Trust/Verified Inventory, and PostgreSQL Quota/Capacity Persistence boundaries. |
 | `specs/sandbox-firecracker-resource-isolation.contract.json` | Resource Limit Grant consumes Admission Grant and Capacity Reservation identity/fingerprint and cannot exceed the reservation. |
 | `specs/sandbox-provider-delivery-gates.contract.json` | Firecracker cloud delivery consumes the draft scheduling/capacity boundary before Provider selection/allocation. |
 | `cargo fmt --all -- --check` / `cargo check --workspace --offline` / `cargo clippy --workspace --all-targets --offline -- -D warnings` | PASS; formatting, compilation and all-target linting are clean. |
@@ -85,3 +85,27 @@ Allowed outcome: `Approved`, `Changes requested`, or `Rejected`. `Approved with 
 ## Implementation Gate
 
 REQ-2026-0016 remains `draft`, ADR remains `proposed`, and this Review remains `pending-human-review`. Until every required reviewer records `Approved` and blocking authorities are resolved, do not create public Ports/Crates, Scheduler/Admission Runtime, PostgreSQL Tables/Migrations, Node Agent/Enrollment, Pool, Provider Placement, API/SDK, Config, Service Unit, Deployment Profile or Commerce Adapter.
+
+## Close-Out Checklist (Reviewer 执行项)
+
+Review Approved 前必须逐项核验：
+
+- [ ] REQ-STATUS: 对应 REQ 处于 `ready` 或 `accepted`
+- [ ] ADR-STATUS: 对应 ADR 处于 `accepted`
+- [ ] ARCH-REVIEW: 接口契约、命名、Port 边界、L0-L6 分层符合 COMPONENT_SPEC
+- [ ] SEC-REVIEW: 数据分类、红字规则、零化清理、Secret 流、并发控制符合 SECURITY_SPEC
+- [ ] PERF-REVIEW: 有界 Page/Buffer、低 Cardinality Metric 符合 PERFORMANCE_SPEC
+- [ ] OBS-REVIEW: Trace/Audit/Event/Outbox/Meter 符合 OBSERVABILITY_SPEC
+- [ ] TEST-EVIDENCE: Unit Test 全量通过；Contract Test 通过
+- [ ] DEPENDENCY-DIRECTION: cargo tree 方向正确
+- [ ] EVIDENCE-SIGN-OFF: 对应 Verification Review 接受状态非 pending
+- [ ] HUMAN-DECISION: Decision Matrix 每条均 Approved 或 Changes + 替代方案
+
+## Exit Gate
+
+1. 全部 Checklist 勾选
+2. 所有 Reviewer Role 表决 Approved
+3. REQ 进入 `ready`，ADR 进入 `accepted`
+4. Gate 0 `implementationAuthorized` 最后一个 Review 通过后可置 true
+
+未经上述门禁，禁止进入 V1 实现阶段。

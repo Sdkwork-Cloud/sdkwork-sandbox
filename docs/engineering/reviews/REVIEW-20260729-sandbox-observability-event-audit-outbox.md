@@ -25,7 +25,7 @@ Date: 2026-07-29
 | `apis/async/sandbox-audit-record.schema.json` | Candidate `SandboxAuditRecord` captures actor/action/resource/tenant/result/time/trace with bounded, hashed actor and resource references. |
 | `apis/async/sandbox-observability-catalog.json` | Candidate catalog fixes structured logs, 28 canonical metrics including low-cardinality resource enforcement/saturation, Admission/Placement/Capacity and Node Enrollment/Rotation/Attestation/Inventory/Scheduling-state operations, histogram buckets, safe labels, Trace propagation, audit durability, backpressure and billing/audit/dashboard fact separation. |
 | `node --test tests/contract/sandbox-observability-contract.contract.test.mjs` | PASS (10/10); this validates the draft contract only and does not replace human ownership review. |
-| `node --test tests/contract/*.test.mjs` | PASS (104/104), including the integrated Multi-tenant Admission/Scheduling/Capacity, Node Trust/Verified Inventory, and PostgreSQL Quota/Capacity Persistence boundaries. |
+| `node --test tests/contract/*.test.mjs` | PASS (107/107), including Command Execution/Cancel and the integrated Multi-tenant Admission/Scheduling/Capacity, Node Trust/Verified Inventory, and PostgreSQL Quota/Capacity Persistence boundaries. |
 | SDKWork component/layering/naming/docs/baseline validators | PASS on 2026-07-29; no runtime component or public port is added by this candidate. |
 
 ## Review Questions
@@ -41,7 +41,7 @@ Date: 2026-07-29
 
 - Candidate contract intentionally contains no Runtime implementation, provider-specific adapter, secret source, queue dependency or deployment claim.
 - Exact event names, payload fields, Outbox records and Audit records are machine-checked for `sandbox.*`/`sandbox_*` ownership, bounds, idempotency and forbidden sensitive field names.
-- Metric names, types, units, histogram buckets and labels are machine-checked; Log, Metric and Dashboard semantics are explicitly separated from Billing and Audit facts.
+- Metric names, types, units, duration/byte histogram buckets and labels are machine-checked；Command Execution/Output/Cleanup 只使用有界 Provider/Outcome/Exit Class/Stream/Cleanup Status，且 Cleanup Status 与 Command Result Schema 交叉校验；Log、Metric 与 Dashboard 语义明确与 Billing/Audit Fact 分离。
 - Human ownership, retention, transaction, replay and release decisions remain open; status must remain `pending-human-review`.
 
 ## Verification Commands
@@ -59,3 +59,27 @@ node ../sdkwork-specs/tools/audit-repository-baseline.mjs --root .
 ## Conclusion
 
 `conditional-pass` 仅表示候选契约结构可审查且静态 Contract Test 已通过；REQ 保持 `draft`、ADR 保持 `proposed`，在 Owner、Security/Privacy、Database、Operations、Retention 与商业 Release 评审通过前禁止实现 Event Outbox、Exporter、Worker 或任何对外事件消费接口。
+
+## Close-Out Checklist (Reviewer 执行项)
+
+Review Approved 前必须逐项核验：
+
+- [ ] REQ-STATUS: 对应 REQ 处于 `ready` 或 `accepted`
+- [ ] ADR-STATUS: 对应 ADR 处于 `accepted`
+- [ ] ARCH-REVIEW: 接口契约、命名、Port 边界、L0-L6 分层符合 COMPONENT_SPEC
+- [ ] SEC-REVIEW: 数据分类、红字规则、零化清理、Secret 流、并发控制符合 SECURITY_SPEC
+- [ ] PERF-REVIEW: 有界 Page/Buffer、低 Cardinality Metric 符合 PERFORMANCE_SPEC
+- [ ] OBS-REVIEW: Trace/Audit/Event/Outbox/Meter 符合 OBSERVABILITY_SPEC
+- [ ] TEST-EVIDENCE: Unit Test 全量通过；Contract Test 通过
+- [ ] DEPENDENCY-DIRECTION: cargo tree 方向正确
+- [ ] EVIDENCE-SIGN-OFF: 对应 Verification Review 接受状态非 pending
+- [ ] HUMAN-DECISION: Decision Matrix 每条均 Approved 或 Changes + 替代方案
+
+## Exit Gate
+
+1. 全部 Checklist 勾选
+2. 所有 Reviewer Role 表决 Approved
+3. REQ 进入 `ready`，ADR 进入 `accepted`
+4. Gate 0 `implementationAuthorized` 最后一个 Review 通过后可置 true
+
+未经上述门禁，禁止进入 V1 实现阶段。

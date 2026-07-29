@@ -280,6 +280,91 @@ entries:
     layer: work
     audience: [architecture, engineering, security, privacy, performance, quota, commerce, database, operations, review]
     status: pending-human-review
+  - id: VIEW-GATE-ZERO-STATE
+    path: docs/architecture/views/gate-zero-current-state.md
+    layer: canon
+    audience: [architecture, engineering, security, review]
+    status: active
+  - id: VIEW-TRACEABILITY-MAP
+    path: docs/architecture/views/traceability-map.md
+    layer: canon
+    audience: [architecture, engineering, product, review]
+    status: active
+  - id: VIEW-COMPONENT-FLOWS
+    path: docs/architecture/views/component-interaction-flows.md
+    layer: canon
+    audience: [architecture, engineering, security, review]
+    status: active
+  - id: GATE-ZERO-EXIT-PACKAGE
+    path: docs/engineering/gate-zero-exit-readiness-package.md
+    layer: work
+    audience: [architecture, engineering, security, product, review]
+    status: active
+  - id: CHANGELOG-2026-07-29
+    path: docs/changelogs/CHANGELOG-2026-07-29.md
+    layer: evidence
+    audience: [engineering, operations, review]
+    status: active
+  - id: VIEW-DEPLOYMENT
+    path: docs/architecture/views/deployment-view.md
+    layer: canon
+    audience: [architecture, engineering, operations, security]
+    status: active
+  - id: RUNBOOK-FAILURE-RECOVERY
+    path: docs/runbooks/RUNBOOK-sandbox-provider-failure-recovery.md
+    layer: evidence
+    audience: [engineering, operations, review]
+    status: candidate
+  - id: RUNBOOK-CLI-DESTRUCTIVE
+    path: docs/runbooks/RUNBOOK-sandbox-cli-destructive-operation.md
+    layer: evidence
+    audience: [engineering, operations, security]
+    status: candidate
+  - id: RUNBOOK-ALLOCATION-KEY-ROTATION
+    path: docs/runbooks/RUNBOOK-sandbox-provider-allocation-key-rotation.md
+    layer: evidence
+    audience: [engineering, operations, security]
+    status: candidate
+  - id: GUIDE-DEVELOPER
+    path: docs/guides/developer/README.md
+    layer: canon
+    audience: [engineering]
+    status: active
+  - id: GUIDE-DEVELOPER-QUICKSTART
+    path: docs/guides/developer/quick-start.md
+    layer: canon
+    audience: [engineering]
+    status: active
+  - id: GUIDE-INTEGRATOR
+    path: docs/guides/integrator/README.md
+    layer: canon
+    audience: [engineering, architecture]
+    status: active
+  - id: GUIDE-OPERATOR
+    path: docs/guides/operator/README.md
+    layer: canon
+    audience: [engineering, operations, security]
+    status: active
+  - id: RELEASE-0.1.0
+    path: docs/releases/RELEASE-v0.1.0.md
+    layer: evidence
+    audience: [engineering, product, review]
+    status: draft
+  - id: MIG-2026-0001
+    path: docs/migrations/MIG-2026-0001-tenant-id-normalization.md
+    layer: evidence
+    audience: [engineering, database, operations]
+    status: candidate
+  - id: MIG-2026-0002
+    path: docs/migrations/MIG-2026-0002-sandbox-provider-registry.md
+    layer: evidence
+    audience: [engineering, database, operations]
+    status: candidate
+  - id: MIG-2026-0003
+    path: docs/migrations/MIG-2026-0003-postgresql-quota-capacity-tables.md
+    layer: evidence
+    audience: [engineering, database, operations, security]
+    status: candidate
 domains:
   - name: intelligence
     path: docs/product/prd/

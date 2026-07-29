@@ -52,9 +52,9 @@ Gate 0 未完成时只允许 Contract、Test Harness、Fake Host Boundary 与文
 
 ## Workstream 1: Provider-neutral Command Execution
 
-1. 在公共命名和安全评审通过后，为 `sdkwork-sandbox-provider-spi` 添加同一 `SandboxCommandExecutor` 及请求、Limit、Result、Error 类型，保持 Lifecycle 与 Command 职责分离。
-2. 在 Service/Registry Composition 验证 Terminal Descriptor 与 Executor Port 的 `sandbox_provider_id` 一致，缺失或冲突时关闭失败。
-3. 建立 Common Conformance，覆盖 Typed Argv、No-shell、Logical Relative Working Directory、Environment Deny、Timeout、Cancel、Output Bound、Stale Fencing、Idempotency、Cleanup 与 Redaction。
+1. 在公共命名和安全评审通过后，为 `sdkwork-sandbox-provider-spi` 添加同一 `SandboxCommandExecutor` 及 Execution Request、Cancellation Request、Limit、Result、Error 类型，保持 Lifecycle 与 Command 职责分离。
+2. 在 Service/Registry Composition 验证 Terminal Descriptor 与 Executor Port 的 `sandbox_provider_id` 一致，缺失或冲突时关闭失败。Service 派生版本化 Canonical Fingerprint，Executor 独立重算；同一 Operation 的不确定完成只查询/重放原结果。Executor 使用 durable first-terminal CAS 仲裁 Exit/Timeout/Cancel/Output/Resource/Fencing 竞争，Terminal Result 在 Cleanup 完成或显式失败后持久化。
+3. 建立 Common Conformance，覆盖 Typed Argv、No-shell、`.` Workspace Root、Logical Relative Working Directory/Windows Device/Console Alias、Environment UTF-8 Byte Bound、Timeout、Fenced Idempotent Cancel、Output Bound、Outcome/Exit/Truncation、Terminal Race 单赢家、Result-unavailable 同 Operation 重试、Terminal Result/Error Partition、Stale Fencing、Idempotency、Cleanup Failure/Binding Quarantine 与 Redaction。
 4. 更新 Component Specs/README 和 Kernel Adapter，使 Kernel 只消费 Provider-neutral Sandbox Port，不增加 Local/Firecracker 分支。
 
 Expected evidence: focused SPI/Service tests, component-port and layering checks, public naming review, full Cargo/Clippy, Kernel/Agents dependency-chain check.

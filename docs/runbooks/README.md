@@ -4,4 +4,6 @@ Operational response and controlled maintenance procedures governed by `DOCUMENT
 
 ## Active Records
 
-- [Sandbox Provider Allocation Key Rotation And Old-key Revocation](RUNBOOK-sandbox-provider-allocation-key-rotation.md) - candidate; production execution remains blocked.
+- [Sandbox Provider Allocation Key Rotation And Old-key Revocation](RUNBOOK-sandbox-provider-allocation-key-rotation.md) - candidate; production execution remains blocked
+- [Sandbox Provider Failure Recovery](RUNBOOK-sandbox-provider-failure-recovery.md) - candidate; production execution remains blocked
+- [CLI Destructive Operation Confirmation](RUNBOOK-sandbox-cli-destructive-operation.md) - candidate; production execution remains blocked

@@ -13,6 +13,10 @@ const catalog = loadJson('sandbox-event-catalog.json');
 const outbox = loadJson('sandbox-outbox.contract.json');
 const auditRecord = loadJson('sandbox-audit-record.schema.json');
 const observability = loadJson('sandbox-observability-catalog.json');
+const commandResult = JSON.parse(fs.readFileSync(
+  path.join(root, 'apis', 'commands', 'sandbox-command-execution-result.schema.json'),
+  'utf8'
+));
 
 const forbiddenNames = [
   'secret',
@@ -220,11 +224,42 @@ test('Sandbox metric catalog uses canonical names, units, types, and bounded lab
     );
     if (metric.type === 'counter') assert.match(metric.name, /_total$/u);
     if (metric.type === 'histogram') {
-      assert.match(metric.name, /_duration_seconds$/u);
-      assert.equal(metric.unit, 'seconds');
+      if (metric.unit === 'seconds') {
+        assert.match(metric.name, /_duration_seconds$/u);
+      } else {
+        assert.equal(metric.unit, 'bytes');
+        assert.match(metric.name, /_bytes$/u);
+      }
     }
   }
   assert.ok(observability.metrics.histogramBucketsSeconds.length > 0);
+  assert.deepEqual(observability.metrics.boundedLabelValues.sandbox_exit_class, [
+    'zero',
+    'nonzero',
+    'signaled',
+    'none'
+  ]);
+  assert.deepEqual(observability.metrics.boundedLabelValues.sandbox_stream, ['stdout', 'stderr']);
+  assert.deepEqual(observability.metrics.boundedLabelValues.sandbox_cleanup_status, [
+    'not-required',
+    'completed',
+    'failed'
+  ]);
+  assert.deepEqual(
+    observability.metrics.boundedLabelValues.sandbox_cleanup_status,
+    commandResult.properties.sandboxCleanupStatus.enum
+  );
+  assert.equal(observability.metrics.histogramBucketsBytes.at(-1), 67108864);
+  assert.ok(metricNames.has('sdkwork_sandbox_command_executions_total'));
+  assert.ok(metricNames.has('sdkwork_sandbox_command_execution_duration_seconds'));
+  assert.ok(metricNames.has('sdkwork_sandbox_command_output_bytes'));
+  assert.ok(metricNames.has('sdkwork_sandbox_command_cleanup_duration_seconds'));
+  assert.deepEqual(
+    observability.metrics.catalog.find(
+      (metric) => metric.name === 'sdkwork_sandbox_command_cleanup_duration_seconds'
+    ).additionalLabels,
+    ['sandbox_provider_kind', 'sandbox_outcome', 'sandbox_cleanup_status']
+  );
   assert.ok(metricNames.has('sdkwork_sandbox_resource_limit_operations_total'));
   assert.ok(metricNames.has('sdkwork_sandbox_resource_limit_operation_duration_seconds'));
   assert.ok(metricNames.has('sdkwork_sandbox_resource_limit_breaches_total'));

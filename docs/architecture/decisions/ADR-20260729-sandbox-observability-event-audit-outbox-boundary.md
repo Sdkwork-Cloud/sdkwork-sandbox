@@ -25,6 +25,7 @@ Sandbox 已有 `SandboxSession` Lifecycle、Provider Readiness、Lease/Fencing�
 7. REQ-2026-0015 的 Resource Limit Applied/Exceeded 与 Usage Recorded 进入同一 Event Catalog；Resource Metric 只使用 Provider Kind/Resource Kind/Operation/Outcome 等低基数维度。`SandboxResourceUsageFact` 是独立 immutable durable fact，Metric 不得升级为 Billing Truth。
 8. REQ-2026-0016 的 Admission Denied、Placement Selected/Failed 与 Capacity Reserved/Released 进入同一 Event Catalog；Admission/Placement/Queue/Reservation/Saturation Metric 只使用低基数维度。Event/Metric 不得成为 Quota、Capacity、Placement 或 Billing Authority，也不得暴露 Raw Tenant、Node、Topology、Entitlement 或 Capacity。
 9. REQ-2026-0017 的 Node Enrollment、Identity Rotation、Trust Change、Inventory Update、Drain 与 Quarantine 进入同一 Event Catalog；Node Enrollment/Rotation/Attestation/Inventory/Scheduling State Metric 只使用低基数 Trust Profile、State 与 Outcome。Event/Metric 不得成为 Machine Identity、Attestation 或 Inventory Authority，也不得暴露 Node Reference、Certificate、Serial、Key Thumbprint、Raw Evidence、Measurement、Host Address、Topology、Raw Locality/Residency/Fault Domain 或 Capacity。
+10. REQ-2026-0007 的 Command Accepted/Completed/Failed 使用同一 Event Catalog；Execution Count/Duration、Captured Output Bytes 与 Descendant Cleanup Duration 使用固定低基数 Provider Kind、Outcome、Exit Class、Stream 与 Cleanup Status。Raw Command、Argv、Path、Output、Operation/Trace/Raw Tenant ID 不得成为 Label，Metric 也不得成为 Command Result、Audit 或 Billing Authority。
 10. Telemetry Exporter 不可用时，安全 Audit 与必要的业务事实仍必须保留；非关键 telemetry 可按显式 retention/backpressure policy 降级，但不能改变 Sandbox Lifecycle 或安全决策。
 
 ## Alternatives

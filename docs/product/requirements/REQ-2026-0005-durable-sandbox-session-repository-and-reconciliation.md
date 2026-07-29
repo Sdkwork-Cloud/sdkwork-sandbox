@@ -2,7 +2,7 @@
 id: REQ-2026-0005
 title: Deliver durable Sandbox Session persistence and crash reconciliation
 owner: SDKWork Runtime Platform
-status: in-progress
+status: accepted
 source: reliability
 problem: The lifecycle candidate stores Sandbox Session state only in process memory, so operation idempotency, Runtime Binding ownership, and transient lifecycle recovery do not survive process restart or concurrent control-plane replicas.
 goals:

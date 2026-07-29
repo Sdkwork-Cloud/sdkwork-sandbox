@@ -173,9 +173,11 @@ test("Gate 0 review packet remains pending human ownership decisions", () => {
 
 test("Provider delivery gate contract keeps Local and Firecracker provider-neutral and unimplemented", () => {
   const contract = readJson("specs/sandbox-provider-delivery-gates.contract.json");
+  const commandContract = readJson("apis/commands/sandbox-command-contract.json");
   assert.equal(contract.kind, "sdkwork.sandbox.provider-delivery-gates");
   assert.equal(contract.status, "draft");
   assert.equal(contract.implementationAuthorized, false);
+  assert.deepEqual(contract.sharedConformance.requiredScenarios, commandContract.conformanceScenarios);
   assert.equal(contract.sharedConformance.kernelBranchingAllowed, false);
   assert.equal(contract.sharedConformance.providerPrivateCommandDtosAllowed, false);
   assert.equal(contract.sharedConformance.shellFallbackAllowed, false);

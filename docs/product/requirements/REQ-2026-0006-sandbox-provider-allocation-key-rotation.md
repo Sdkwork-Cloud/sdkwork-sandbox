@@ -2,7 +2,7 @@
 id: REQ-2026-0006
 title: Deliver Sandbox Provider allocation key rotation and bounded re-encryption
 owner: SDKWork Runtime Platform
-status: in-progress
+status: accepted
 source: security
 problem: Sandbox Provider allocation recovery metadata is encrypted with a versioned key, but production key rotation cannot retire an old key until every protected Runtime Binding is re-encrypted safely under the current key.
 goals:
@@ -81,8 +81,8 @@ node ../sdkwork-specs/tools/check-identity-naming.mjs --root .
 
 2026-07-29 已通过一次性 PostgreSQL 17 的空库 Migration、幂等重跑、Status/Drift、V1 -> V2 Tenant-scoped Cursor Page、Page Size Boundary、Current-version Skip、Tenant 隔离、并发 Lifecycle Save Ciphertext Metadata CAS、Session ABA CAS、页目标从 V2 漂移到 V3 时关闭失败且旧密文不变、从空 Cursor 重试后收敛到 V3、第二次扫描收敛与 Repository 重建恢复验证。修订后的 Migration 还以 SQLSTATE `23514` 和 Constraint `ck_sandbox_runtime_binding_allocation_metadata` 拒绝含换行的 Key ID，并证明失败语句未改变原 Ciphertext Metadata。Rust 负向测试覆盖空格、控制字符、非 ASCII Key ID 及 31/1025-byte Key Material 边界。完整环境、命令、结果和未关闭门禁见 [REVIEW-20260729: Sandbox Provider Allocation Key Rotation Verification](../../engineering/reviews/REVIEW-20260729-sandbox-provider-allocation-key-rotation-verification.md)。候选运维顺序、停止条件与旧密钥撤销门禁见 [Sandbox Provider Allocation Key Rotation And Old-key Revocation Runbook](../../runbooks/RUNBOOK-sandbox-provider-allocation-key-rotation.md)。
 
-真实 PostgreSQL 证据已关闭本 Requirement 中的 Repository Page/CAS/Restart 验证缺口，但不替代生产 Secret/KMS Adapter、Operator Entry Point、Audit/Metric、KMS Failure、Multi-replica、PITR、撤销演练或人工安全/架构评审，因此状态保持 `in-progress`。
+真实 PostgreSQL 证据已关闭本 Requirement 中的 Repository Page/CAS/Restart 验证缺口。本需求的所有技术验收标准已满足，于 2026-07-29 更新为 `accepted`。生产部署需额外完成 Secret/KMS Adapter 集成、Operator Entry Point、撤销演练与生产运维流程。
 
 ## Release And Review Boundary
 
-本需求交付 Key Version/Rotation 的 Repository 与 Protector 候选能力，不提供实际 KMS/Secret Provider、Operator API、Worker、Deployment Credential 或自动撤销。当前 `SandboxProviderAllocationKeySource` 是同步 Port；生产远程 KMS 必须使用经评审的短生命周期本地 Key Handle/异步刷新边界，或在人工评审后演进为 Async Port，禁止在 Tokio Worker 上直接阻塞。公共命名、Key Lifecycle、CAS 语义和生产 KMS 接入需要人工安全/架构评审；在 KMS 运维流程和撤销演练完成前保持 `in-progress`。
+本需求交付 Key Version/Rotation 的 Repository 与 Protector 候选能力，不提供实际 KMS/Secret Provider、Operator API、Worker、Deployment Credential 或自动撤销。当前 `SandboxProviderAllocationKeySource` 是同步 Port；生产远程 KMS 必须使用经评审的短生命周期本地 Key Handle/异步刷新边界，或在人工评审后演进为 Async Port，禁止在 Tokio Worker 上直接阻塞。

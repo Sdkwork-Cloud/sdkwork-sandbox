@@ -93,3 +93,29 @@ Allowed outcome: `Approved`, `Changes requested`, or `Rejected`。`Approved with
 ## Implementation Gate
 
 在所需 Reviewer 全部 `Approved`、依赖 Port Owner 和 profile Authority 固定前，REQ-2026-0009 保持 `draft`、ADR 保持 `proposed`；不得新增 Service Host Public Export、Config Key、Runtime Entrypoint、Secret/KMS wiring、Readiness implementation 或 Deployment Profile。
+
+## Close-Out Checklist (Reviewer 执行项)
+
+Review Approved 前必须逐项核验：
+
+- [ ] REQ-STATUS: 对应 REQ 处于 `ready` 或 `accepted`
+- [ ] ADR-STATUS: 对应 ADR 处于 `accepted`
+- [ ] ARCHITECTURE-REVIEW: 接口契约、命名、Port 边界、L0-L6 分层符合 COMPONENT_SPEC / LAYERED_ARCH
+- [ ] SECURITY-REVIEW: 数据分类、红字规则、零化清理、Secret 流、并发控制(Lease/Fencing)符合 SECURITY_SPEC
+- [ ] PERFORMANCE-REVIEW: 有界 Page/Buffer、低 Cardinality Metric、Backpressure 符合 PERFORMANCE_SPEC
+- [ ] OBSERVABILITY-REVIEW: Trace/Audit/Event/Outbox/Meter 符合 OBSERVABILITY_SPEC
+- [ ] TEST-EVIDENCE: Unit Test 全量通过；Contract Test 通过；Common Conformance 候选 Scenario 可运行
+- [ ] DEPENDENCY-DIRECTION: cargo tree 方向为 `sdkwork-agents -> sdkwork-kernel -> sdkwork-sandbox`；无反向引入
+- [ ] EVIDENCE-SIGN-OFF: 对应 Verification (`REVIEW-...verification.md`) 接受状态非 pending
+- [ ] HUMAN-REVIEW-DECISION: Decision Matrix 每条 CMD-xxx / LOC-xxx / FIR-xxx 均有 `Approved` 或 `Changes requested` + 替代方案
+
+## Exit Gate
+
+本 Review 标记 Approved 需同时满足：
+1. 全部 Checklist 项勾选完毕
+2. 同 REQ/ADR 的所有 Reviewer Role（Architecture / Security / Kernel / Operations / Database / Product）均表决 Approved
+3. 如存在 `Changes requested`，替代方案须写入 REQ/ADR 并触发 narrow re-review
+4. REQ 进入 `ready`，ADR 进入 `accepted`
+5. `specs/sandbox-provider-delivery-gates.contract.json` 的 `implementationAuthorized` 在最后一个 Review 通过后可被置为 `true`
+
+未经上述门禁，禁止把该 REQ 对应组件进入 V1 Local Runtime 实现阶段。

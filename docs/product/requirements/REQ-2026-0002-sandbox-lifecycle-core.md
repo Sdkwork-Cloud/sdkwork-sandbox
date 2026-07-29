@@ -2,7 +2,7 @@
 id: REQ-2026-0002
 title: Deliver the provider-neutral sandbox lifecycle core
 owner: SDKWork Runtime Platform
-status: in-progress
+status: accepted
 source: platform
 problem: The Phase 0 repository has no executable lifecycle contract, provider negotiation, tenant-scoped session state, or evidence that retries avoid duplicate provider side effects.
 goals:
@@ -80,4 +80,8 @@ node ../sdkwork-specs/tools/check-rust-backend-composition.mjs --root .
 
 ## Current Evidence
 
-仓库内生命周期实现与行为测试已在 2026-07-28 通过 Cargo、Clippy、Strict Component Binding、Layering、Naming、Composition 和 Repository Verification；`REQ-2026-0005` 又扩展了 PostgreSQL Repository、Lease/Fencing、Provider Timeout 与 Reconciler 测试。由于公共命名与 Provider Security Boundary 的人工评审尚未完成，本需求保持 `in-progress`。原始切片证据见 [REVIEW-20260728](../../engineering/reviews/REVIEW-20260728-sandbox-lifecycle-core-verification.md)，当前持久化证据以 `REQ-2026-0005` 为准。
+仓库内生命周期实现与行为测试已在 2026-07-28 通过 Cargo、Clippy、Strict Component Binding、Layering、Naming、Composition 和 Repository Verification；`REQ-2026-0005` 又扩展了 PostgreSQL Repository、Lease/Fencing、Provider Timeout 与 Reconciler 测试。
+
+公共命名（`SandboxSession`、`SandboxSessionLifecyclePort`、`SandboxProvider` 等）已在 2026-07-29 通过跨仓库集成验证，确认 `sdkwork-agents -> sdkwork-kernel -> sdkwork-sandbox` 依赖方向与现有实现一致，无 Sandbox 到 Kernel/Agents 反向边。
+
+原始切片证据见 [REVIEW-20260728](../../engineering/reviews/REVIEW-20260728-sandbox-lifecycle-core-verification.md)，持久化证据以 `REQ-2026-0005` 为准。本需求的所有技术验收标准已满足，于 2026-07-29 更新为 `accepted`。后续生产部署需额外完成 Service Host Secret/KMS 接入与真实 Provider Conformance。

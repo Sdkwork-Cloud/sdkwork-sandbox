@@ -24,10 +24,10 @@ Risk: critical - bootstrap credential replay, machine identity theft or clone, f
 | --- | --- |
 | `specs/sandbox-node-trust-and-inventory.contract.json` | Draft Enrollment/Identity/Attestation/Inventory/Lifecycle boundary; all Node Agent, PKI, verifier, database, runtime and deployment implementations are explicitly unauthorized. |
 | `node --test tests/contract/sandbox-node-trust-and-inventory.contract.test.mjs` | PASS (10/10); static checks cover authority, naming, bootstrap, mTLS, attestation separation, verified inventory, scheduler binding, rotation/revocation, lifecycle recovery, privacy/bounds and telemetry. |
-| `node --test tests/contract/*.test.mjs` | PASS (104/104); complete repository contract suite includes Node Trust/Verified Inventory integration with Firecracker delivery, Scheduler, PostgreSQL Quota/Capacity Persistence, and Observability authorities. |
+| `node --test tests/contract/*.test.mjs` | PASS (107/107); complete repository contract suite includes Command Execution/Cancel and Node Trust/Verified Inventory integration with Firecracker delivery, Scheduler, PostgreSQL Quota/Capacity Persistence, and Observability authorities. |
 | `specs/sandbox-multi-tenant-scheduling.contract.json` | Scheduler candidate snapshot requires this Node Trust contract and only consumes the verified projection. |
 | `specs/sandbox-provider-delivery-gates.contract.json` | Cloud Firecracker preflight consumes this Node Trust/Inventory Gate before placement or allocation. |
-| Sandbox Rust quality gates | PASS: `cargo fmt --all -- --check`, offline workspace check, 37 tests passed with 1 declared external PostgreSQL test ignored, and all-target Clippy with `-D warnings`. |
+| Sandbox Rust quality gates | PASS: `cargo fmt --all -- --check`, offline workspace check, 41 tests passed with 1 declared external PostgreSQL test ignored, and all-target Clippy with `-D warnings`. |
 | SDKWork repository gates | PASS: docs standard, packages layout, strict component ports, application layering, Rust backend composition, identity naming, provider Session terminology, pagination, API operation/envelope, strict repository verification, docs-debt audit and baseline audit. |
 | Upstream dependency chain | PASS: `sdkwork-agent-kernel` offline check and complete target-package tests include the `InvalidPageRequest` non-retryable validation mapping; `sdkwork-intelligence-agents-service` offline check and 286 tests pass with 5 declared external PostgreSQL tests ignored. |
 | Real PKI/HSM, attestation, PostgreSQL, Node Agent, multi-replica and KVM evidence | Absent by design; no Node Trust runtime or production topology exists. |
@@ -85,3 +85,27 @@ Allowed outcome: `Approved`, `Changes requested`, or `Rejected`. `Approved with 
 ## Implementation Gate
 
 REQ-2026-0017 remains `draft`, ADR remains `proposed`, and this Review remains `pending-human-review`. Until every required reviewer records `Approved` and blocking authorities are resolved, do not create public Ports/Crates, Node Agent, Enrollment/PKI/CA/HSM Service, Attestation Verifier/Adapter, PostgreSQL Tables/Migrations, Scheduler/Provider Integration, Config, Service Unit, Deployment Profile, Public API/SDK or Hardware Attestation Claim.
+
+## Close-Out Checklist (Reviewer 执行项)
+
+Review Approved 前必须逐项核验：
+
+- [ ] REQ-STATUS: 对应 REQ 处于 `ready` 或 `accepted`
+- [ ] ADR-STATUS: 对应 ADR 处于 `accepted`
+- [ ] ARCH-REVIEW: 接口契约、命名、Port 边界、L0-L6 分层符合 COMPONENT_SPEC
+- [ ] SEC-REVIEW: 数据分类、红字规则、零化清理、Secret 流、并发控制符合 SECURITY_SPEC
+- [ ] PERF-REVIEW: 有界 Page/Buffer、低 Cardinality Metric 符合 PERFORMANCE_SPEC
+- [ ] OBS-REVIEW: Trace/Audit/Event/Outbox/Meter 符合 OBSERVABILITY_SPEC
+- [ ] TEST-EVIDENCE: Unit Test 全量通过；Contract Test 通过
+- [ ] DEPENDENCY-DIRECTION: cargo tree 方向正确
+- [ ] EVIDENCE-SIGN-OFF: 对应 Verification Review 接受状态非 pending
+- [ ] HUMAN-DECISION: Decision Matrix 每条均 Approved 或 Changes + 替代方案
+
+## Exit Gate
+
+1. 全部 Checklist 勾选
+2. 所有 Reviewer Role 表决 Approved
+3. REQ 进入 `ready`，ADR 进入 `accepted`
+4. Gate 0 `implementationAuthorized` 最后一个 Review 通过后可置 true
+
+未经上述门禁，禁止进入 V1 实现阶段。

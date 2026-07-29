@@ -10,6 +10,8 @@ Owner: SDKWork Runtime Platform
 
 Date: 2026-07-28
 
+Updated: 2026-07-29
+
 ## Scope
 
 本 Review 验证 Agents-owned `AgentWorkspace`/`AgentSession` Identity 经 Kernel 映射为 `SandboxWorkspaceId`/`SandboxSessionId` 后，只作为 Opaque Sandbox Context 进入 Lifecycle 与 Provider Request；Sandbox 不建立 Workspace Registry，不推导 Host Path，也不反向依赖 Kernel/Agents。固定产品术语保持 `Runtime`、`Session`、`Workspace`、`Sandbox` 与 `Provider`，Sandbox-owned 类型/变量分别使用 `Sandbox*`/`sandbox_*`。
@@ -20,9 +22,9 @@ Date: 2026-07-28
 | --- | --- |
 | `cargo test -p sdkwork-sandbox-provider-spi sandbox_provider_readiness_requires_workspace_attachment_and_policy_enforcement` | PASS: Provider、Policy、Workspace Attachment 任一未就绪均关闭失败。 |
 | `cargo test -p sdkwork-intelligence-sandbox-service sandbox_workspace_context_is_preserved_across_provider_attachment_requests` | PASS: Tenant、Workspace、Session、Sandbox、Runtime Binding 与 Fencing Token 在 Allocate/Start 请求间保持一致。 |
-| `cargo test --workspace` | PASS: 19 tests; 1 live PostgreSQL test remained intentionally ignored without its test database variable. |
-| Kernel `cargo test --offline -p sdkwork-agent-kernel sandbox_runtime::tests` | PASS: 7 tests, including Agents ID mapping and path-like ID rejection. |
-| Agents `cargo check --locked -p sdkwork-intelligence-agents-service` and `cargo test --locked -p sdkwork-intelligence-agents-service` | PASS: dependency compilation and 282 tests; 5 live PostgreSQL tests intentionally ignored. |
+| `cargo test --workspace --offline` | PASS: 41 tests; 1 live PostgreSQL test remained intentionally ignored without its test database variable. |
+| Kernel `cargo test --offline -p sdkwork-agent-kernel sandbox_runtime::tests` | PASS: 8 tests, including Agents ID mapping, path-like ID rejection, and explicit invalid reconciliation page-request mapping. |
+| Agents `cargo check --locked -p sdkwork-intelligence-agents-service` and `cargo test --locked -p sdkwork-intelligence-agents-service` | PASS: dependency compilation and 287 tests; 5 live PostgreSQL tests intentionally ignored. |
 | Agents inverse Cargo tree for `sdkwork-intelligence-sandbox-service` | PASS: `sdkwork-intelligence-agents-service -> sdkwork-agent-kernel -> sdkwork-intelligence-sandbox-service`. |
 | Sandbox Cargo dependency scan | PASS: no dependency on `sdkwork-agent-kernel` or `sdkwork-agents`. |
 | Component, Layering, Identity Naming, Documentation, Baseline, and `verify-repo` validators | PASS. |

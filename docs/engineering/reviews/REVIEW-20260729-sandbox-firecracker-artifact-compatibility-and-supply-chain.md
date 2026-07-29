@@ -25,7 +25,7 @@ Risk: critical - MicroVm release inputs, executable integrity, signature trust, 
 | `specs/sandbox-firecracker-artifact-compatibility.contract.json` | Draft exact-role/tuple, immutable evidence, staging, revocation, rollback, readiness and ownership boundary; `implementationAuthorized` is `false`. |
 | `node --test tests/contract/sandbox-firecracker-artifact-compatibility.contract.test.mjs` | PASS (7/7); static candidate verification only, not release, signature, artifact, runtime or KVM evidence. |
 | `specs/sandbox-provider-delivery-gates.contract.json` | Firecracker Gate consumes this contract before Artifact Preflight may become Ready. |
-| `node --test tests/contract/*.test.mjs` | PASS (104/104) for the complete repository contract suite after Workspace Block Device/Sanitization, Firecracker Network/Resource Isolation, Multi-tenant Scheduling/Capacity, Node Trust/Verified Inventory, and PostgreSQL Quota/Capacity Persistence integration. |
+| `node --test tests/contract/*.test.mjs` | PASS (107/107) for the complete repository contract suite after Command Execution/Cancel, Workspace Block Device/Sanitization, Firecracker Network/Resource Isolation, Multi-tenant Scheduling/Capacity, Node Trust/Verified Inventory, and PostgreSQL Quota/Capacity Persistence integration. |
 | Cargo workspace gates | `fmt --check`, offline `check`, offline `test`, and offline all-target Clippy with `-D warnings` PASS; 41 Rust tests pass and the one explicitly external PostgreSQL fixture remains ignored without `SDKWORK_SANDBOX_TEST_DATABASE_URL`. |
 | SDKWORK repository gates | Documentation, packages layout, strict component ports, application layering, Rust composition, identity naming, docs-debt, repository baseline, and `git diff --check` PASS. |
 | Real release and KVM evidence | Absent by design; no Manifest, Artifact bundle, release pipeline or Firecracker Runtime exists. |
@@ -80,3 +80,27 @@ Allowed outcome: `Approved`, `Changes requested`, or `Rejected`. `Approved with 
 ## Implementation Gate
 
 REQ-2026-0012 remains `draft`, ADR remains `proposed`, and this Review remains `pending-human-review`. Until every required reviewer records `Approved` and the blocking authorities are resolved, do not publish a Manifest/Artifact, create Artifact Resolver/Downloader/Builder, add runtime paths or config, create Provider/Broker code, introduce signing keys, or claim Artifact Integrity or `MicroVm` readiness.
+
+## Close-Out Checklist (Reviewer 执行项)
+
+Review Approved 前必须逐项核验：
+
+- [ ] REQ-STATUS: 对应 REQ 处于 `ready` 或 `accepted`
+- [ ] ADR-STATUS: 对应 ADR 处于 `accepted`
+- [ ] ARCH-REVIEW: 接口契约、命名、Port 边界、L0-L6 分层符合 COMPONENT_SPEC
+- [ ] SEC-REVIEW: 数据分类、红字规则、零化清理、Secret 流、并发控制符合 SECURITY_SPEC
+- [ ] PERF-REVIEW: 有界 Page/Buffer、低 Cardinality Metric 符合 PERFORMANCE_SPEC
+- [ ] OBS-REVIEW: Trace/Audit/Event/Outbox/Meter 符合 OBSERVABILITY_SPEC
+- [ ] TEST-EVIDENCE: Unit Test 全量通过；Contract Test 通过
+- [ ] DEPENDENCY-DIRECTION: cargo tree 方向正确
+- [ ] EVIDENCE-SIGN-OFF: 对应 Verification Review 接受状态非 pending
+- [ ] HUMAN-DECISION: Decision Matrix 每条均 Approved 或 Changes + 替代方案
+
+## Exit Gate
+
+1. 全部 Checklist 勾选
+2. 所有 Reviewer Role 表决 Approved
+3. REQ 进入 `ready`，ADR 进入 `accepted`
+4. Gate 0 `implementationAuthorized` 最后一个 Review 通过后可置 true
+
+未经上述门禁，禁止进入 V1 实现阶段。

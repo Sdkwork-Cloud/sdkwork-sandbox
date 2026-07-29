@@ -46,7 +46,7 @@ Updated: 2026-07-29
 | Kernel `cargo test --offline -p sdkwork-agent-kernel` | PASS: 160 library tests plus all component contract tests; 2 doc tests passed and 1 remained intentionally ignored. |
 | Kernel `cargo clippy --offline -p sdkwork-agent-kernel --all-targets -- -D warnings` | PASS. |
 | Agents `cargo check --locked -p sdkwork-intelligence-agents-service` | PASS after the reviewed lock refresh; the Agents lock change only adds Tokio to the Sandbox Service dependency entry. |
-| Agents `cargo test --locked -p sdkwork-intelligence-agents-service` | PASS: 282 tests; 5 live PostgreSQL tests remained intentionally ignored because `SDKWORK_AGENTS_TEST_POSTGRES_URL` was not provided. |
+| Agents `cargo test --locked -p sdkwork-intelligence-agents-service` | PASS: 287 tests; 5 live PostgreSQL tests remained intentionally ignored because `SDKWORK_AGENTS_TEST_POSTGRES_URL` was not provided. |
 | Agents `cargo tree --offline -p sdkwork-intelligence-agents-service -i sdkwork-intelligence-sandbox-service` | PASS: confirms `sdkwork-intelligence-agents-service -> sdkwork-agent-kernel -> sdkwork-intelligence-sandbox-service`. |
 
 The live integration test verifies empty-schema materialization, stable zero-based Operation ordering, aggregate round-trip, persisted State/Failure/Binding invariant rejection before decryption, Tenant denial, Operation conflict, Version CAS, encrypted Allocation at rest, simultaneous Lease competition, expiry takeover, monotonic and saturation-safe `SandboxFencingToken`, stale Lease Renew/Release/Save denial, bounded reconciliation query-plan execution, and recovery through a newly constructed Repository/Service instance.

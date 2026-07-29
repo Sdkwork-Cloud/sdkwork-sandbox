@@ -27,7 +27,7 @@ Risk: critical - tenant Workspace data, storage ownership, encryption keys, priv
 | REQ-2026-0004 Workspace boundary | Opaque identity, Kernel mapping, Provider request propagation, fail-closed attached readiness and dependency direction already have candidate evidence. |
 | Host Isolation Broker / Firecracker gates | Consume only an authorized opaque Attachment Reference; both remain draft and unimplemented. |
 | Service Host integration | Gate 0 machine contract continues to inject only provider-neutral `SandboxWorkspaceAttachmentPort`; L4 Block Device mechanism remains behind that port. |
-| Complete repository contract suite | `node --test tests/contract/*.test.mjs` PASS (104/104), including Firecracker Network/Resource Isolation, Multi-tenant Scheduling/Capacity, Node Trust/Verified Inventory, and PostgreSQL Quota/Capacity Persistence boundaries. |
+| Complete repository contract suite | `node --test tests/contract/*.test.mjs` PASS (107/107), including Command Execution/Cancel, Firecracker Network/Resource Isolation, Multi-tenant Scheduling/Capacity, Node Trust/Verified Inventory, and PostgreSQL Quota/Capacity Persistence boundaries. |
 | Cargo and SDKWORK repository gates | Workspace Format/Check/Test/Clippy plus Documentation, Packages Layout, strict Component Ports, Layering, Rust Composition, Naming, Docs-debt, Baseline and Diff checks PASS after final Workspace integration; 41 Rust tests pass and the one explicitly external PostgreSQL fixture remains ignored without its test database variable. |
 | Runtime evidence | Absent by design; no Attachment Port/Adapter, Storage Backend, KMS, Device, Guest Mount or Sanitization exists. |
 
@@ -81,3 +81,27 @@ Allowed outcome: `Approved`, `Changes requested`, or `Rejected`. `Approved with 
 ## Implementation Gate
 
 REQ-2026-0013 remains `draft`, ADR remains `proposed`, and this Review remains `pending-human-review`. Until every required reviewer records `Approved` and blocking authorities are resolved, do not create the Port/Adapter/Storage Backend, resolve a real Workspace path/device, add KMS/Key code, perform privileged mount/device operations, create runtime config, or claim Workspace Attached, Sanitized, residue-free or `MicroVm` ready.
+
+## Close-Out Checklist (Reviewer 执行项)
+
+Review Approved 前必须逐项核验：
+
+- [ ] REQ-STATUS: 对应 REQ 处于 `ready` 或 `accepted`
+- [ ] ADR-STATUS: 对应 ADR 处于 `accepted`
+- [ ] ARCH-REVIEW: 接口契约、命名、Port 边界、L0-L6 分层符合 COMPONENT_SPEC
+- [ ] SEC-REVIEW: 数据分类、红字规则、零化清理、Secret 流、并发控制符合 SECURITY_SPEC
+- [ ] PERF-REVIEW: 有界 Page/Buffer、低 Cardinality Metric 符合 PERFORMANCE_SPEC
+- [ ] OBS-REVIEW: Trace/Audit/Event/Outbox/Meter 符合 OBSERVABILITY_SPEC
+- [ ] TEST-EVIDENCE: Unit Test 全量通过；Contract Test 通过
+- [ ] DEPENDENCY-DIRECTION: cargo tree 方向正确
+- [ ] EVIDENCE-SIGN-OFF: 对应 Verification Review 接受状态非 pending
+- [ ] HUMAN-DECISION: Decision Matrix 每条均 Approved 或 Changes + 替代方案
+
+## Exit Gate
+
+1. 全部 Checklist 勾选
+2. 所有 Reviewer Role 表决 Approved
+3. REQ 进入 `ready`，ADR 进入 `accepted`
+4. Gate 0 `implementationAuthorized` 最后一个 Review 通过后可置 true
+
+未经上述门禁，禁止进入 V1 实现阶段。

@@ -44,6 +44,9 @@
       "sandbox_provider_kind",
       "sandbox_isolation_assurance",
       "sandbox_session_state",
+      "sandbox_exit_class",
+      "sandbox_stream",
+      "sandbox_cleanup_status",
       "sandbox_resource_kind",
       "sandbox_node_trust_profile",
       "sandbox_node_lifecycle_state",
@@ -63,7 +66,13 @@
       "sandbox_provider_display_name",
       "sandbox_provider_allocation_reference"
     ],
+    "boundedLabelValues": {
+      "sandbox_exit_class": ["zero", "nonzero", "signaled", "none"],
+      "sandbox_stream": ["stdout", "stderr"],
+      "sandbox_cleanup_status": ["not-required", "completed", "failed"]
+    },
     "histogramBucketsSeconds": [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, 300],
+    "histogramBucketsBytes": [1024, 4096, 16384, 65536, 262144, 1048576, 4194304, 16777216, 67108864],
     "catalog": [
       {
         "name": "sdkwork_sandbox_lifecycle_operations_total",
@@ -94,6 +103,30 @@
         "type": "histogram",
         "unit": "seconds",
         "additionalLabels": ["sandbox_provider_kind", "sandbox_operation", "sandbox_outcome"]
+      },
+      {
+        "name": "sdkwork_sandbox_command_executions_total",
+        "type": "counter",
+        "unit": "executions",
+        "additionalLabels": ["sandbox_provider_kind", "sandbox_outcome", "sandbox_exit_class"]
+      },
+      {
+        "name": "sdkwork_sandbox_command_execution_duration_seconds",
+        "type": "histogram",
+        "unit": "seconds",
+        "additionalLabels": ["sandbox_provider_kind", "sandbox_outcome"]
+      },
+      {
+        "name": "sdkwork_sandbox_command_output_bytes",
+        "type": "histogram",
+        "unit": "bytes",
+        "additionalLabels": ["sandbox_provider_kind", "sandbox_stream", "sandbox_outcome"]
+      },
+      {
+        "name": "sdkwork_sandbox_command_cleanup_duration_seconds",
+        "type": "histogram",
+        "unit": "seconds",
+        "additionalLabels": ["sandbox_provider_kind", "sandbox_outcome", "sandbox_cleanup_status"]
       },
       {
         "name": "sdkwork_sandbox_resource_limit_operations_total",
