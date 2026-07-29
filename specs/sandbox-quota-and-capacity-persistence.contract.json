@@ -1,0 +1,522 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.sandbox.quota-and-capacity-persistence-contract",
+  "status": "draft",
+  "requirementId": "REQ-2026-0018",
+  "relatedRequirementIds": [
+    "REQ-2026-0005",
+    "REQ-2026-0010",
+    "REQ-2026-0015",
+    "REQ-2026-0016",
+    "REQ-2026-0017"
+  ],
+  "relatedContracts": [
+    "sandbox-multi-tenant-scheduling.contract.json",
+    "sandbox-node-trust-and-inventory.contract.json",
+    "sandbox-firecracker-resource-isolation.contract.json",
+    "../apis/async/sandbox-outbox.contract.json",
+    "../apis/async/sandbox-event-catalog.json",
+    "../apis/async/sandbox-observability-catalog.json"
+  ],
+  "implementationAuthorized": false,
+  "ownership": {
+    "sandbox_sql_subject_authority": "SDKWork IAM typed verified context",
+    "sandbox_entitlement_and_quota_policy_authority": "SDKWork Commerce or approved tenant policy authority",
+    "sandbox_tenant_quota_state_owner": "Sandbox admission persistence boundary",
+    "sandbox_admission_reservation_owner": "Sandbox admission persistence boundary",
+    "sandbox_verified_node_inventory_authority": "REQ-2026-0017 Sandbox control plane",
+    "sandbox_node_capacity_state_owner": "Sandbox capacity persistence boundary",
+    "sandbox_capacity_reservation_owner": "Sandbox capacity persistence boundary",
+    "sandbox_lifecycle_binding_owner": "Sandbox lifecycle service",
+    "sandbox_price_invoice_payment_owner": "SDKWork Commerce",
+    "sandbox_persistence_may_author_identity_entitlement_or_price": false,
+    "sandbox_metrics_logs_or_cache_may_author_quota_or_capacity": false,
+    "sandbox_node_capacity_state_may_author_node_trust": false
+  },
+  "persistenceBoundary": {
+    "sandbox_database_role": "authoritative-server",
+    "sandbox_engine": "postgres",
+    "sandbox_database_module_id": "sandbox",
+    "sandbox_write_owner_candidate": "sdkwork-intelligence-sandbox-repository-sqlx",
+    "sandbox_current_contract_version": "0.1.0",
+    "sandbox_contract_version_increment_required_before_implementation": true,
+    "sandbox_schema_contract_and_registry_update_required_before_migration": true,
+    "sandbox_proposed_tables_registered_as_active": false,
+    "sandbox_migration_or_repository_implementation_authorized": false,
+    "sandbox_process_memory_authority_allowed": false,
+    "sandbox_sqlite_authority_or_fallback_allowed": false,
+    "sandbox_redis_authority_allowed": false,
+    "sandbox_auto_migrate_allowed_in_production": false
+  },
+  "subjectScope": {
+    "sandbox_sql_tenant_column": "tenant_id",
+    "sandbox_sql_tenant_logical_type": "int64",
+    "sandbox_sql_tenant_physical_type": "BIGINT",
+    "sandbox_sql_tenant_must_be_positive": true,
+    "sandbox_sql_subject_source": "trusted SDKWork IAM request context",
+    "sandbox_domain_variable_name": "sandbox_tenant_id",
+    "sandbox_shared_domain_type_name": "TenantId",
+    "sandbox_current_lifecycle_tenant_column_type": "TEXT",
+    "sandbox_current_lifecycle_tenant_type_is_standard_aligned": false,
+    "sandbox_subject_id_alignment_migration_required_before_new_table_implementation": true,
+    "sandbox_subject_id_alignment_requires_human_review": true,
+    "sandbox_client_supplied_tenant_selector_allowed": false,
+    "sandbox_legacy_opaque_tenant_write_allowed_after_alignment": false,
+    "sandbox_cross_tenant_query_requires_service_authorization_and_audit": true
+  },
+  "proposedTables": [
+    {
+      "sandbox_table_name": "sandbox_tenant_quota_state",
+      "sandbox_domain_type": "SandboxTenantQuotaState",
+      "sandbox_profile": "operational_state",
+      "sandbox_tenant_scoped": true,
+      "sandbox_system_of_record_for": "Sandbox-owned current tenant quota occupancy and CAS state",
+      "sandbox_not_system_of_record_for": [
+        "identity",
+        "entitlement",
+        "plan",
+        "price",
+        "invoice",
+        "payment"
+      ],
+      "sandbox_required_fields": [
+        "id",
+        "tenant_id",
+        "sandbox_quota_scope",
+        "sandbox_quota_policy_revision",
+        "sandbox_quota_policy_fingerprint",
+        "sandbox_entitlement_snapshot_reference",
+        "sandbox_concurrency_units_limit",
+        "sandbox_concurrency_units_reserved",
+        "sandbox_vcpu_count_limit",
+        "sandbox_vcpu_count_reserved",
+        "sandbox_memory_bytes_limit",
+        "sandbox_memory_bytes_reserved",
+        "sandbox_policy_valid_until",
+        "version",
+        "created_at",
+        "updated_at"
+      ],
+      "sandbox_unique_keys": [
+        ["tenant_id", "sandbox_quota_scope"]
+      ],
+      "sandbox_counter_invariants": {
+        "sandbox_all_limits_are_finite_and_positive": true,
+        "sandbox_all_reserved_values_are_non_negative": true,
+        "sandbox_reserved_values_may_exceed_limits": false,
+        "sandbox_available_is_derived_as_limit_minus_reserved": true,
+        "sandbox_counter_updates_require_version_cas": true
+      }
+    },
+    {
+      "sandbox_table_name": "sandbox_admission_reservation",
+      "sandbox_domain_type": "SandboxAdmissionReservation",
+      "sandbox_profile": "operational_state",
+      "sandbox_tenant_scoped": true,
+      "sandbox_system_of_record_for": "Sandbox-owned tenant quota reservation lifecycle",
+      "sandbox_required_fields": [
+        "id",
+        "tenant_id",
+        "sandbox_admission_reservation_id",
+        "sandbox_admission_request_id",
+        "sandbox_admission_grant_id",
+        "sandbox_session_id",
+        "sandbox_quota_state_id",
+        "sandbox_quota_policy_revision",
+        "sandbox_quota_policy_fingerprint",
+        "sandbox_request_fingerprint",
+        "sandbox_concurrency_units_reserved",
+        "sandbox_vcpu_count_reserved",
+        "sandbox_memory_bytes_reserved",
+        "sandbox_fencing_token",
+        "sandbox_reservation_state",
+        "sandbox_reserved_at",
+        "sandbox_expires_at",
+        "sandbox_released_at",
+        "sandbox_trace_id",
+        "version",
+        "created_at",
+        "updated_at"
+      ],
+      "sandbox_unique_keys": [
+        ["tenant_id", "sandbox_admission_reservation_id"],
+        ["tenant_id", "sandbox_admission_request_id"]
+      ],
+      "sandbox_active_session_uniqueness_required": true,
+      "sandbox_state_machine": {
+        "sandbox_states": ["reserved", "bound", "released", "expired", "quarantined"],
+        "sandbox_initial_state": "reserved",
+        "sandbox_terminal_states": ["released", "expired"],
+        "sandbox_quarantined_is_operator_controlled": true,
+        "sandbox_allowed_transitions": [
+          "reserved->bound",
+          "reserved->released",
+          "reserved->expired",
+          "reserved->quarantined",
+          "bound->released",
+          "bound->quarantined",
+          "quarantined->released"
+        ],
+        "sandbox_bound_expiry_may_release_quota_without_lifecycle_proof": false
+      }
+    },
+    {
+      "sandbox_table_name": "sandbox_node_capacity_state",
+      "sandbox_domain_type": "SandboxNodeCapacityState",
+      "sandbox_profile": "operational_state",
+      "sandbox_tenant_scoped": false,
+      "sandbox_system_of_record_for": "Sandbox-owned current reserved node-capacity counters and CAS state",
+      "sandbox_not_system_of_record_for": [
+        "node enrollment",
+        "machine identity",
+        "platform attestation",
+        "node health",
+        "verified inventory"
+      ],
+      "sandbox_required_fields": [
+        "id",
+        "sandbox_node_capacity_state_id",
+        "sandbox_node_reference",
+        "sandbox_provider_id",
+        "sandbox_provider_kind",
+        "sandbox_verified_inventory_record_id",
+        "sandbox_inventory_revision",
+        "sandbox_capacity_revision",
+        "sandbox_inventory_fingerprint",
+        "sandbox_runtime_units_total",
+        "sandbox_runtime_units_reserved",
+        "sandbox_vcpu_count_total",
+        "sandbox_vcpu_count_reserved",
+        "sandbox_memory_bytes_total",
+        "sandbox_memory_bytes_reserved",
+        "sandbox_capacity_state",
+        "sandbox_inventory_expires_at",
+        "version",
+        "created_at",
+        "updated_at"
+      ],
+      "sandbox_unique_keys": [
+        ["sandbox_node_reference"]
+      ],
+      "sandbox_counter_invariants": {
+        "sandbox_verified_inventory_revision_and_fingerprint_required": true,
+        "sandbox_all_totals_are_finite_and_non_negative": true,
+        "sandbox_all_reserved_values_are_non_negative": true,
+        "sandbox_reserved_values_may_exceed_totals": false,
+        "sandbox_available_is_derived_as_total_minus_reserved": true,
+        "sandbox_inventory_refresh_may_reduce_total_below_reserved": false,
+        "sandbox_inventory_refresh_requires_version_cas": true,
+        "sandbox_stale_revoked_or_unverified_inventory_accepts_new_reservation": false
+      }
+    },
+    {
+      "sandbox_table_name": "sandbox_capacity_reservation",
+      "sandbox_domain_type": "SandboxCapacityReservation",
+      "sandbox_profile": "operational_state",
+      "sandbox_tenant_scoped": true,
+      "sandbox_system_of_record_for": "Sandbox-owned node capacity reservation lifecycle",
+      "sandbox_required_fields": [
+        "id",
+        "tenant_id",
+        "sandbox_capacity_reservation_id",
+        "sandbox_admission_reservation_id",
+        "sandbox_admission_grant_id",
+        "sandbox_placement_request_id",
+        "sandbox_session_id",
+        "sandbox_runtime_binding_id",
+        "sandbox_node_capacity_state_id",
+        "sandbox_node_reference",
+        "sandbox_provider_id",
+        "sandbox_provider_kind",
+        "sandbox_inventory_revision",
+        "sandbox_capacity_revision",
+        "sandbox_runtime_units_reserved",
+        "sandbox_guest_vcpu_count_reserved",
+        "sandbox_guest_memory_bytes_reserved",
+        "sandbox_vmm_overhead_memory_bytes_reserved",
+        "sandbox_fencing_token",
+        "sandbox_request_fingerprint",
+        "sandbox_reservation_state",
+        "sandbox_reserved_at",
+        "sandbox_confirmed_at",
+        "sandbox_expires_at",
+        "sandbox_released_at",
+        "sandbox_trace_id",
+        "version",
+        "created_at",
+        "updated_at"
+      ],
+      "sandbox_unique_keys": [
+        ["tenant_id", "sandbox_capacity_reservation_id"],
+        ["tenant_id", "sandbox_placement_request_id"]
+      ],
+      "sandbox_active_runtime_binding_uniqueness_required": true,
+      "sandbox_state_machine": {
+        "sandbox_states": ["prepared", "confirmed", "released", "expired", "quarantined"],
+        "sandbox_initial_state": "prepared",
+        "sandbox_terminal_states": ["released", "expired"],
+        "sandbox_quarantined_is_operator_controlled": true,
+        "sandbox_allowed_transitions": [
+          "prepared->confirmed",
+          "prepared->released",
+          "prepared->expired",
+          "prepared->quarantined",
+          "confirmed->released",
+          "confirmed->quarantined",
+          "quarantined->released"
+        ],
+        "sandbox_prepared_expiry_may_release_capacity": true,
+        "sandbox_confirmed_expiry_may_release_capacity_without_lifecycle_and_provider_cleanup_proof": false,
+        "sandbox_confirmed_expiry_quarantines_capacity_and_node": true
+      }
+    }
+  ],
+  "resourceVector": {
+    "sandbox_type": "SandboxResourceVector",
+    "sandbox_first_version_dimensions": [
+      "sandbox_runtime_units",
+      "sandbox_guest_vcpu_count",
+      "sandbox_guest_memory_bytes",
+      "sandbox_vmm_overhead_memory_bytes"
+    ],
+    "sandbox_dimensions_are_first_class_columns": true,
+    "sandbox_core_quantities_in_untyped_json_allowed": false,
+    "sandbox_negative_nan_or_infinite_quantity_allowed": false,
+    "sandbox_vcpu_overcommit_allowed": false,
+    "sandbox_memory_overcommit_allowed": false,
+    "sandbox_workspace_storage_capacity_owned_here": false,
+    "sandbox_pid_and_io_enforcement_policy_owned_here": false,
+    "sandbox_new_dimension_requires_additive_contract_and_migration_review": true
+  },
+  "transactionWorkflows": {
+    "sandbox_admission_reservation_workflow": [
+      "sandbox_validate_trusted_subject_and_signed_policy_outside_transaction",
+      "sandbox_begin_postgresql_transaction",
+      "sandbox_lock_current_session_lease_when_present",
+      "sandbox_lock_tenant_quota_state",
+      "sandbox_replay_or_conflict_on_admission_request_and_fingerprint",
+      "sandbox_validate_database_clock_policy_and_capacity_bounds",
+      "sandbox_increment_quota_state_with_version_cas",
+      "sandbox_insert_admission_reservation",
+      "sandbox_insert_outbox_fact_when_outbox_is_approved",
+      "sandbox_commit_before_signing_or_remote_call"
+    ],
+    "sandbox_capacity_reservation_workflow": [
+      "sandbox_validate_verified_inventory_and_placement_outside_transaction",
+      "sandbox_begin_postgresql_transaction",
+      "sandbox_lock_current_session_lease",
+      "sandbox_lock_session_and_runtime_binding",
+      "sandbox_lock_tenant_quota_state",
+      "sandbox_lock_admission_reservation",
+      "sandbox_lock_node_capacity_state",
+      "sandbox_replay_or_conflict_on_placement_request_and_fingerprint",
+      "sandbox_validate_database_clock_revision_fencing_and_resource_bounds",
+      "sandbox_increment_node_capacity_state_with_version_cas",
+      "sandbox_bind_admission_and_insert_capacity_reservation",
+      "sandbox_insert_outbox_fact_when_outbox_is_approved",
+      "sandbox_commit_before_provider_allocate"
+    ],
+    "sandbox_release_workflow": [
+      "sandbox_begin_postgresql_transaction",
+      "sandbox_lock_rows_in_global_order",
+      "sandbox_replay_completed_release_or_validate_current_fencing",
+      "sandbox_decrement_each_counter_exactly_once",
+      "sandbox_transition_reservations_with_version_cas",
+      "sandbox_insert_outbox_fact_when_outbox_is_approved",
+      "sandbox_commit_before_external_notification"
+    ],
+    "sandbox_transaction_isolation": "READ COMMITTED with explicit row locks, constraints, and conditional updates",
+    "sandbox_remote_http_rpc_kms_provider_or_user_interaction_while_locked_allowed": false,
+    "sandbox_partial_statement_retry_inside_aborted_transaction_allowed": false
+  },
+  "globalLockOrder": {
+    "sandbox_order": [
+      "sandbox_session_lease:(tenant_id,sandbox_session_id)",
+      "sandbox_session:(tenant_id,sandbox_session_id)",
+      "sandbox_runtime_binding:(tenant_id,sandbox_runtime_binding_id)",
+      "sandbox_tenant_quota_state:(tenant_id,sandbox_quota_scope)",
+      "sandbox_admission_reservation:(tenant_id,sandbox_admission_reservation_id)",
+      "sandbox_node_capacity_state:(sandbox_node_reference)",
+      "sandbox_capacity_reservation:(tenant_id,sandbox_capacity_reservation_id)"
+    ],
+    "sandbox_multi_row_keys_sorted_ascending": true,
+    "sandbox_lock_order_is_global_across_reserve_confirm_release_and_reconcile": true,
+    "sandbox_lock_wait_is_bounded": true,
+    "sandbox_unbounded_rows_locked_per_transaction_allowed": false
+  },
+  "idempotencyCasAndFencing": {
+    "sandbox_same_operation_same_fingerprint_replays_persisted_result": true,
+    "sandbox_same_operation_different_fingerprint_conflicts": true,
+    "sandbox_unique_constraint_is_required_for_each_operation_identity": true,
+    "sandbox_all_mutable_rows_require_version_cas": true,
+    "sandbox_stale_fencing_token_rejected_before_counter_or_state_mutation": true,
+    "sandbox_fencing_token_must_fit_signed_bigint": true,
+    "sandbox_counter_update_and_reservation_insert_are_one_transaction": true,
+    "sandbox_database_clock_is_expiry_authority": true,
+    "sandbox_application_clock_may_author_ttl": false,
+    "sandbox_serialization_and_deadlock_sqlstates": ["40001", "40P01"],
+    "sandbox_retry_scope": "complete-idempotent-transaction",
+    "sandbox_retry_attempts_max": 4,
+    "sandbox_retry_backoff_millis_max": 250,
+    "sandbox_retry_uses_jitter": true
+  },
+  "expiryReleaseAndReconciliation": {
+    "sandbox_prepared_reservation_ttl_seconds_max": 60,
+    "sandbox_admission_reservation_ttl_seconds_max": 60,
+    "sandbox_reconciliation_batch_size_max": 100,
+    "sandbox_reconciliation_uses_keyset_pagination": true,
+    "sandbox_reconciliation_uses_primary_database": true,
+    "sandbox_reconciliation_claim_may_use_skip_locked": true,
+    "sandbox_reconciliation_is_at_least_once_and_idempotent": true,
+    "sandbox_unbounded_scan_or_full_collect_allowed": false,
+    "sandbox_confirmed_or_bound_expiry_without_cleanup_proof_releases_counter": false,
+    "sandbox_uncertain_provider_or_node_state_quarantines_without_freeing_capacity": true,
+    "sandbox_release_requires_terminal_lifecycle_or_verified_provider_cleanup": true,
+    "sandbox_counter_drift_reconciliation_required": true,
+    "sandbox_counter_drift_auto_expansion_or_cross_tenant_repair_allowed": false
+  },
+  "queryAndIndexContract": {
+    "sandbox_tenant_indexes_lead_with_tenant_id": true,
+    "sandbox_stable_sort_has_unique_id_tiebreaker": true,
+    "sandbox_named_query_shapes": [
+      "sandbox_get_quota_state_by_tenant_and_scope",
+      "sandbox_get_admission_reservation_by_request",
+      "sandbox_list_expired_admission_reservations_by_tenant",
+      "sandbox_get_node_capacity_state_by_node_reference",
+      "sandbox_get_capacity_reservation_by_placement_request",
+      "sandbox_list_expired_capacity_reservations_by_tenant",
+      "sandbox_list_quarantined_capacity_by_node"
+    ],
+    "sandbox_list_queries_use_sql_keyset_or_skip_locked": true,
+    "sandbox_select_star_allowed": false,
+    "sandbox_query_page_size_max": 100,
+    "sandbox_p0_p1_explain_analyze_buffers_evidence_required": true,
+    "sandbox_partitioning_before_measured_need_allowed": false,
+    "sandbox_index_and_capacity_forecast_required": true
+  },
+  "securityPrivacyAndRoles": {
+    "sandbox_tenant_tables_require_rls_defense_in_depth": true,
+    "sandbox_runtime_role_owns_tables_or_bypasses_rls": false,
+    "sandbox_owner_migrator_runtime_readonly_backup_roles_separated": true,
+    "sandbox_fixed_safe_search_path_required": true,
+    "sandbox_tls_required": true,
+    "sandbox_entitlement_payload_persisted": false,
+    "sandbox_entitlement_snapshot_reference_classification": "TenantSensitive",
+    "sandbox_node_reference_and_capacity_classification": "Internal",
+    "sandbox_reservation_and_trace_classification": "TenantSensitive",
+    "sandbox_raw_tenant_node_capacity_entitlement_or_sql_in_log_error_metric_allowed": false,
+    "sandbox_tenant_session_node_reservation_metric_labels_allowed": false,
+    "sandbox_public_api_or_event_exposes_internal_row_id_node_reference_or_reservation_id": false,
+    "sandbox_cross_tenant_node_capacity_access_role": "dedicated scheduler service role",
+    "sandbox_data_residency_and_retention_review_required": true
+  },
+  "errorContract": {
+    "sandbox_candidate_error_types": [
+      "SandboxQuotaPersistenceError",
+      "SandboxCapacityPersistenceError"
+    ],
+    "sandbox_internal_error_codes": [
+      "sandbox_subject_scope_invalid",
+      "sandbox_policy_snapshot_invalid",
+      "sandbox_quota_exceeded",
+      "sandbox_capacity_exceeded",
+      "sandbox_version_conflict",
+      "sandbox_idempotency_conflict",
+      "sandbox_fencing_conflict",
+      "sandbox_reservation_expired",
+      "sandbox_reservation_quarantined",
+      "sandbox_dependency_unavailable",
+      "sandbox_internal_failure"
+    ],
+    "sandbox_sqlstate_classification_required": true,
+    "sandbox_localized_database_message_matching_allowed": false,
+    "sandbox_retryability_explicit": true,
+    "sandbox_raw_constraint_sql_capacity_tenant_or_node_detail_allowed": false
+  },
+  "eventAuditAndTelemetry": {
+    "sandbox_event_types": [
+      "sandbox.scheduler.capacity.reserved",
+      "sandbox.scheduler.capacity.released"
+    ],
+    "sandbox_required_metric_names": [
+      "sdkwork_sandbox_admission_decisions_total",
+      "sdkwork_sandbox_capacity_reservations_active",
+      "sdkwork_sandbox_capacity_saturation_ratio",
+      "sdkwork_sandbox_reconciliation_total",
+      "sdkwork_sandbox_reconciliation_duration_seconds"
+    ],
+    "sandbox_reservation_fact_and_state_change_share_transactional_outbox_when_approved": true,
+    "sandbox_audit_required_for_policy_override_quarantine_manual_release_and_cross_tenant_operation": true,
+    "sandbox_metrics_are_quota_capacity_or_billing_authority": false,
+    "sandbox_logs_are_audit_or_recovery_authority": false
+  },
+  "retentionBackupAndRecovery": {
+    "sandbox_released_reservation_hot_retention_days_candidate": 30,
+    "sandbox_quarantined_records_retained_until_incident_resolution": true,
+    "sandbox_retention_requires_privacy_legal_hold_and_residency_review": true,
+    "sandbox_backup_encrypted": true,
+    "sandbox_point_in_time_recovery_required": true,
+    "sandbox_pitr_window_days_min_candidate": 7,
+    "sandbox_rpo_seconds_max_candidate": 300,
+    "sandbox_rto_seconds_max_candidate": 1800,
+    "sandbox_restore_exercise_interval_days_max_candidate": 90,
+    "sandbox_candidate_targets_require_human_approval": true,
+    "sandbox_restore_without_counter_and_reservation_reconciliation_is_ready": false,
+    "sandbox_read_replica_used_for_admission_reservation_or_immediate_read_after_write": false,
+    "sandbox_failover_requires_primary_role_and_replica_lag_validation": true,
+    "sandbox_backup_job_without_verified_restore_is_recovery_evidence": false
+  },
+  "performanceAndOperations": {
+    "sandbox_lock_timeout_millis_max_candidate": 500,
+    "sandbox_statement_timeout_millis_max_candidate": 2000,
+    "sandbox_idle_in_transaction_timeout_required": true,
+    "sandbox_connection_budget_required": true,
+    "sandbox_pg_stat_statements_or_managed_equivalent_required": true,
+    "sandbox_lock_wait_deadlock_timeout_slow_query_and_retry_metrics_required": true,
+    "sandbox_dead_tuple_autovacuum_analyze_bloat_xid_and_wal_monitoring_required": true,
+    "sandbox_load_soak_failover_and_multi_replica_race_evidence_required": true,
+    "sandbox_runtime_partitioning_or_fillfactor_tuning_without_measurement_allowed": false
+  },
+  "migrationAndReleaseGate": {
+    "sandbox_contract_registry_migration_repository_order_required": true,
+    "sandbox_next_migration_must_be_forward_first": true,
+    "sandbox_migration_metadata_lock_timeout_statement_timeout_rewrite_wal_observation_and_recovery_required": true,
+    "sandbox_existing_tenant_text_to_bigint_requires_dedicated_migration_plan": true,
+    "sandbox_empty_and_previous_contract_upgrade_smoke_required": true,
+    "sandbox_real_postgresql_16_and_17_evidence_required": true,
+    "sandbox_multi_replica_quota_and_capacity_race_evidence_required": true,
+    "sandbox_query_plan_role_rls_drift_backup_restore_and_pitr_evidence_required": true,
+    "sandbox_real_firecracker_reservation_before_allocate_evidence_required": true,
+    "sandbox_static_contract_test_is_database_or_commercial_readiness_evidence": false
+  },
+  "bounds": {
+    "sandbox_resource_quantity_signed_bigint_max": 9223372036854775807,
+    "sandbox_fingerprint_bytes_max": 128,
+    "sandbox_reference_bytes_max": 256,
+    "sandbox_trace_id_bytes_max": 128,
+    "sandbox_reconciliation_batch_size_max": 100,
+    "sandbox_transaction_retry_attempts_max": 4
+  },
+  "humanReview": {
+    "required": true,
+    "reviewPacket": "REVIEW-20260729-sandbox-postgresql-quota-and-capacity-persistence",
+    "requiredReviewers": [
+      "architecture-owner",
+      "database-reliability-owner",
+      "security-privacy-owner",
+      "iam-subject-owner",
+      "commerce-entitlement-owner",
+      "capacity-quota-owner",
+      "observability-operations-owner",
+      "firecracker-kvm-owner"
+    ]
+  },
+  "x-sdkwork-status": "draft",
+  "x-sdkwork-require-human-review": true,
+  "x-sdkwork-no-runtime-implementation": true,
+  "x-sdkwork-no-database-implementation": true,
+  "x-sdkwork-no-migration-implementation": true,
+  "x-sdkwork-no-repository-implementation": true,
+  "x-sdkwork-no-api-sdk-implementation": true,
+  "x-sdkwork-no-deployment-implementation": true
+}

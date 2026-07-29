@@ -26,15 +26,17 @@ Updated: 2026-07-29
 | Command / Check | Result |
 | --- | --- |
 | `cargo fmt --all -- --check` | PASS. |
-| `cargo test --workspace` | PASS: 29 Rust unit/behavior tests; the explicit live PostgreSQL test remains ignored unless its test database variable is provided. |
+| `cargo test --workspace --offline` | PASS: 37 Rust unit/behavior tests; the explicit live PostgreSQL test remains ignored unless `SDKWORK_SANDBOX_TEST_DATABASE_URL` is provided. |
 | `cargo clippy --workspace --all-targets -- -D warnings` | PASS. |
 | `node --test tests/contract/database-framework.contract.test.mjs` | PASS: 4 database contract tests, including stable Tenant+Session Operation Sequence constraints. |
 | `sdkwork-database-cli -- --app-root . init` against an empty database | PASS: 1 migration applied. Immediate second init applied 0 migrations. |
 | `sdkwork-database-cli -- --app-root . status` | PASS: `module=sandbox engine=postgres status=clean pending_migrations=0`. |
 | `sdkwork-database-cli -- --app-root . drift-check` | PASS. |
 | `cargo test -p sdkwork-intelligence-sandbox-repository-sqlx --test postgres_repository -- --ignored --nocapture` | PASS: 1 live PostgreSQL integration test. |
-| Persisted invariant tamper regression | PASS: `Destroyed` with Binding, `Starting` without InProgress Start, and `Failed` with unmatched Failure all returned `InvalidStoredData`; the legal record was restored unchanged. |
+| Persisted invariant tamper regression | PASS: `Destroyed` with Binding, `Starting` without InProgress Start, `Starting` without Binding Intent, and `Failed` with unmatched Failure all returned `InvalidStoredData`; Capture and Restore apply the same fail-closed validation, and the legal record was restored unchanged. |
 | Exact reconciliation boundary | PASS: page sizes `0/201` return `InvalidPageRequest`; a final page exactly equal to `page_size` has no continuation when no successor exists. |
+| Start Intent ordering regression | PASS: no Provider Allocate occurs before `Starting`、In-progress Start Operation and no-allocation Binding Intent are durably saved; Retry Start clears an old Allocation while the aggregate remains in its stable state. |
+| Allocation persistence failure injection | PASS: after Allocate succeeded and Allocation Save failed, Provider cleanup ran, persistence retained recoverable `Starting` plus no-allocation Intent, and Reconciler acquired fencing token `2`, reallocated, and started only `allocation-2`. |
 | PostgreSQL backup/restore using `pg_dump --format=custom` and `pg_restore` | PASS: restored Session/Operation/Binding/Lease counts were `3/4/2/3`; plaintext Allocation Reference matches were `0`. |
 | Database, Component, Layering, Identity Naming, Documentation, Packages Layout, and Repository Baseline validators | PASS. |
 | Kernel `cargo fmt --manifest-path sdkwork-agent-kernel/Cargo.toml -- --check` and `cargo check --offline -p sdkwork-agent-kernel` | PASS. The Kernel lock change only adds Tokio to the Sandbox Service dependency entry. |
@@ -51,7 +53,8 @@ The live integration test verifies empty-schema materialization, stable zero-bas
 - PostgreSQL stores Ciphertext, Key ID, Key Version, and Crypto Version; the Provider Allocation plaintext did not appear in restored database rows.
 - Each Allocate/Start/Stop/Destroy renews `SandboxSessionLease` first, carries the current `sandbox_fencing_token`, and is bounded by a timeout no greater than half the Lease duration.
 - Memory and PostgreSQL repositories enforce the same Tenant, CAS, Lease, and Fencing behavior; Memory remains test-only and is not a production fallback.
-- `sandbox_operation_sequence` is the lifecycle replay authority; transaction timestamps and random Operation IDs are not used to infer Aggregate order. Restore validates the replayed state and Binding/Allocation matrix before decryption.
+- `sandbox_operation_sequence` is the lifecycle replay authority; transaction timestamps and random Operation IDs are not used to infer Aggregate order. Snapshot Capture and Restore validate the replayed state and Binding/Allocation matrix before encryption or decryption, including the rule that every persisted `Starting` owns a recoverable Binding Intent.
+- Retry Start never persists `Starting` with an old Allocation. It destroys the old Allocation while the aggregate is stable, then atomically persists the new no-allocation Intent; cleanup failure records Typed `Failed(Cleanup)` while retaining the old Binding for explicit recovery.
 - Reconciler scans only explicit Tenant scope with page size `1..=200`, uses a Tenant-partitioned ordered Memory index or PostgreSQL keyset query, and returns continuation only after a bounded successor probe; active Lease ownership produces `SandboxLifecycleError::LeaseUnavailable` without Provider effects.
 - Kernel maps `SandboxLifecycleError::LeaseUnavailable` and `SandboxLifecycleError::LeaseLost` to retryable Runtime conflicts. Repository unavailability remains retryable but internal; persisted-data, protection, and engine-integrity failures remain non-retryable internal errors without leaking storage or cryptographic detail.
 

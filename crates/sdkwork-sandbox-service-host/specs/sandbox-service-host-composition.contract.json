@@ -1,0 +1,257 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.sandbox.service-host-composition-contract",
+  "status": "draft",
+  "requirementId": "REQ-2026-0009",
+  "relatedRequirementIds": ["REQ-2026-0013"],
+  "adr": "../../../docs/architecture/decisions/ADR-20260729-sandbox-service-host-composition-and-readiness.md",
+  "review": "../../../docs/engineering/reviews/REVIEW-20260729-sandbox-service-host-composition-and-readiness.md",
+  "component": "sdkwork-sandbox-service-host",
+  "layerRole": "runtime-service-host",
+  "implementationAuthorized": false,
+  "profileParity": {
+    "sharedContracts": [
+      "SandboxSessionLifecyclePort",
+      "SandboxSessionRepository",
+      "SandboxProvider",
+      "SandboxWorkspaceAttachmentPort",
+      "SandboxSecretKeySource",
+      "SandboxTelemetryPort",
+      "SandboxClock",
+      "SandboxIdGenerator"
+    ],
+    "profiles": [
+      {
+        "sandbox_deployment_profile": "standalone",
+        "sandbox_environment": "explicit",
+        "sandbox_runtime_target": "server"
+      },
+      {
+        "sandbox_deployment_profile": "cloud",
+        "sandbox_environment": "explicit",
+        "sandbox_runtime_target": "server"
+      }
+    ],
+    "forbiddenServiceBranches": [
+      "sandbox_deployment_profile",
+      "sandbox_environment",
+      "sandbox_runtime_target"
+    ]
+  },
+  "typedConfig": {
+    "type": "SandboxServiceHostConfig",
+    "sourceAuthority": "runtime-bootstrap-approved-etc-profile",
+    "fields": [
+      {
+        "name": "sandbox_deployment_profile",
+        "type": "SandboxDeploymentProfile",
+        "required": true,
+        "allowedValues": ["standalone", "cloud"]
+      },
+      {
+        "name": "sandbox_environment",
+        "type": "SandboxEnvironment",
+        "required": true
+      },
+      {
+        "name": "sandbox_runtime_target",
+        "type": "SandboxRuntimeTarget",
+        "required": true,
+        "allowedValues": ["server"]
+      },
+      {
+        "name": "sandbox_runtime_directory",
+        "type": "SandboxRuntimeDirectoryRef",
+        "required": true,
+        "safeForObservation": false
+      },
+      {
+        "name": "sandbox_readiness_timeout_ms",
+        "type": "u64",
+        "required": true,
+        "minimum": 1,
+        "maximum": 60000
+      },
+      {
+        "name": "sandbox_shutdown_timeout_ms",
+        "type": "u64",
+        "required": true,
+        "minimum": 1,
+        "maximum": 300000
+      },
+      {
+        "name": "sandbox_required_capabilities",
+        "type": "Set<SandboxCapability>",
+        "required": true,
+        "maximumItems": 64
+      },
+      {
+        "name": "sandbox_required_isolation_assurance",
+        "type": "SandboxIsolationAssurance",
+        "required": true
+      }
+    ],
+    "forbiddenSources": [
+      "process-environment",
+      "dotenv",
+      "source-checkout-metadata",
+      "global-mutable-state",
+      "embedded-secret-material"
+    ]
+  },
+  "injectedDependencies": [
+    {
+      "name": "sandbox_lifecycle_service",
+      "port": "SandboxSessionLifecyclePort",
+      "owner": "sdkwork-intelligence-sandbox-service",
+      "required": true
+    },
+    {
+      "name": "sandbox_session_repository",
+      "port": "SandboxSessionRepository",
+      "owner": "sdkwork-intelligence-sandbox-service",
+      "serverAuthority": "sdkwork-intelligence-sandbox-repository-sqlx",
+      "required": true,
+      "forbiddenServerFallbacks": ["memory", "sqlite"]
+    },
+    {
+      "name": "sandbox_provider_registry",
+      "port": "SandboxProviderRegistry",
+      "owner": "future-approved-composition-port",
+      "providerPort": "SandboxProvider",
+      "required": true
+    },
+    {
+      "name": "sandbox_workspace_attachment",
+      "port": "SandboxWorkspaceAttachmentPort",
+      "owner": "sdkwork-agents-through-sdkwork-kernel",
+      "boundaryContract": "../../../specs/sandbox-workspace-block-device-attachment.contract.json",
+      "providerSpecificMechanismInjectedBehindPort": true,
+      "required": true
+    },
+    {
+      "name": "sandbox_secret_key_source",
+      "port": "SandboxSecretKeySource",
+      "owner": "future-approved-secret-kms-adapter",
+      "required": true
+    },
+    {
+      "name": "sandbox_telemetry",
+      "port": "SandboxTelemetryPort",
+      "owner": "future-approved-telemetry-adapter",
+      "required": true
+    },
+    {
+      "name": "sandbox_clock",
+      "port": "SandboxClock",
+      "owner": "composition",
+      "required": true
+    },
+    {
+      "name": "sandbox_id_generator",
+      "port": "SandboxIdGenerator",
+      "owner": "composition",
+      "required": true
+    }
+  ],
+  "readiness": {
+    "type": "SandboxServiceHostReadiness",
+    "aggregation": "all-required-dimensions-ready",
+    "failureMode": "fail-closed",
+    "dimensions": [
+      "sandbox_config",
+      "sandbox_store",
+      "sandbox_provider_registry",
+      "sandbox_workspace_attachment",
+      "sandbox_secret_key_source",
+      "sandbox_telemetry",
+      "sandbox_fencing"
+    ],
+    "dimensionStates": ["ready", "not-ready", "degraded", "unknown"],
+    "safeFields": [
+      "sandbox_dependency",
+      "sandbox_outcome",
+      "sandbox_reason_code",
+      "sandbox_duration_ms",
+      "sandbox_trace_id",
+      "sandbox_checked_at"
+    ],
+    "forbiddenFields": [
+      "sandbox_secret_material",
+      "sandbox_database_url",
+      "sandbox_physical_host_path",
+      "sandbox_api_socket",
+      "sandbox_provider_allocation_reference",
+      "sandbox_raw_command",
+      "sandbox_environment_value",
+      "sandbox_tenant_name",
+      "sandbox_raw_identity"
+    ],
+    "bounds": {
+      "sandbox_check_timeout_ms": 60000,
+      "sandbox_reason_code_max_length": 128,
+      "sandbox_dimension_count": 7
+    }
+  },
+  "shutdown": {
+    "type": "SandboxServiceHostShutdown",
+    "bounded": true,
+    "idempotent": true,
+    "stopNewLifecycleSideEffectsFirst": true,
+    "releaseOrder": [
+      "sandbox_provider_leases",
+      "sandbox_provider_resources",
+      "sandbox_telemetry",
+      "sandbox_store"
+    ],
+    "timeoutOutcome": "sandbox_internal_failure",
+    "operatorObservationRequired": true
+  },
+  "failClosedConditions": [
+    "sandbox_config_invalid",
+    "sandbox_store_unavailable",
+    "sandbox_provider_registry_unavailable",
+    "sandbox_provider_identity_mismatch",
+    "sandbox_provider_capability_mismatch",
+    "sandbox_provider_assurance_insufficient",
+    "sandbox_workspace_attachment_unavailable",
+    "sandbox_secret_key_source_unavailable",
+    "sandbox_telemetry_unavailable",
+    "sandbox_fencing_unprovable"
+  ],
+  "forbiddenOwnership": [
+    "http-listener",
+    "rpc-listener",
+    "api-route",
+    "generated-sdk",
+    "provider-mechanism",
+    "database-pool-construction",
+    "database-migration",
+    "scheduler-policy",
+    "quota-metering-policy",
+    "secret-injection-mechanism",
+    "deployment-profile-materialization"
+  ],
+  "authorization": {
+    "publicExports": false,
+    "runtimeEntrypoints": false,
+    "configKeys": false,
+    "httpOrRpc": false,
+    "providerImplementation": false,
+    "secretKmsImplementation": false,
+    "deployment": false
+  },
+  "verificationScenarios": [
+    "sandbox_profile_contract_parity",
+    "sandbox_missing_dependency_fails_closed",
+    "sandbox_provider_identity_mismatch_fails_closed",
+    "sandbox_provider_assurance_mismatch_fails_closed",
+    "sandbox_readiness_is_bounded_and_repeatable",
+    "sandbox_readiness_output_is_redacted",
+    "sandbox_shutdown_is_bounded_and_idempotent",
+    "sandbox_server_store_has_no_memory_or_sqlite_fallback"
+  ],
+  "x-sdkwork-status": "draft",
+  "x-sdkwork-require-human-review": true,
+  "x-sdkwork-no-runtime-wiring": true
+}

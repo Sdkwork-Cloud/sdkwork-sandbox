@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.sandbox.command-contract",
+  "status": "draft",
+  "requirementId": "REQ-2026-0007",
+  "adr": "../../docs/architecture/decisions/ADR-20260729-sandbox-command-execution-and-terminal-boundary.md",
+  "review": "../../docs/engineering/reviews/REVIEW-20260729-sandbox-command-execution-architecture-security.md",
+  "requestSchema": "./sandbox-command-execution-request.schema.json",
+  "resultSchema": "./sandbox-command-execution-result.schema.json",
+  "errorSchema": "./sandbox-command-execution-error.schema.json",
+  "executionModes": ["executable-argv"],
+  "forbiddenExecutionModes": [
+    "shell-string",
+    "implicit-shell",
+    "interactive-pty",
+    "network",
+    "browser",
+    "port-forward",
+    "secret-injection"
+  ],
+  "bounds": {
+    "maxArgumentCount": 128,
+    "maxArgumentLength": 4096,
+    "maxEnvironmentEntries": 64,
+    "maxEnvironmentValueLength": 1024,
+    "maxStdoutBytes": 67108864,
+    "maxStderrBytes": 67108864,
+    "maxProcessCount": 128,
+    "maxTimeoutMs": 86400000,
+    "maxCleanupTimeoutMs": 60000
+  },
+  "errorCodes": [
+    { "code": "invalid-request", "retryable": false, "category": "validation" },
+    { "code": "unsupported-capability", "retryable": false, "category": "capability" },
+    { "code": "policy-denied", "retryable": false, "category": "security" },
+    { "code": "stale-fencing", "retryable": true, "category": "concurrency" },
+    { "code": "timeout", "retryable": true, "category": "execution" },
+    { "code": "cancelled", "retryable": false, "category": "execution" },
+    { "code": "output-limit", "retryable": false, "category": "resource" },
+    { "code": "resource-exhausted", "retryable": true, "category": "resource" },
+    { "code": "provider-unavailable", "retryable": true, "category": "provider" },
+    { "code": "internal-failure", "retryable": false, "category": "internal" }
+  ],
+  "conformanceScenarios": [
+    "typed-executable-and-argv-preservation",
+    "shell-string-rejection",
+    "logical-working-directory-escape-rejection",
+    "deny-by-default-environment",
+    "timeout-and-descendant-cleanup",
+    "cancellation-and-descendant-cleanup",
+    "stdout-and-stderr-hard-bounds",
+    "stale-fencing-fail-closed",
+    "same-operation-same-fingerprint-replay",
+    "same-operation-different-fingerprint-conflict",
+    "safe-error-and-private-metadata-redaction"
+  ],
+  "x-sdkwork-status": "draft",
+  "x-sdkwork-no-host-io": true,
+  "x-sdkwork-require-human-review": true
+}

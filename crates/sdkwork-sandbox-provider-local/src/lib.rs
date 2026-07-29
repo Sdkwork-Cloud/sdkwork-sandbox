@@ -3,3 +3,6 @@
 //!
 //! Host process, filesystem, network, browser, and terminal access are not
 //! implemented until capability and isolation policies are approved.
+
+#[cfg(test)]
+mod fake_host_boundary;

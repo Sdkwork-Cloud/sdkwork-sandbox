@@ -37,7 +37,7 @@ Date: 2026-07-28
 ## Remaining Gates
 
 - `ADR-20260728-agents-workspace-and-sandbox-attachment-ownership` and the cross-repository `0.1` public contract still require human architecture/security review.
-- Production Physical Attachment Capability, Storage Backend, Agents Authorization/Revision Proof, Attachment Retention, Snapshot/Restore, and multi-tenant data-plane isolation are not implemented.
+- REQ-2026-0013 now defines a draft provider-neutral Composition/L4 Block Device mechanism, Agents/Drive ownership, Grant, encryption, sanitization, residue, and quarantine candidate boundary; Production Physical Attachment Capability, Storage/KMS Backend, Agents Authorization/Revision Proof, Attachment Retention, Snapshot/Restore, and multi-tenant data-plane isolation remain unimplemented and pending human review.
 - No real Local/Firecracker Provider consumes an authorized Attachment Capability yet; Provider Readiness evidence currently uses a deterministic Fake Provider, and Docker is deferred.
 
 ## Conclusion

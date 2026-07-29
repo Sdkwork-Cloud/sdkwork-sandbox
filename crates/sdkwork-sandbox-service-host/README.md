@@ -8,6 +8,8 @@ Package type: Rust service-host composition crate
 
 Status: foundation scaffold
 
+Candidate contract: [Sandbox Service Host Composition Contract](specs/sandbox-service-host-composition.contract.json). The contract remains `draft`, requires human review, and does not authorize runtime wiring.
+
 ## Public API
 
 No service container or bootstrap API is published in Phase 0.
@@ -34,4 +36,7 @@ Future runtime composition will bind service ports and provider adapters declare
 
 ## Verification
 
-`cargo check -p sdkwork-sandbox-service-host`
+```bash
+cargo check -p sdkwork-sandbox-service-host
+node --test tests/contract/sandbox-service-host-composition.contract.test.mjs
+```

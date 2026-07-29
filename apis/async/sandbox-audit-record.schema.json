@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sdkwork.dev/sandbox/async/sandbox-audit-record.schema.v1.json",
+  "title": "SandboxAuditRecord",
+  "description": "Candidate Sandbox audit fact schema. REQ-2026-0010 remains draft and implementation is not authorized.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "sandboxAuditId",
+    "sandboxActor",
+    "sandboxAction",
+    "sandboxResource",
+    "sandboxTenantId",
+    "sandboxResult",
+    "sandboxTime",
+    "sandboxTraceId",
+    "sandboxRedactionClassification"
+  ],
+  "properties": {
+    "sandboxAuditId": {
+      "type": "string",
+      "pattern": "^sandbox_audit_[A-Za-z0-9][A-Za-z0-9._-]{0,159}$"
+    },
+    "sandboxActor": {
+      "$ref": "#/$defs/SandboxAuditActor"
+    },
+    "sandboxAction": {
+      "type": "string",
+      "pattern": "^sandbox\\.[a-z][a-z0-9]*(\\.[a-z][a-z0-9_]*){1,4}$",
+      "maxLength": 160
+    },
+    "sandboxResource": {
+      "$ref": "#/$defs/SandboxAuditResource"
+    },
+    "sandboxTenantId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "sandboxOrganizationId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "sandboxResult": {
+      "enum": ["allowed", "denied", "failed"]
+    },
+    "sandboxReasonCode": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,127}$"
+    },
+    "sandboxTime": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sandboxTraceId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "sandboxOperationId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "sandboxPolicyCategory": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9._-]{0,127}$"
+    },
+    "sandboxSource": {
+      "type": "string",
+      "pattern": "^sandbox\\.[a-z][a-z0-9-]{1,63}$"
+    },
+    "sandboxRedactionClassification": {
+      "enum": ["Internal", "TenantSensitive", "PersonalData", "Regulated"]
+    }
+  },
+  "$defs": {
+    "SandboxAuditActor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sandboxActorType", "sandboxActorRefHash"],
+      "properties": {
+        "sandboxActorType": {
+          "enum": ["user", "service", "api-key", "system", "operator"]
+        },
+        "sandboxActorRefHash": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        }
+      }
+    },
+    "SandboxAuditResource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sandboxResourceKind", "sandboxResourceRefHash"],
+      "properties": {
+        "sandboxResourceKind": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9._-]{0,63}$"
+        },
+        "sandboxResourceRefHash": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        }
+      }
+    }
+  }
+}

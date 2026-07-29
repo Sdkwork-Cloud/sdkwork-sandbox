@@ -6,11 +6,17 @@ Capability: `sandbox-local-execution`
 
 Package type: Rust provider adapter
 
-Status: foundation scaffold
+Status: foundation scaffold with a test-only fake host boundary
 
 ## Public API
 
 No provider implementation is published in Phase 0.
+
+The crate includes a `#[cfg(test)]` fake host boundary that exercises logical
+relative-path rejection, executable/environment allowlists, typed argument
+preservation, and request bounds. It performs no host filesystem access and
+starts no process; it is pre-review test evidence, not a Local Provider or
+isolation claim.
 
 ## Required SDK Surface
 
@@ -34,4 +40,4 @@ The adapter will implement the reviewed provider SPI; Phase 0 declares no bindin
 
 ## Verification
 
-`cargo check -p sdkwork-sandbox-provider-local`
+`cargo test -p sdkwork-sandbox-provider-local`

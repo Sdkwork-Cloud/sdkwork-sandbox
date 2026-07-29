@@ -1,0 +1,294 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.sandbox.observability-catalog",
+  "status": "draft",
+  "requirementId": "REQ-2026-0010",
+  "implementationAuthorized": false,
+  "structuredLogs": {
+    "type": "SandboxStructuredLogRecord",
+    "requiredContextFields": [
+      "timestamp",
+      "level",
+      "service",
+      "environment",
+      "deployment_profile",
+      "runtime_target",
+      "trace_id",
+      "sandbox_operation",
+      "sandbox_outcome"
+    ],
+    "optionalSafeFields": [
+      "operation_id",
+      "backend_layer",
+      "sandbox_reason_code",
+      "sandbox_duration_ms",
+      "sandbox_provider_kind",
+      "sandbox_isolation_assurance",
+      "sandbox_session_state"
+    ],
+    "bounds": {
+      "sandbox_message_max_length": 512,
+      "sandbox_reason_code_max_length": 128,
+      "sandbox_field_count_max": 32
+    }
+  },
+  "metrics": {
+    "requiredLabels": ["service", "environment", "deployment_profile", "runtime_target"],
+    "allowedBoundedLabels": [
+      "operation_id",
+      "status",
+      "backend_layer",
+      "runtime_profile",
+      "sandbox_operation",
+      "sandbox_outcome",
+      "sandbox_provider_kind",
+      "sandbox_isolation_assurance",
+      "sandbox_session_state",
+      "sandbox_resource_kind",
+      "sandbox_node_trust_profile",
+      "sandbox_node_lifecycle_state",
+      "sandbox_delivery_state",
+      "sandbox_failure_category"
+    ],
+    "forbiddenLabels": [
+      "sandbox_tenant_name",
+      "sandbox_user_id",
+      "sandbox_raw_tenant_id",
+      "sandbox_trace_id",
+      "sandbox_request_id",
+      "sandbox_raw_path",
+      "sandbox_raw_url",
+      "sandbox_raw_command",
+      "sandbox_prompt",
+      "sandbox_provider_display_name",
+      "sandbox_provider_allocation_reference"
+    ],
+    "histogramBucketsSeconds": [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, 300],
+    "catalog": [
+      {
+        "name": "sdkwork_sandbox_lifecycle_operations_total",
+        "type": "counter",
+        "unit": "operations",
+        "additionalLabels": ["sandbox_operation", "sandbox_outcome"]
+      },
+      {
+        "name": "sdkwork_sandbox_lifecycle_operation_duration_seconds",
+        "type": "histogram",
+        "unit": "seconds",
+        "additionalLabels": ["sandbox_operation", "sandbox_outcome"]
+      },
+      {
+        "name": "sdkwork_sandbox_sessions_active",
+        "type": "gauge",
+        "unit": "sessions",
+        "additionalLabels": ["sandbox_provider_kind", "sandbox_isolation_assurance", "sandbox_session_state"]
+      },
+      {
+        "name": "sdkwork_sandbox_provider_operations_total",
+        "type": "counter",
+        "unit": "operations",
+        "additionalLabels": ["sandbox_provider_kind", "sandbox_operation", "sandbox_outcome"]
+      },
+      {
+        "name": "sdkwork_sandbox_provider_operation_duration_seconds",
+        "type": "histogram",
+        "unit": "seconds",
+        "additionalLabels": ["sandbox_provider_kind", "sandbox_operation", "sandbox_outcome"]
+      },
+      {
+        "name": "sdkwork_sandbox_resource_limit_operations_total",
+        "type": "counter",
+        "unit": "operations",
+        "additionalLabels": ["sandbox_provider_kind", "sandbox_resource_kind", "sandbox_operation", "sandbox_outcome"]
+      },
+      {
+        "name": "sdkwork_sandbox_resource_limit_operation_duration_seconds",
+        "type": "histogram",
+        "unit": "seconds",
+        "additionalLabels": ["sandbox_provider_kind", "sandbox_resource_kind", "sandbox_operation", "sandbox_outcome"]
+      },
+      {
+        "name": "sdkwork_sandbox_resource_limit_breaches_total",
+        "type": "counter",
+        "unit": "events",
+        "additionalLabels": ["sandbox_provider_kind", "sandbox_resource_kind", "sandbox_outcome", "sandbox_failure_category"]
+      },
+      {
+        "name": "sdkwork_sandbox_resource_saturation_ratio",
+        "type": "gauge",
+        "unit": "ratio",
+        "additionalLabels": ["sandbox_provider_kind", "sandbox_resource_kind"]
+      },
+      {
+        "name": "sdkwork_sandbox_admission_decisions_total",
+        "type": "counter",
+        "unit": "decisions",
+        "additionalLabels": ["sandbox_outcome", "sandbox_failure_category"]
+      },
+      {
+        "name": "sdkwork_sandbox_scheduler_placement_operations_total",
+        "type": "counter",
+        "unit": "operations",
+        "additionalLabels": ["sandbox_provider_kind", "sandbox_operation", "sandbox_outcome"]
+      },
+      {
+        "name": "sdkwork_sandbox_scheduler_placement_duration_seconds",
+        "type": "histogram",
+        "unit": "seconds",
+        "additionalLabels": ["sandbox_operation", "sandbox_outcome"]
+      },
+      {
+        "name": "sdkwork_sandbox_scheduler_queue_wait_duration_seconds",
+        "type": "histogram",
+        "unit": "seconds",
+        "additionalLabels": ["sandbox_outcome"]
+      },
+      {
+        "name": "sdkwork_sandbox_capacity_reservations_active",
+        "type": "gauge",
+        "unit": "reservations",
+        "additionalLabels": ["sandbox_provider_kind"]
+      },
+      {
+        "name": "sdkwork_sandbox_capacity_saturation_ratio",
+        "type": "gauge",
+        "unit": "ratio",
+        "additionalLabels": ["sandbox_provider_kind", "sandbox_resource_kind"]
+      },
+      {
+        "name": "sdkwork_sandbox_node_enrollment_operations_total",
+        "type": "counter",
+        "unit": "operations",
+        "additionalLabels": ["sandbox_operation", "sandbox_outcome", "sandbox_failure_category"]
+      },
+      {
+        "name": "sdkwork_sandbox_node_enrollment_duration_seconds",
+        "type": "histogram",
+        "unit": "seconds",
+        "additionalLabels": ["sandbox_outcome"]
+      },
+      {
+        "name": "sdkwork_sandbox_node_identity_rotation_operations_total",
+        "type": "counter",
+        "unit": "operations",
+        "additionalLabels": ["sandbox_outcome", "sandbox_failure_category"]
+      },
+      {
+        "name": "sdkwork_sandbox_node_attestation_verifications_total",
+        "type": "counter",
+        "unit": "verifications",
+        "additionalLabels": ["sandbox_node_trust_profile", "sandbox_outcome", "sandbox_failure_category"]
+      },
+      {
+        "name": "sdkwork_sandbox_node_attestation_verification_duration_seconds",
+        "type": "histogram",
+        "unit": "seconds",
+        "additionalLabels": ["sandbox_node_trust_profile", "sandbox_outcome"]
+      },
+      {
+        "name": "sdkwork_sandbox_node_inventory_publications_total",
+        "type": "counter",
+        "unit": "publications",
+        "additionalLabels": ["sandbox_node_lifecycle_state", "sandbox_outcome", "sandbox_failure_category"]
+      },
+      {
+        "name": "sdkwork_sandbox_nodes_by_scheduling_state",
+        "type": "gauge",
+        "unit": "nodes",
+        "additionalLabels": ["sandbox_provider_kind", "sandbox_node_trust_profile", "sandbox_node_lifecycle_state"]
+      },
+      {
+        "name": "sdkwork_sandbox_reconciliation_total",
+        "type": "counter",
+        "unit": "operations",
+        "additionalLabels": ["sandbox_outcome", "sandbox_failure_category"]
+      },
+      {
+        "name": "sdkwork_sandbox_reconciliation_duration_seconds",
+        "type": "histogram",
+        "unit": "seconds",
+        "additionalLabels": ["sandbox_outcome"]
+      },
+      {
+        "name": "sdkwork_sandbox_outbox_publish_total",
+        "type": "counter",
+        "unit": "events",
+        "additionalLabels": ["sandbox_delivery_state", "sandbox_outcome", "sandbox_failure_category"]
+      },
+      {
+        "name": "sdkwork_sandbox_outbox_publish_duration_seconds",
+        "type": "histogram",
+        "unit": "seconds",
+        "additionalLabels": ["sandbox_outcome"]
+      },
+      {
+        "name": "sdkwork_sandbox_outbox_pending",
+        "type": "gauge",
+        "unit": "events",
+        "additionalLabels": ["sandbox_delivery_state"]
+      },
+      {
+        "name": "sdkwork_sandbox_outbox_dead_letter_total",
+        "type": "counter",
+        "unit": "events",
+        "additionalLabels": ["sandbox_failure_category"]
+      }
+    ]
+  },
+  "traces": {
+    "type": "SandboxTraceObservation",
+    "traceAuthority": "server-owned-trace-id",
+    "propagationRequiredAcross": ["sandbox-service", "sdkwork-kernel", "sdkwork-agents", "sandbox-provider-adapter"],
+    "safeAttributes": [
+      "service",
+      "environment",
+      "deployment_profile",
+      "runtime_target",
+      "operation_id",
+      "backend_layer",
+      "sandbox_operation",
+      "sandbox_outcome",
+      "sandbox_reason_code",
+      "sandbox_provider_kind",
+      "sandbox_isolation_assurance"
+    ],
+    "competingTraceIdentityAllowed": false
+  },
+  "audit": {
+    "type": "SandboxAuditRecord",
+    "schema": "./sandbox-audit-record.schema.json",
+    "appendOriented": true,
+    "tamperEvidenceRequired": true,
+    "durableWhenTelemetryExporterUnavailable": true,
+    "consoleLogIsAuthority": false
+  },
+  "backpressure": {
+    "sandbox_business_events": "durable-outbox-no-silent-loss",
+    "sandbox_security_audit": "durable-no-silent-loss",
+    "sandbox_operational_telemetry": "bounded-buffer-with-explicit-drop-counter",
+    "sandbox_lifecycle_policy_may_change_due_to_exporter_failure": false
+  },
+  "factSeparation": {
+    "sandbox_metrics_are_billing_truth": false,
+    "sandbox_logs_are_audit_truth": false,
+    "sandbox_dashboard_is_business_truth": false,
+    "sandbox_dashboard_is_rebuildable_projection": true
+  },
+  "forbiddenObservationFields": [
+    "sandbox_secret_material",
+    "sandbox_raw_token",
+    "sandbox_raw_credential",
+    "sandbox_private_key",
+    "sandbox_physical_host_path",
+    "sandbox_raw_command",
+    "sandbox_argv",
+    "sandbox_raw_terminal_output",
+    "sandbox_provider_allocation_reference",
+    "sandbox_signed_url",
+    "sandbox_sql",
+    "sandbox_unbounded_personal_data"
+  ],
+  "x-sdkwork-status": "draft",
+  "x-sdkwork-require-human-review": true,
+  "x-sdkwork-no-runtime-implementation": true
+}

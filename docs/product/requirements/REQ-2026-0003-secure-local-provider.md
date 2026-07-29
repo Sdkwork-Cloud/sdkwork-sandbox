@@ -64,6 +64,10 @@ Components: `crates/sdkwork-sandbox-provider-local`, `crates/sdkwork-sandbox-ser
 
 Decision: [ADR-20260728: Local Provider Assurance And Host Boundaries](../../architecture/decisions/ADR-20260728-local-provider-assurance-and-host-boundaries.md).
 
+## Gate 0 Progress
+
+2026-07-29 已在 `sdkwork-sandbox-provider-local` 增加仅 `#[cfg(test)]` 编译的 Fake Host Boundary，5 个测试覆盖 Logical Relative Path 逃逸/Windows 设备路径、Typed Argv 无 Shell 解析、Executable/Environment Allowlist、参数与环境边界。仓库级 `specs/sandbox-provider-delivery-gates.contract.json` 同时固定 Local Kind `local`、Assurance `HostUser`、standalone 范围、平台监督证据、默认拒绝 Network/Browser/Port Forward 和禁止 Assurance 提升，并保持 `implementationAuthorized: false`。该 Harness 与机器契约均不访问 Host Filesystem、不启动进程、不导出 Provider Port，也不构成真实平台能力证据；本需求仍保持 `draft`，等待人工架构/安全评审和真实平台 Runner 证据。
+
 ## Verification Plan
 
 Implementation verification will include focused provider tests, cross-platform path/process tests, Provider Conformance, Cargo/Clippy, strict component binding, security review evidence, and a manual limitation review. Exact commands will be frozen when the Requirement becomes `ready`.

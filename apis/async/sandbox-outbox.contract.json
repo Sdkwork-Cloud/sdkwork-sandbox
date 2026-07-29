@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.sandbox.outbox-contract",
+  "status": "draft",
+  "requirementId": "REQ-2026-0010",
+  "implementationAuthorized": false,
+  "eventEnvelopeSchema": "./sandbox-event-envelope.schema.json",
+  "authoritativeStore": "postgresql",
+  "deliveryGuarantee": "at-least-once",
+  "transactionBoundary": {
+    "sandbox_business_fact_and_outbox_record": "same-authoritative-database-transaction",
+    "sandbox_publish_after_commit": true,
+    "sandbox_publisher_owns_no_business_fact": true,
+    "sandbox_telemetry_is_not_transaction_authority": true
+  },
+  "record": {
+    "type": "SandboxOutboxRecord",
+    "requiredFields": [
+      "sandbox_outbox_id",
+      "sandbox_event_id",
+      "sandbox_tenant_id",
+      "sandbox_event_type",
+      "sandbox_data_schema_version",
+      "sandbox_event_envelope",
+      "sandbox_ordering_scope",
+      "sandbox_ordering_key_hash",
+      "sandbox_delivery_state",
+      "sandbox_attempt_count",
+      "sandbox_next_attempt_at",
+      "sandbox_created_at"
+    ],
+    "optionalFields": [
+      "sandbox_claimed_until",
+      "sandbox_published_at",
+      "sandbox_dead_lettered_at",
+      "sandbox_last_failure_code"
+    ],
+    "deliveryStates": ["pending", "claimed", "published", "dead-letter"],
+    "immutableAfterInsert": [
+      "sandbox_event_id",
+      "sandbox_tenant_id",
+      "sandbox_event_type",
+      "sandbox_data_schema_version",
+      "sandbox_event_envelope",
+      "sandbox_ordering_scope",
+      "sandbox_ordering_key_hash",
+      "sandbox_created_at"
+    ],
+    "uniqueConstraints": ["sandbox_event_id"],
+    "tenantLeadingIndexesRequired": true,
+    "encryptedAtRestRequired": true
+  },
+  "bounds": {
+    "sandbox_event_envelope_max_bytes": 262144,
+    "sandbox_publish_batch_size_max": 200,
+    "sandbox_replay_batch_size_max": 200,
+    "sandbox_claim_lease_seconds_max": 60,
+    "sandbox_attempt_count_max": 12,
+    "sandbox_retry_initial_delay_seconds": 1,
+    "sandbox_retry_max_delay_seconds": 300,
+    "sandbox_retry_jitter_ratio_max": 0.25,
+    "sandbox_failure_code_max_length": 128,
+    "sandbox_ordering_key_hash_max_length": 128
+  },
+  "retry": {
+    "strategy": "bounded-exponential-with-jitter",
+    "retryableCategories": ["transport", "broker-unavailable", "timeout", "lease-conflict"],
+    "nonRetryableCategories": ["invalid-envelope", "unsupported-schema", "redaction-policy-denied"],
+    "deadLetterAfterAttemptLimit": true,
+    "silentDropAllowed": false
+  },
+  "deadLetter": {
+    "required": true,
+    "preserveOriginalSandboxEventId": true,
+    "preserveRedactedEnvelope": true,
+    "operatorVisible": true,
+    "operatorReplayRequiresAuthorization": true,
+    "operatorReplayProducesAuditFact": true
+  },
+  "replay": {
+    "preserveOriginalSandboxEventId": true,
+    "consumerIdempotencyRequired": true,
+    "schemaCompatibilityRequired": true,
+    "boundedTimeRangeRequired": true,
+    "boundedBatchRequired": true,
+    "tenantScopeRequired": true,
+    "unboundedReplayAllowed": false
+  },
+  "ordering": {
+    "none": "no-ordering-guarantee",
+    "tenant": "ordered-by-sandbox-tenant-hash",
+    "tenant-session": "ordered-by-sandbox-tenant-session-hash",
+    "provider": "ordered-by-sandbox-provider-hash",
+    "globalOrderingAllowed": false
+  },
+  "retention": {
+    "operationalMaximumDays": 90,
+    "terminalMetadataMaximumDays": 30,
+    "auditMaximumDays": 2555,
+    "telemetryMaximumDays": 30,
+    "tenantPlanMayShortenNonAuditRetention": true,
+    "securityOrLegalApprovalRequiredToShortenAuditRetention": true,
+    "deletionIsBoundedAndAudited": true
+  },
+  "forbiddenRecordFields": [
+    "sandbox_secret_material",
+    "sandbox_raw_token",
+    "sandbox_raw_credential",
+    "sandbox_private_key",
+    "sandbox_physical_host_path",
+    "sandbox_raw_command",
+    "sandbox_argv",
+    "sandbox_raw_terminal_output",
+    "sandbox_provider_allocation_reference",
+    "sandbox_signed_url",
+    "sandbox_sql"
+  ],
+  "forbiddenOwnership": [
+    "database-migration",
+    "publisher-worker",
+    "queue-adapter",
+    "consumer-runtime",
+    "webhook-delivery",
+    "deployment-profile"
+  ],
+  "x-sdkwork-status": "draft",
+  "x-sdkwork-require-human-review": true,
+  "x-sdkwork-no-runtime-implementation": true
+}

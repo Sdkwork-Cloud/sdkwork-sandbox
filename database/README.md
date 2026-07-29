@@ -28,6 +28,8 @@ Production `autoMigrate` is disabled. A dedicated migrator applies reviewed Post
 
 Live PostgreSQL migration, concurrency, key re-encryption, CAS, restart, query-plan, and backup/restore candidate evidence is archived in the linked Engineering Reviews. Production PITR, RPO/RTO, privilege, multi-replica, load/SLO, monitoring, and restore-drill evidence remain release gates rather than assumptions of this schema; REQ-2026-0005 and REQ-2026-0006 remain `in-progress` until their human and production operations gates close.
 
+REQ-2026-0018 defines only a draft Gate 0 for future PostgreSQL-backed `SandboxTenantQuotaState`, `SandboxAdmissionReservation`, `SandboxNodeCapacityState`, and `SandboxCapacityReservation` authorities. The active database registry remains limited to the four lifecycle tables; no quota/capacity table, migration, repository, RLS policy, runtime role, or scheduler integration is authorized. Before any such table is added, a separate human-reviewed pre-release migration plan must align the Domain projection, all existing `tenant_id TEXT` columns, repository bind types, fixtures, and Kernel/Agents mappings with `SUBJECT_ID_SPEC.md` positive `BIGINT` SQL subject semantics.
+
 ## Verification
 
 ```bash
@@ -36,4 +38,4 @@ node --test tests/contract/database-framework.contract.test.mjs
 cargo test -p sdkwork-intelligence-sandbox-repository-sqlx
 ```
 
-Related: `../docs/product/requirements/REQ-2026-0005-durable-sandbox-session-repository-and-reconciliation.md`, `../docs/product/requirements/REQ-2026-0006-sandbox-provider-allocation-key-rotation.md`, `../docs/architecture/decisions/ADR-20260728-postgresql-sandbox-lifecycle-persistence-and-reconciliation.md`, `../docs/engineering/reviews/REVIEW-20260729-sandbox-provider-allocation-key-rotation-verification.md`, `../../sdkwork-specs/DATABASE_SPEC.md`, `../../sdkwork-specs/DATABASE_FRAMEWORK_SPEC.md`, `../../sdkwork-specs/MIGRATION_SPEC.md`, `../../sdkwork-specs/SECURITY_SPEC.md`.
+Related: `../docs/product/requirements/REQ-2026-0005-durable-sandbox-session-repository-and-reconciliation.md`, `../docs/product/requirements/REQ-2026-0006-sandbox-provider-allocation-key-rotation.md`, `../docs/product/requirements/REQ-2026-0018-sandbox-postgresql-quota-and-capacity-reservation-persistence.md`, `../docs/architecture/decisions/ADR-20260728-postgresql-sandbox-lifecycle-persistence-and-reconciliation.md`, `../docs/architecture/decisions/ADR-20260729-sandbox-postgresql-quota-and-capacity-reservation-persistence.md`, `../docs/engineering/reviews/REVIEW-20260729-sandbox-provider-allocation-key-rotation-verification.md`, `../../sdkwork-specs/DATABASE_SPEC.md`, `../../sdkwork-specs/DATABASE_FRAMEWORK_SPEC.md`, `../../sdkwork-specs/MIGRATION_SPEC.md`, `../../sdkwork-specs/SECURITY_SPEC.md`, `../../sdkwork-specs/SUBJECT_ID_SPEC.md`.

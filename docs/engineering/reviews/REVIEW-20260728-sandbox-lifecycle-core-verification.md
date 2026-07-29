@@ -19,10 +19,10 @@ Date: 2026-07-28
 | Component | Evidence | Result |
 | --- | --- | --- |
 | Provider SPI | Opaque ID validation、Private Allocation Reference Debug Redaction、Capability/Assurance Match、Workspace Attachment Readiness Fail-closed | PASS，4 tests |
-| Lifecycle Service | `SandboxSession` Lifecycle、Caller-supplied `SandboxSessionId`、Opaque Workspace Context Propagation、Idempotent Replay、Capability/Assurance/Health Rejection、Readiness Gate、Failed `SandboxRuntimeBinding` Cleanup、Tenant Scope、Lease/Fencing/Timeout/Reconciliation | PASS，10 tests |
-| Memory Repository | Tenant Isolation、Operation Index、Optimistic Version Conflict、Lease Competition/Takeover/Stale Token Rejection | PASS，3 tests |
-| PostgreSQL Repository | Codec/Encryption Unit Contract 与显式 Live PostgreSQL Integration Entry | PASS，2 tests；1 live test 按环境变量显式启用 |
-| Inactive Phase 0 Components | Local Provider、Service Host、CLI 不包含 Operational Behavior | PASS，保持未激活 |
+| Lifecycle Service | `SandboxSession` Lifecycle、Caller-supplied `SandboxSessionId`、Opaque Workspace Context Propagation、Idempotent Replay、Capability/Assurance/Health Rejection、Readiness Gate、Failed `SandboxRuntimeBinding` Cleanup、Tenant Scope、Lease/Fencing/Timeout/Reconciliation | PASS，18 tests |
+| Memory Repository | Tenant Isolation、Operation Index、Optimistic Version Conflict、Lease Competition/Takeover/Stale Token Rejection | PASS，4 tests |
+| PostgreSQL Repository | Codec/Encryption/Re-encryption Unit Contract 与显式 Live PostgreSQL Integration Entry | PASS，6 tests；1 live test 按环境变量显式启用并已专项通过 |
+| Inactive Phase 0 Components | Local Provider 仅包含 5 个 Fake Host Boundary Test；Service Host 与 CLI 不包含 Operational Behavior | PASS，保持未激活 |
 
 ## Verification Evidence
 
@@ -30,7 +30,7 @@ Date: 2026-07-28
 | --- | --- |
 | `cargo fmt --all -- --check` | PASS |
 | `cargo check --workspace` | PASS |
-| `cargo test --workspace` | PASS，19 Behavior/Unit Tests；1 Live PostgreSQL Test 默认 ignored |
+| `cargo test --workspace --offline` | PASS，37 Behavior/Unit Tests；1 Live PostgreSQL Test 默认 ignored，并已通过专项真实 PostgreSQL 命令 |
 | `cargo clippy --workspace --all-targets -- -D warnings` | PASS |
 | `node ../sdkwork-specs/tools/check-component-port-bindings.mjs --root . --strict` | PASS |
 | `node ../sdkwork-specs/tools/check-application-layering.mjs --root .` | PASS |
@@ -43,8 +43,8 @@ Date: 2026-07-28
 
 | Command | Result |
 | --- | --- |
-| `cargo test --offline -p sdkwork-agent-kernel sandbox_runtime::tests` from `sdkwork-kernel` | PASS，7 Adapter Tests；Agents-owned ID 映射到 `sandbox_` Command 字段，Path-like ID 在进入 Sandbox 前被拒绝，Lease/Repository Error 显式安全映射 |
-| `cargo test --offline -p sdkwork-agent-kernel` from `sdkwork-kernel` | PASS，159 Library Tests、Integration Targets 与 Doc Tests |
+| `cargo test --offline -p sdkwork-agent-kernel sandbox_runtime::tests` from `sdkwork-kernel` | PASS，8 Adapter Tests；Agents-owned ID 映射到 `sandbox_` Command 字段，Path-like ID 在进入 Sandbox 前被拒绝，Lease/Repository Error（含 `InvalidPageRequest`）显式安全映射 |
+| `cargo test --offline -p sdkwork-agent-kernel` from `sdkwork-kernel` | PASS，160 Library Tests、Integration Targets 与 Doc Tests |
 | `cargo test --locked -p sdkwork-intelligence-agents-service` from `sdkwork-agents` | PASS，282 Tests；5 PostgreSQL Live Tests 因未配置 `SDKWORK_AGENTS_TEST_POSTGRES_URL` 保持 ignored |
 | `cargo clippy -p sdkwork-intelligence-agents-service --all-targets -- -D warnings` from `sdkwork-agents` | PASS；Session Activity Projection 输入已收束为高内聚 `SessionActivitySummaryParts`，未使用 Clippy Allow 绕过门禁 |
 | `cargo tree -p sdkwork-intelligence-agents-service -i sdkwork-sandbox-provider-spi` from `sdkwork-agents` | PASS；依赖证据为 `sdkwork-agents -> sdkwork-kernel -> sdkwork-sandbox`，无 Sandbox 到 Kernel/Agents 的反向依赖 |

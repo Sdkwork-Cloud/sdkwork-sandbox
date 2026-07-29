@@ -22,6 +22,16 @@ Specs: `REQUIREMENTS_SPEC.md`, `DOCUMENTATION_SPEC.md`, `SECURITY_SPEC.md`, `DEP
 - [REQ-2026-0006: Sandbox Provider Allocation 密钥轮换与有界重加密](../requirements/REQ-2026-0006-sandbox-provider-allocation-key-rotation.md)
 - [REQ-2026-0007: Provider-neutral Sandbox Command Execution Contract](../requirements/REQ-2026-0007-sandbox-command-execution-contract.md)
 - [REQ-2026-0008: Firecracker Sandbox Provider](../requirements/REQ-2026-0008-firecracker-sandbox-provider.md)
+- [REQ-2026-0009: Sandbox Service Host Composition And Readiness](../requirements/REQ-2026-0009-sandbox-service-host-composition-and-readiness.md)
+- [REQ-2026-0010: Sandbox Observability, Event, Audit And Outbox Contract](../requirements/REQ-2026-0010-sandbox-observability-event-audit-outbox.md)
+- [REQ-2026-0011: Sandbox Host Isolation Broker Boundary](../requirements/REQ-2026-0011-sandbox-host-isolation-broker.md)
+- [REQ-2026-0012: Sandbox Firecracker Artifact Compatibility And Supply Chain](../requirements/REQ-2026-0012-sandbox-firecracker-artifact-compatibility-and-supply-chain.md)
+- [REQ-2026-0013: Sandbox Workspace Block Device Attachment And Sanitization](../requirements/REQ-2026-0013-sandbox-workspace-block-device-attachment-and-sanitization.md)
+- [REQ-2026-0014: Sandbox Firecracker Network Isolation And Egress Policy](../requirements/REQ-2026-0014-sandbox-firecracker-network-isolation.md)
+- [REQ-2026-0015: Sandbox Firecracker Resource Isolation And Usage Facts](../requirements/REQ-2026-0015-sandbox-firecracker-resource-isolation-and-usage.md)
+- [REQ-2026-0016: Sandbox Multi-tenant Admission, Scheduling And Capacity](../requirements/REQ-2026-0016-sandbox-multi-tenant-admission-scheduling-and-capacity.md)
+- [REQ-2026-0017: Sandbox Node Trust, Enrollment, Attestation And Verified Inventory](../requirements/REQ-2026-0017-sandbox-node-trust-enrollment-attestation-and-inventory.md)
+- [REQ-2026-0018: Sandbox PostgreSQL Quota And Capacity Reservation Persistence](../requirements/REQ-2026-0018-sandbox-postgresql-quota-and-capacity-reservation-persistence.md)
 - [技术架构](../../architecture/tech/TECH_ARCHITECTURE.md)
 
 ## 1. 背景与问题 (Background And Problem)
@@ -96,7 +106,7 @@ SDKWork 共享类型 `TenantId`、`OperationId`、`RuntimeCapability` 与 `Isola
 ## 5. 用户场景 (User Scenarios)
 
 1. 开发者通过 Agents 创建 `AgentSession`，Kernel 将已授权的 `AgentWorkspace`/`AgentSession` Identity 映射为 `SandboxWorkspaceId`/`SandboxSessionId`，再创建本地 `SandboxSession`；停止运行投影后 Workspace 仍由 Agents 保留，并可在后续 Session 中恢复。
-2. SaaS 运维人员将同一 Runtime 请求提交到 Firecracker Provider，并附带网络白名单、Secret 引用、CPU/Memory/Disk 限制和可审计策略；不存在合规 MicroVm Provider 时关闭失败，不回退 Local 或延期的 Docker Provider。
+2. SaaS 运维人员将同一 Runtime 请求提交到 Firecracker Provider，并附带由 `SandboxNetworkPolicyPort` 授权的显式 DNS/Egress Policy 请求、Secret 引用、CPU/Memory/Disk 限制和可审计策略；不存在有效 `SandboxNetworkPolicyGrant` 或合规 MicroVm Provider 时关闭失败，不回退 Local 或延期的 Docker Provider。
 3. SaaS 控制面从兼容租户策略的 Pool 分配热 Sandbox，挂载或恢复 Workspace，流式输出状态与终端事件，记录用量，生成 Snapshot，并回收空闲资源。
 4. Provider 开发者增加 Firecracker 适配器，通过生命周期、文件系统约束、网络、资源、事件与清理一致性测试，不改变 Kernel-facing 契约。
 5. Kernel 仅请求 Capability 与隔离等级，不选择具体 Provider；不存在合规 Provider 时返回类型化错误，而不是降低隔离等级。
@@ -133,9 +143,19 @@ SDKWork 共享类型 `TenantId`、`OperationId`、`RuntimeCapability` 与 `Isola
 - [REQ-2026-0003: 交付受约束的 Local Sandbox Provider](../requirements/REQ-2026-0003-secure-local-provider.md) - HostUser Assurance、路径/进程约束与 Local Provider 安全门禁。
 - [REQ-2026-0004: Agents Workspace 与 Sandbox Attachment](../requirements/REQ-2026-0004-agents-workspace-attachment.md) - Agents Workspace 权威、Kernel ID 映射与 Sandbox Attachment 边界。
 - [REQ-2026-0005: 持久化 Sandbox Session Repository 与崩溃恢复](../requirements/REQ-2026-0005-durable-sandbox-session-repository-and-reconciliation.md) - PostgreSQL 权威、加密 Runtime Binding 恢复元数据、Lease/Fencing 与瞬态 Session 恢复。
-- [REQ-2026-0006: Sandbox Provider Allocation 密钥轮换与有界重加密](../requirements/REQ-2026-0006-sandbox-provider-allocation-key-rotation.md) - 注入式版本化 Key Source、Tenant-scoped 重加密、密文 CAS 与旧密钥撤销门禁。
+- [REQ-2026-0006: Sandbox Provider Allocation 密钥轮换与有界重加密](../requirements/REQ-2026-0006-sandbox-provider-allocation-key-rotation.md) - 注入式版本化 Key Source、Tenant-scoped 重加密、页目标 Protection Version 稳定性、Session-bound 密文 CAS 与旧密钥撤销门禁。
 - [REQ-2026-0007: Provider-neutral Sandbox Command Execution Contract](../requirements/REQ-2026-0007-sandbox-command-execution-contract.md) - Local 与 Firecracker 共用的 Executable/Argv、Limit、Fencing、Result、Error 与 Conformance。
 - [REQ-2026-0008: Firecracker Sandbox Provider](../requirements/REQ-2026-0008-firecracker-sandbox-provider.md) - Linux KVM、Jailer、Artifact Integrity、cgroup、Network/Workspace Boundary 与 MicroVm Assurance。
+- [REQ-2026-0009: Sandbox Service Host Composition And Readiness](../requirements/REQ-2026-0009-sandbox-service-host-composition-and-readiness.md) - L5 typed Composition、依赖注入、fail-closed Readiness、安全 Shutdown 与 Standalone/Cloud parity；保持 `draft`，不批准真实 Provider/API/Deployment。
+- [REQ-2026-0010: Sandbox Observability, Event, Audit And Outbox Contract](../requirements/REQ-2026-0010-sandbox-observability-event-audit-outbox.md) - versioned event envelope、event catalog、structured telemetry、audit-fact 与 transactional Outbox 边界；保持 `draft`，不批准 Runtime exporter、worker、migration、API、SDK 或 deployment。
+- [REQ-2026-0011: Sandbox Host Isolation Broker Boundary](../requirements/REQ-2026-0011-sandbox-host-isolation-broker.md) - Firecracker Host 特权固定操作、Local IPC、短期 Grant、Fencing/Idempotency、Audit、Cleanup 与 Supply-chain 边界；保持 `draft`，不批准 Broker runtime 或 privileged implementation。
+- [REQ-2026-0012: Sandbox Firecracker Artifact Compatibility And Supply Chain](../requirements/REQ-2026-0012-sandbox-firecracker-artifact-compatibility-and-supply-chain.md) - Firecracker/Jailer/Guest Kernel/RootFS/Guest Agent 的不可变 Architecture Tuple、Evidence、Materialization、Revocation 与 Rollback 边界；保持 `draft`，不批准 Artifact 发布、下载、构建或 Provider runtime。
+- [REQ-2026-0013: Sandbox Workspace Block Device Attachment And Sanitization](../requirements/REQ-2026-0013-sandbox-workspace-block-device-attachment-and-sanitization.md) - Agents/Drive Ownership、授权 Guest Block Device、At-rest Encryption、Fencing、Sanitization、Residue Scan 与 Quarantine 边界；保持 `draft`，不批准 Storage/KMS/Device/Provider runtime。
+- [REQ-2026-0014: Sandbox Firecracker Network Isolation And Egress Policy](../requirements/REQ-2026-0014-sandbox-firecracker-network-isolation.md) - provider-neutral Policy Authority、`DenyAll`、显式 DNS/Egress Grant、永久 Metadata/Host/Tenant Lateral Denial、per-binding netns/Tap、Atomic Apply/Verify、Cleanup/Quarantine 与 Durable Audit 边界；保持 `draft`，不批准 Network Runtime。
+- [REQ-2026-0015: Sandbox Firecracker Resource Isolation And Usage Facts](../requirements/REQ-2026-0015-sandbox-firecracker-resource-isolation-and-usage.md) - provider-neutral Resource Policy、Firecracker Machine Config/cgroup v2 CPU/Memory/PID/IO、Effective Readback、immutable Usage Fact、Commerce Ownership、Cleanup/Quarantine 边界；保持 `draft`，不批准 Resource/Quota/Billing Runtime。
+- [REQ-2026-0016: Sandbox Multi-tenant Admission, Scheduling And Capacity](../requirements/REQ-2026-0016-sandbox-multi-tenant-admission-scheduling-and-capacity.md) - provider-neutral Admission/Node Inventory/Scheduler/Capacity Reservation、Hard Placement Filter、Tenant-aware Fairness、PostgreSQL Atomic Reservation、Fencing/Recovery 与 Resource Grant Binding 边界；保持 `draft`，不批准 Scheduler/Database/Node Agent/Pool Runtime。
+- [REQ-2026-0017: Sandbox Node Trust, Enrollment, Attestation And Verified Inventory](../requirements/REQ-2026-0017-sandbox-node-trust-enrollment-attestation-and-inventory.md) - provider-neutral Enrollment/Attestation Verification/Inventory Publication/Lifecycle Control、短期 Machine Identity、Verified Inventory、Rotation/Revocation、Drain/Quarantine 与 Scheduler Binding 边界；保持 `draft`，不批准 Node Agent/PKI/Verifier/Database/Deployment Runtime。
+- [REQ-2026-0018: Sandbox PostgreSQL Quota And Capacity Reservation Persistence](../requirements/REQ-2026-0018-sandbox-postgresql-quota-and-capacity-reservation-persistence.md) - `SandboxTenantQuotaState`、`SandboxAdmissionReservation`、`SandboxNodeCapacityState` 与 `SandboxCapacityReservation` 候选 PostgreSQL Authority、全局 Lock Order、CAS/Fencing、TTL/Quarantine、RLS/Role、PITR/RPO/RTO 及现有 `tenant_id TEXT` 到标准 `BIGINT` 的预发布迁移门禁；保持 `draft`，不批准 Table/Migration/Repository/Scheduler Runtime。
 
 后续 Runtime API、生命周期、Provider、Scheduler、安全、Snapshot、Cache 与 SaaS 工作必须在实施前拆分为可评审的需求记录。
 

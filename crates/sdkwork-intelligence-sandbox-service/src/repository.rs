@@ -505,7 +505,7 @@ impl SandboxSessionRepositorySnapshot {
                 });
         let sandbox_state_is_consistent = match self.sandbox_session_state {
             SandboxSessionState::Created => !sandbox_has_runtime_binding,
-            SandboxSessionState::Starting => true,
+            SandboxSessionState::Starting => sandbox_has_runtime_binding,
             SandboxSessionState::Running => sandbox_has_allocation_reference,
             SandboxSessionState::Stopping => sandbox_has_allocation_reference,
             SandboxSessionState::Stopped => sandbox_has_allocation_reference,
@@ -588,7 +588,7 @@ impl SandboxSessionRepositorySnapshot {
                 )
             })
             .collect();
-        Ok(Self::new(
+        let sandbox_snapshot = Self::new(
             sandbox_session.tenant_id().clone(),
             sandbox_session.sandbox_workspace_id().clone(),
             sandbox_session.sandbox_session_id().clone(),
@@ -599,7 +599,9 @@ impl SandboxSessionRepositorySnapshot {
             sandbox_session.sandbox_last_failure(),
             sandbox_operations,
             sandbox_session.sandbox_version(),
-        ))
+        );
+        sandbox_snapshot.validate_sandbox_persisted_invariants()?;
+        Ok(sandbox_snapshot)
     }
 
     pub fn restore(
@@ -974,6 +976,18 @@ mod tests {
                 Some(sandbox_runtime_binding(false)),
                 None,
                 vec![sandbox_create_operation()],
+            ),
+            sandbox_snapshot(
+                SandboxSessionState::Starting,
+                None,
+                None,
+                vec![
+                    sandbox_create_operation(),
+                    sandbox_operation(
+                        SandboxSessionOperationKind::Start,
+                        SandboxOperationOutcome::InProgress,
+                    ),
+                ],
             ),
             sandbox_snapshot(
                 SandboxSessionState::Starting,

@@ -1,0 +1,342 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.sandbox.firecracker-resource-isolation-contract",
+  "status": "draft",
+  "requirementId": "REQ-2026-0015",
+  "relatedRequirementIds": ["REQ-2026-0008", "REQ-2026-0010", "REQ-2026-0011", "REQ-2026-0016", "REQ-2026-0018"],
+  "relatedContracts": [
+    "sandbox-provider-delivery-gates.contract.json",
+    "sandbox-host-isolation-broker.contract.json",
+    "sandbox-multi-tenant-scheduling.contract.json",
+    "sandbox-quota-and-capacity-persistence.contract.json",
+    "../apis/async/sandbox-event-catalog.json",
+    "../apis/async/sandbox-observability-catalog.json"
+  ],
+  "implementationAuthorized": false,
+  "ownership": {
+    "sandbox_policy_authority": "provider-neutral SandboxResourcePolicyPort",
+    "sandbox_orchestration_owner": "Sandbox service",
+    "sandbox_privileged_mechanism_owner": "Sandbox Host Isolation Broker",
+    "sandbox_firecracker_mechanism_owner": "SandboxResourceIsolationPort adapter",
+    "sandbox_usage_measurement_owner": "Sandbox Provider boundary",
+    "sandbox_usage_aggregation_owner": "Sandbox control plane",
+    "sandbox_price_invoice_payment_owner": "SDKWork Commerce",
+    "sandbox_admission_and_capacity_reservation_owner": "SandboxAdmissionPolicyPort and SandboxCapacityReservationPort",
+    "sandbox_provider_may_author_limits": false,
+    "sandbox_broker_may_author_limits": false,
+    "sandbox_usage_fact_is_billing_invoice": false
+  },
+  "policyPort": {
+    "type": "SandboxResourcePolicyPort",
+    "requestType": "SandboxResourcePolicyRequest",
+    "grantType": "SandboxResourceLimitGrant",
+    "errorType": "SandboxResourcePolicyError",
+    "providerNeutral": true
+  },
+  "mechanismPort": {
+    "type": "SandboxResourceIsolationPort",
+    "requestType": "SandboxResourceIsolationRequest",
+    "resultType": "SandboxResourceIsolationResult",
+    "errorType": "SandboxResourceIsolationError",
+    "readinessType": "SandboxResourceIsolationReadiness",
+    "usageFactType": "SandboxResourceUsageFact",
+    "providerLayer": "L4",
+    "hostBrokerOperation": "sandbox_apply_resource_limits"
+  },
+  "operations": [
+    "sandbox_prepare_resource_scope",
+    "sandbox_apply_resource_limits",
+    "sandbox_verify_resource_limits",
+    "sandbox_sample_resource_usage",
+    "sandbox_release_resource_scope"
+  ],
+  "request": {
+    "requiredFields": [
+      "sandbox_resource_operation_id",
+      "sandbox_tenant_scope_hash",
+      "sandbox_session_id",
+      "sandbox_runtime_binding_id",
+      "sandbox_provider_id",
+      "sandbox_fencing_token",
+      "sandbox_resource_policy_revision",
+      "sandbox_resource_policy_fingerprint",
+      "sandbox_resource_limit_grant",
+      "sandbox_operation",
+      "sandbox_deadline_ms"
+    ],
+    "unknownFieldsRejected": true,
+    "ambientTenantOrQuotaContextAllowed": false
+  },
+  "grant": {
+    "type": "SandboxResourceLimitGrant",
+    "requiredFields": [
+      "sandbox_tenant_scope_hash",
+      "sandbox_session_id",
+      "sandbox_runtime_binding_id",
+      "sandbox_provider_id",
+      "sandbox_fencing_token",
+      "sandbox_resource_policy_revision",
+      "sandbox_resource_policy_fingerprint",
+      "sandbox_admission_grant_id",
+      "sandbox_capacity_reservation_id",
+      "sandbox_capacity_reservation_fingerprint",
+      "sandbox_guest_vcpu_count",
+      "sandbox_guest_memory_bytes",
+      "sandbox_vmm_overhead_memory_bytes",
+      "sandbox_cpu_quota_micros",
+      "sandbox_cpu_period_micros",
+      "sandbox_cpu_weight",
+      "sandbox_memory_high_bytes",
+      "sandbox_memory_max_bytes",
+      "sandbox_memory_swap_max_bytes",
+      "sandbox_pid_max",
+      "sandbox_io_limits",
+      "sandbox_issued_at",
+      "sandbox_expires_at",
+      "sandbox_nonce",
+      "sandbox_audience",
+      "sandbox_signature"
+    ],
+    "shortLived": true,
+    "singleRuntimeBinding": true,
+    "singleProvider": true,
+    "revisionAndFingerprintBound": true,
+    "nodeCapacityReservationRequired": true,
+    "admissionGrantRequired": true,
+    "capacityReservationFingerprintRequired": true,
+    "tenantAndPlatformCeilingsRequired": true,
+    "replayProtectionRequired": true,
+    "revocationCheckRequired": true,
+    "failClosedOnClockUncertainty": true
+  },
+  "limitPolicy": {
+    "sandbox_every_limit_explicit_and_finite": true,
+    "sandbox_unlimited_cpu_allowed": false,
+    "sandbox_unlimited_memory_allowed": false,
+    "sandbox_unlimited_pids_allowed": false,
+    "sandbox_unlimited_io_allowed": false,
+    "sandbox_zero_or_negative_limit_allowed": false,
+    "sandbox_limit_exceeds_tenant_ceiling_allowed": false,
+    "sandbox_limit_exceeds_node_reservation_allowed": false,
+    "sandbox_live_guest_vcpu_or_memory_mutation_allowed": false,
+    "sandbox_new_binding_required_for_guest_shape_change": true,
+    "sandbox_silent_limit_downgrade_allowed": false
+  },
+  "cgroupV2": {
+    "sandbox_unified_hierarchy_required": true,
+    "sandbox_cgroup_v1_fallback_allowed": false,
+    "sandbox_hybrid_hierarchy_fallback_allowed": false,
+    "sandbox_required_controllers": ["cpu", "memory", "pids", "io"],
+    "sandbox_controller_delegation_verified": true,
+    "sandbox_leaf_scope_per_runtime_binding": true,
+    "sandbox_scope_shared_across_active_bindings": false,
+    "sandbox_arbitrary_cgroup_path_allowed": false,
+    "sandbox_untrusted_workload_before_scope_attachment_allowed": false,
+    "sandbox_vmm_jailer_and_descendants_membership_required": true,
+    "sandbox_foreign_process_membership_allowed": false,
+    "sandbox_memory_oom_group_required": true,
+    "sandbox_scope_identity_provider_private": true
+  },
+  "firecrackerMachineConfig": {
+    "sandbox_guest_vcpu_exact_grant_match_required": true,
+    "sandbox_guest_memory_exact_grant_match_required": true,
+    "sandbox_host_memory_covers_guest_and_vmm_overhead": true,
+    "sandbox_machine_config_readback_required": true,
+    "sandbox_machine_config_applied_before_guest_start": true,
+    "sandbox_machine_config_only_is_resource_isolation_evidence": false
+  },
+  "cpuEnforcement": {
+    "sandbox_cpu_max_quota_and_period_required": true,
+    "sandbox_cpu_weight_required": true,
+    "sandbox_cpu_quota_must_be_finite": true,
+    "sandbox_cpu_stat_readback_required": true,
+    "sandbox_throttling_is_observable": true
+  },
+  "memoryEnforcement": {
+    "sandbox_memory_high_and_max_required": true,
+    "sandbox_memory_high_not_above_max": true,
+    "sandbox_memory_max_covers_guest_and_overhead": true,
+    "sandbox_swap_default_zero": true,
+    "sandbox_nonzero_swap_requires_explicit_grant_and_node_support": true,
+    "sandbox_memory_events_and_peak_required": true,
+    "sandbox_oom_is_typed_terminal_outcome": true,
+    "sandbox_host_oom_as_expected_limit_behavior_allowed": false
+  },
+  "pidEnforcement": {
+    "sandbox_pids_max_required": true,
+    "sandbox_pids_current_and_events_required": true,
+    "sandbox_descendant_escape_allowed": false,
+    "sandbox_pid_exhaustion_is_typed_outcome": true
+  },
+  "ioEnforcement": {
+    "sandbox_io_max_required_for_declared_device_roles": true,
+    "sandbox_logical_device_roles": [
+      "sandbox_rootfs_device",
+      "sandbox_workspace_device",
+      "sandbox_ephemeral_device"
+    ],
+    "sandbox_device_role_to_host_identity_resolved_below_port": true,
+    "sandbox_unknown_device_role_denied": true,
+    "sandbox_arbitrary_major_minor_or_path_allowed": false,
+    "sandbox_read_write_bytes_and_iops_bounded": true,
+    "sandbox_io_stat_readback_required": true,
+    "sandbox_disk_capacity_owned_by_workspace_or_storage_contract": true
+  },
+  "applyAndVerification": {
+    "sandbox_grant_and_fencing_verified_before_side_effect": true,
+    "sandbox_node_reservation_verified_before_side_effect": true,
+    "sandbox_scope_and_machine_config_staged_before_guest_start": true,
+    "sandbox_effective_controller_values_readback_required": true,
+    "sandbox_process_membership_readback_required": true,
+    "sandbox_ready_before_all_dimensions_verified_allowed": false,
+    "sandbox_partial_apply_returns_ready": false,
+    "sandbox_partial_apply_rolls_back_or_quarantines": true,
+    "sandbox_verification_result_bound_to_policy_fingerprint": true
+  },
+  "fencingAndIdempotency": {
+    "sandbox_highest_fencing_token_persisted_per_binding": true,
+    "sandbox_stale_token_rejected_before_side_effect": true,
+    "sandbox_resource_policy_revision_must_be_monotonic": true,
+    "sandbox_same_operation_same_fingerprint_replays_result": true,
+    "sandbox_same_operation_different_fingerprint_conflicts": true,
+    "sandbox_restart_recovery_required": true
+  },
+  "readiness": {
+    "type": "SandboxResourceIsolationReadiness",
+    "failureMode": "fail-closed",
+    "requiredDimensions": [
+      "sandbox_resource_grant_valid",
+      "sandbox_fencing_current",
+      "sandbox_node_capacity_reserved",
+      "sandbox_cgroup_v2_unified",
+      "sandbox_required_controllers_active",
+      "sandbox_machine_config_verified",
+      "sandbox_cpu_limit_verified",
+      "sandbox_memory_limit_verified",
+      "sandbox_pid_limit_verified",
+      "sandbox_io_limit_verified",
+      "sandbox_process_membership_verified",
+      "sandbox_prior_resource_residue_clear"
+    ],
+    "degradedMayReportResourceReady": false,
+    "staticContractIsMicroVmEvidence": false
+  },
+  "limitOutcomes": {
+    "sandbox_cpu_throttled": "non-terminal-observable",
+    "sandbox_memory_high": "non-terminal-observable",
+    "sandbox_memory_oom": "terminal-failed",
+    "sandbox_pid_exhausted": "operation-or-session-failed",
+    "sandbox_io_throttled": "non-terminal-observable",
+    "sandbox_node_capacity_lost": "degraded-or-terminal",
+    "sandbox_retry_storm_allowed": false,
+    "sandbox_silent_tool_semantic_change_allowed": false
+  },
+  "usageFact": {
+    "type": "SandboxResourceUsageFact",
+    "requiredFields": [
+      "sandbox_usage_fact_id",
+      "sandbox_tenant_scope_hash",
+      "sandbox_session_id",
+      "sandbox_runtime_binding_id",
+      "sandbox_provider_id",
+      "sandbox_resource_policy_revision",
+      "sandbox_measurement_sequence",
+      "sandbox_interval_started_at",
+      "sandbox_interval_ended_at",
+      "sandbox_cpu_usage_micros",
+      "sandbox_cpu_throttled_micros",
+      "sandbox_memory_peak_bytes",
+      "sandbox_memory_oom_count",
+      "sandbox_pid_peak",
+      "sandbox_io_read_bytes",
+      "sandbox_io_write_bytes",
+      "sandbox_io_read_operations",
+      "sandbox_io_write_operations",
+      "sandbox_measurement_outcome",
+      "sandbox_trace_id"
+    ],
+    "immutable": true,
+    "idempotencyKeyRequired": true,
+    "monotonicSequencePerBinding": true,
+    "counterResetAcrossSameBindingAllowed": false,
+    "finalFactBeforeScopeReleaseRequired": true,
+    "negativeOrNaNValueAllowed": false,
+    "priceCurrencyInvoiceOrPaymentFieldsAllowed": false,
+    "providerPrivateIdentityAllowed": false
+  },
+  "eventAndAudit": {
+    "sandbox_event_types": [
+      "sandbox.quota.resource.limit.applied",
+      "sandbox.quota.resource.limit.exceeded",
+      "sandbox.resource.usage.recorded"
+    ],
+    "sandbox_usage_fact_requires_durable_handoff": true,
+    "sandbox_limit_denial_or_override_emits_audit_fact": true,
+    "sandbox_limit_exceeded_emits_operational_fact": true,
+    "sandbox_audit_durable_when_telemetry_unavailable": true,
+    "sandbox_metrics_are_billing_truth": false
+  },
+  "telemetry": {
+    "sandbox_low_cardinality_metrics_required": true,
+    "sandbox_allowed_metric_dimensions": [
+      "sandbox_provider_kind",
+      "sandbox_resource_kind",
+      "sandbox_operation",
+      "sandbox_outcome",
+      "sandbox_reason_code"
+    ],
+    "sandbox_tenant_session_binding_labels_allowed": false,
+    "sandbox_cgroup_path_or_device_labels_allowed": false,
+    "sandbox_resource_apply_verify_duration_required": true,
+    "sandbox_limit_breach_and_saturation_metrics_required": true
+  },
+  "releaseAndQuarantine": {
+    "sandbox_stop_all_processes_before_scope_release": true,
+    "sandbox_final_usage_fact_before_scope_release": true,
+    "sandbox_empty_scope_verified_before_removal": true,
+    "sandbox_resource_state_residue_scan_required": true,
+    "sandbox_bounded_reconciliation_required": true,
+    "sandbox_unknown_or_failed_cleanup_quarantines_binding": true,
+    "sandbox_quarantined_binding_reusable_across_tenants": false
+  },
+  "forbiddenPublicMetadata": [
+    "sandbox_cgroup_path",
+    "sandbox_cgroup_inode",
+    "sandbox_host_pid",
+    "sandbox_device_major_minor",
+    "sandbox_host_device_path",
+    "sandbox_node_capacity_layout",
+    "sandbox_provider_allocation_reference"
+  ],
+  "bounds": {
+    "sandbox_request_max_bytes": 65536,
+    "sandbox_grant_ttl_seconds_max": 60,
+    "sandbox_guest_vcpu_count_max": 256,
+    "sandbox_cpu_period_micros_max": 1000000,
+    "sandbox_cpu_weight_max": 10000,
+    "sandbox_io_device_role_count_max": 16,
+    "sandbox_apply_deadline_ms_max": 30000,
+    "sandbox_usage_sample_interval_ms_min": 1000,
+    "sandbox_usage_sample_interval_ms_max": 300000,
+    "sandbox_release_deadline_ms_max": 120000,
+    "sandbox_reconciliation_batch_size_max": 100
+  },
+  "humanReview": {
+    "required": true,
+    "reviewPacket": "REVIEW-20260729-sandbox-firecracker-resource-isolation",
+    "requiredReviewers": [
+      "architecture-owner",
+      "security-owner",
+      "capacity-quota-owner",
+      "commerce-metering-owner",
+      "observability-audit-owner",
+      "kvm-operations-owner"
+    ]
+  },
+  "x-sdkwork-status": "draft",
+  "x-sdkwork-require-human-review": true,
+  "x-sdkwork-no-runtime-implementation": true,
+  "x-sdkwork-no-cgroup-implementation": true,
+  "x-sdkwork-no-quota-engine-implementation": true,
+  "x-sdkwork-no-billing-implementation": true
+}

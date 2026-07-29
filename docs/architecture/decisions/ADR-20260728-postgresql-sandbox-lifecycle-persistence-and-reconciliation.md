@@ -25,7 +25,7 @@ Specs: `REQUIREMENTS_SPEC.md`, `ARCHITECTURE_DECISION_SPEC.md`, `DATABASE_SPEC.m
 5. Service 声明 `SandboxSessionRepositorySnapshot` 与 Restore Factory 作为唯一持久化映射边界。Restore 在调用 Allocation Protector 解密前按稳定 Operation 顺序重放状态机，并验证 Typed Failure、Transient/InProgress、Runtime Binding 与 Allocation 组合不变量；非法组合关闭失败为 `InvalidStoredData`。普通 `SandboxSession`/`SandboxRuntimeBinding` 不派生 Serde，也不暴露 Provider Allocation 明文 Getter。Adapter 只能通过明确的保护器端口将私有引用转换为受保护记录。
 6. Provider Allocation 明文使用 `sdkwork-utils-rust::crypto::derive_aes_256_key` 和 `aes_gcm_encrypt`/`aes_gcm_decrypt` 保护。每条 Binding 的派生上下文绑定 Tenant、Session、Binding 和 Crypto Version；数据库只保存 Ciphertext、Key ID、Key Version 与 Crypto Version。Keyring/Secret Material 由 Service Host Secret Port 注入，Repository 不从普通 Config 或 Environment 自行发现密钥。
 7. Session Insert/Save、带稳定 Sequence 的 Operation 写入和 Runtime Binding 同步在同一个 PostgreSQL Transaction 中完成。Save 先执行 Version CAS；Operation ID/Sequence 冲突、非法存储与 Version Conflict 映射到稳定 `SandboxSessionRepositoryError`，不依赖本地化错误文本。
-8. `SandboxRuntimeBinding` 允许表达尚未获得 Allocation Reference 的 Intent。Start 在首次 Provider Allocate 前生成并持久化 `SandboxId`、`SandboxRuntimeBindingId` 与 `SandboxProviderId`；Allocate 以这些稳定 Identity 和 Fencing Token 幂等重放，成功后再加密并保存 Allocation Reference。
+8. `SandboxRuntimeBinding` 允许表达尚未获得 Allocation Reference 的 Intent。首次 Start 在 Provider Allocate 前原子保存 `Starting`、In-progress Start Operation 以及包含 `SandboxId`、`SandboxRuntimeBindingId`、`SandboxProviderId` 且无 Allocation Reference 的 Binding Intent；任何持久化 `Starting` 都必须具有该可恢复 Binding。Failed/Stopped Retry Start 必须在原稳定状态下先持 Lease 幂等销毁旧 Allocation，清理成功后才保存本次新 Intent；清理失败保存 Typed `Failed(Cleanup)` 并保留旧 Binding，不得暴露可被 Reconciler 误启动的旧 Allocation。Allocate 以稳定 Identity 和 Fencing Token 幂等重放，成功后再加密并保存 Allocation Reference。
 9. Provider Side Effect 的控制权由 `sandbox_session_lease` 管理。Acquire 使用 PostgreSQL 数据库时钟，仅在 Lease 不存在、已过期或由同一 Owner 合法续约时成功；每次新所有权 Acquisition 原子递增非零 `SandboxFencingToken`。Renew/Release 必须匹配 Tenant、Session、Owner 和 Token。
 10. Allocate/Start/Stop/Destroy Provider Request 都携带 `SandboxFencingToken`。Provider Conformance 要求同一 `SandboxRuntimeBindingId` 拒绝低于已观察值的 Token；Repository CAS 与 Provider Fencing 共同阻止旧控制器在 Lease 过期后继续提交。
 11. 每次 Provider Side Effect 前 Renew 当前 `SandboxSessionLease`。Provider Operation Timeout 非零且不超过 Lease Duration 的一半；Timeout 映射为 `SandboxProviderErrorKind::Timeout`，Lease Lost 时停止调用与持久化，避免无界调用跨越 Lease 所有权窗口。
@@ -68,7 +68,7 @@ Specs: `REQUIREMENTS_SPEC.md`, `ARCHITECTURE_DECISION_SPEC.md`, `DATABASE_SPEC.m
 - Persisted-state Test 验证 Operation Sequence 往返、非法状态/Failure/Binding/Operation 组合在解密前关闭失败，以及末页恰好满时不产生空页 Continuation。
 - Encryption Test 验证数据库无 Allocation 明文、随机 Ciphertext、上下文搬移失败、错误 Key/Version 关闭失败以及 Debug/Log Redaction。
 - Concurrency Test 验证 Lease 竞争、Expiry Takeover、Fencing Token 单调递增、旧 Token Renew/Release/Save 失败。
-- Failure Injection Test 覆盖 Starting Intent Persist、Allocate、Allocation Persist、Start、Stop、Destroy、Provider Timeout 与最终状态写入前后的进程中断恢复。
+- Failure Injection Test 覆盖 Starting Intent Persist、Allocate、Allocation Persist、Start、Stop、Destroy、Provider Timeout 与最终状态写入前后的进程中断恢复；其中 Allocate 成功但 Allocation Persist 失败的回归必须证明 Provider 清理后仍保留无 Allocation 的稳定 Intent，并由 Reconciler 以更高 Fencing Token 重新 Allocate，且只启动新 Allocation。
 - Component、Layering、Naming、Documentation、Cargo Test/Clippy 和真实 PostgreSQL Evidence 必须通过；人工架构/安全评审前保持 Proposed。
 
 ## Supersedes / Superseded By

@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sdkwork.dev/sandbox/commands/sandbox-command-execution-result.schema.v1.json",
+  "title": "SandboxCommandExecutionResult",
+  "description": "Candidate bounded and binary-safe Sandbox command result. REQ-2026-0007 remains draft.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "traceId",
+    "sandboxProviderId",
+    "sandboxCommandOperationId",
+    "sandboxOutcome",
+    "sandboxExitStatus",
+    "sandboxStdoutBase64",
+    "sandboxStderrBase64",
+    "sandboxStdoutTruncated",
+    "sandboxStderrTruncated",
+    "sandboxStartedAt",
+    "sandboxFinishedAt",
+    "sandboxResourceUsage"
+  ],
+  "properties": {
+    "traceId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "sandboxProviderId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "sandboxCommandOperationId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "sandboxOutcome": {
+      "type": "string",
+      "enum": [
+        "succeeded",
+        "failed",
+        "timed-out",
+        "cancelled",
+        "output-limit",
+        "resource-exhausted",
+        "fencing-lost"
+      ]
+    },
+    "sandboxExitStatus": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["sandboxExitKind", "sandboxExitCode"],
+          "properties": {
+            "sandboxExitKind": {
+              "type": "string",
+              "const": "exited"
+            },
+            "sandboxExitCode": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["sandboxExitKind", "sandboxSignalName"],
+          "properties": {
+            "sandboxExitKind": {
+              "const": "signaled"
+            },
+            "sandboxSignalName": {
+              "type": "string",
+              "pattern": "^[A-Z][A-Z0-9_]{0,31}$"
+            }
+          }
+        }
+      ]
+    },
+    "sandboxStdoutBase64": {
+      "type": "string",
+      "contentEncoding": "base64",
+      "contentMediaType": "application/octet-stream",
+      "maxLength": 89478488
+    },
+    "sandboxStderrBase64": {
+      "type": "string",
+      "contentEncoding": "base64",
+      "contentMediaType": "application/octet-stream",
+      "maxLength": 89478488
+    },
+    "sandboxStdoutTruncated": { "type": "boolean" },
+    "sandboxStderrTruncated": { "type": "boolean" },
+    "sandboxStartedAt": { "type": "string", "format": "date-time" },
+    "sandboxFinishedAt": { "type": "string", "format": "date-time" },
+    "sandboxResourceUsage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sandboxDurationMs",
+        "sandboxStdoutBytes",
+        "sandboxStderrBytes",
+        "sandboxProcessCount"
+      ],
+      "properties": {
+        "sandboxDurationMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 86400000
+        },
+        "sandboxStdoutBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 67108864
+        },
+        "sandboxStderrBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 67108864
+        },
+        "sandboxProcessCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        }
+      }
+    }
+  },
+  "x-sdkwork-status": "draft",
+  "x-sdkwork-requirement-id": "REQ-2026-0007",
+  "x-sdkwork-output-encoding": "base64-binary"
+}

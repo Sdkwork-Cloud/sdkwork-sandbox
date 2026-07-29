@@ -8,4 +8,6 @@ Allowed: reviewed OpenAPI, proto, AsyncAPI, schemas, examples, changelogs, and c
 
 Related specs: `../../sdkwork-specs/API_SPEC.md`, `../../sdkwork-specs/INTERNAL_API_SPEC.md`, `../../sdkwork-specs/EVENT_SPEC.md`.
 
-Verification: inactive in Phase 0; when activated, run API envelope, operation-pattern, route-collision, and pagination checks as applicable.
+Current candidates: [`async/`](async/) contains the draft Sandbox event contract for REQ-2026-0010, and [`commands/`](commands/) contains the draft provider-neutral Command/Terminal schemas for REQ-2026-0007. These are authoring surfaces only and do not authorize Event/Command runtime implementations, providers, host I/O, API routes, SDKs, or deployment profiles.
+
+Verification: run the applicable contract tests, then API envelope, operation-pattern, route-collision, and pagination checks when an HTTP/RPC surface is approved.

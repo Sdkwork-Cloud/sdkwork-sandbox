@@ -35,7 +35,7 @@ Dashboard、Alert 与 Audit Sink 尚未实现时，轮换必须保持 Blocked。
 ## Preconditions
 
 1. REQ-2026-0006 为 `ready` 或 `accepted`，相关 ADR 已由人工架构与安全评审标记为 `accepted`。
-2. Composition 只通过批准的 Secret/KMS Adapter 注入 `SandboxProviderAllocationKeySource`，并能同时解析 Current 与全部仍被引用的 Historical Key ID/Version。Key ID 必须为 `1..=128` bytes printable ASCII；同步 Port 只能消费经评审的短生命周期本地 Key Handle 并在异步边界刷新，不得阻塞 Tokio Worker 发起远程 KMS 请求。
+2. Composition 只通过批准的 Secret/KMS Adapter 注入 `SandboxProviderAllocationKeySource`，并能同时解析 Current 与全部仍被引用的 Historical Key ID/Version。Key ID 必须为 `1..=128` bytes printable ASCII；一个已发布的 Key ID/Version 在保留期内必须始终映射到同一 Key Material，换料必须递增 Key Version。同步 Port 只能消费经评审的短生命周期本地 Key Handle 并在异步边界刷新，不得阻塞 Tokio Worker 发起远程 KMS 请求。
 3. Operator Actor、Tenant Scope、Change Window、审批记录、Trace/Audit Context 和停止条件已经明确。
 4. PostgreSQL Migration/Drift 状态为 Clean，Backup/PITR 与 Restore Exercise 在有效期内。
 5. 已验证 Current Key 的 Protect/Restore、Historical Key Restore、错误 Key Identity Fail-closed 与 KMS Unavailable 行为。
@@ -47,7 +47,7 @@ Dashboard、Alert 与 Audit Sink 尚未实现时，轮换必须保持 Blocked。
 1. 在 KMS 中创建新版本并保持旧版本可解密；记录 Key ID、Old/New Version、审批人与变更窗口，禁止记录 Key Material。
 2. 将新版本设置为 `SandboxProviderAllocationKeySource` 的 Current Key。先执行 Protect/Restore Canary，确认新写入只使用新版本且历史 Ciphertext 仍可恢复。
 3. 对每个明确 Tenant Scope 调用受控轮换入口，从空 Cursor 开始，以批准的 `sandbox_page_size` 循环处理。每页记录 Scanned、Re-encrypted、Conflict、Failed Count 与 Next Cursor。
-4. Conflict 只通过重新读取后重试下一轮扫描解决；不得覆盖并发 Lifecycle Save。KMS/Repository Failure 达到停止阈值时立即 Pause。
+4. Conflict 只通过重新读取后重试下一轮扫描解决；不得覆盖并发 Lifecycle Save 或 Binding/Session ABA。若页内 Current Key/Crypto Version 漂移导致 `ProtectionFailed`，立即 Pause，丢弃该页未持久化进度，在目标版本稳定后从最近一次已确认 Cursor 重新扫描；已逐行提交的结果由 Current-version Skip 幂等跳过。KMS/Repository Failure 达到停止阈值时同样立即 Pause。
 5. 每个 Tenant Sweep 结束后，从空 Cursor 执行 Dry Verification。只在零待处理记录且零未解决 Conflict 时将该 Tenant 标记为完成。
 6. 对每种活跃 Provider Profile 执行 Runtime Binding Recovery Smoke，证明新版本 Ciphertext 可恢复且 Fencing、Tenant 与 Runtime Binding Identity 保持一致。
 7. 所有 Tenant 完成后执行第二次全量 Dry Verification，并核对 Audit、Failure Queue、Retry Queue 与 Recovery Smoke Evidence。
@@ -60,6 +60,7 @@ Dashboard、Alert 与 Audit Sink 尚未实现时，轮换必须保持 Blocked。
 
 - **Conflict 增长：** Pause 当前 Tenant，保留新旧 Key，检查 Lifecycle Write Rate 与 CAS Metadata；从最后成功 Cursor 之前的安全边界重新扫描。
 - **KMS/Repository Unavailable：** Pause 全部 Sweep，不撤销任何 Historical Key；恢复依赖后从已记录 Cursor 继续，并再次执行 Dry Verification。
+- **页目标 Protection Version 漂移：** Pause 当前 Tenant，核对 Current Key ID/Version 与 Crypto Version；禁止接受混合目标页。目标版本稳定后从最近一次已确认 Cursor 重新扫描。若同一 Key ID/Version 的 Key Material 被原地替换，按 Key Integrity Incident 处理，不能仅重试。
 - **Current Key Protect/Restore 失败：** 停止新轮换。若尚未产生新版本 Ciphertext，可经审批恢复旧 Current Key；若已有新版本 Ciphertext，必须同时保留新旧 Key 并修复 Current Key 可用性，禁止简单回退后删除新 Key。
 - **撤销后出现 Historical Lookup：** 按 Key Incident 升级；优先恢复旧 Key 的受控 Decrypt 能力，冻结进一步撤销，并重新执行完整 Tenant Sweep 与 Recovery Smoke。
 - **疑似明文或 Key Material 泄露：** 停止轮换，隔离日志/终端/事件输出，启动 Security Incident Response，不把可疑 Payload 复制到工单或普通日志。

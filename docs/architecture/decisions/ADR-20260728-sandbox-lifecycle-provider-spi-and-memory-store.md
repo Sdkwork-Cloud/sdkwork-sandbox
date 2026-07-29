@@ -23,9 +23,9 @@ Phase 0 只建立了空 Crate 边界。V1 需要先证明业务状态机和 Prov
 3. `sdkwork-intelligence-sandbox-service` 是 L2/L3 Lifecycle Owner。它拥有 `SandboxSession` State、`SandboxSessionLifecycleCommand`、`SandboxSessionOperation`、`SandboxSessionRepository`、`SandboxSessionLifecyclePort`、Provider Selection Policy 与 Use-case Orchestration。
 4. `sdkwork-intelligence-sandbox-repository-memory` 是 L4 Adapter，只实现 Service 声明的 Repository Port。它面向 Test 和单进程开发，不声明 Durable、HA 或 Multi-process 保证。
 5. Lifecycle 使用 Command-supplied `OperationId`（变量 `sandbox_operation_id`）实现幂等：Repository 保存已应用 `SandboxSessionOperation`；同 ID/同 Kind 重试返回当前 `SandboxSession` Projection 且不重复 Provider Side Effect，同 ID/不同 Kind 拒绝。
-6. Repository Save 使用 Expected Version。Start 在调用 Provider 前先持久化 `Starting`，使并发 Start 只能有一个进入 Provider Boundary；Stop 和 Destroy 采用相同的中间状态所有权规则。
+6. Repository Save 使用 Expected Version。首次 Start 在 Allocate 前原子持久化 `Starting`、In-progress Start Operation 与无 Allocation Reference 的稳定 `SandboxRuntimeBinding` Intent，使并发 Start 只能有一个进入 Allocate/Start Provider Boundary；Retry Start 必须在原稳定状态下先幂等清理旧 Allocation，清理成功后才进入新的 `Starting`。Stop 和 Destroy 采用相同的中间状态所有权规则。
 7. Start 只选择满足全部 Capability、最低 Assurance 且 Health 可用的 Provider。Provider 返回的 Ready、Policy Enforced、Workspace Attached 三项任一为假时，Service 尝试释放 Allocation 并进入 `Failed`，不得进入 `Running`。
-8. Failed `SandboxSession` Retry Start 必须先对旧 `SandboxRuntimeBinding` 执行幂等 Destroy 并清除旧 Binding，再创建新的 `SandboxId`/`SandboxRuntimeBindingId`。
+8. Failed/Stopped `SandboxSession` Retry Start 必须先对旧 Allocation 执行幂等 Destroy；清理失败保存 Typed `Failed(Cleanup)` 并保留旧 Binding 供后续恢复，清理成功后才以无 Allocation Reference 的稳定 Binding Intent 启动新一轮 Start。已有无 Allocation Intent 时复用其 `SandboxId`/`SandboxRuntimeBindingId`，已清理旧 Allocation 时创建新的 Identity。
 9. `SandboxWorkspaceId` 与 `SandboxSessionId` 是调用方提供的 Opaque Context，Sandbox 不生成。`SandboxId`、`SandboxRuntimeBindingId` 与 `OperationId` 由 Sandbox 拥有。
 10. Sandbox 自有且跨域易混淆的公共领域类型使用 `Sandbox` 前缀；`TenantId`、`OperationId`、`RuntimeCapability` 与 `IsolationAssurance` 等 SDKWork 共享类型保持标准名称；存在歧义的字段/变量使用 `sandbox_` 前缀。本 ADR 不批准真实 Local Provider Host Access、生产隔离等级、HTTP/API Authority、Generated SDK、Durable Event Name 或 Deployment Profile。
 

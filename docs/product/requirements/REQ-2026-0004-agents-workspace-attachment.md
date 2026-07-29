@@ -76,8 +76,8 @@ node ../sdkwork-specs/tools/check-application-layering.mjs --root .
 
 2026-07-28 已验证 `SandboxWorkspaceId`/`SandboxSessionId` 由 Kernel 从 Agents-owned ID 映射并原样进入 `CreateSandboxSessionCommand`；Lifecycle Service 将同一 `sandbox_workspace_id`、`sandbox_session_id`、`sandbox_id`、`sandbox_runtime_binding_id` 与 `sandbox_fencing_token` 传入 Allocate/Start Provider Request。`SandboxProviderReadiness` 对 Provider Ready、Policy Enforced 和 Workspace Attached 三项全部关闭失败，`sandbox_workspace_attached=false` 不得进入 Running。Cargo Dependency Tree 与锁定依赖编译/测试证明方向为 `sdkwork-agents -> sdkwork-kernel -> sdkwork-sandbox`，Sandbox Cargo Manifest 不包含 Kernel/Agents 反向依赖。详见 [REVIEW-20260728: Sandbox Workspace Attachment Boundary Verification](../../engineering/reviews/REVIEW-20260728-sandbox-workspace-attachment-boundary-verification.md)。
 
-当前证据只覆盖 Opaque Identity、Provider Request、Readiness 和依赖边界；生产 Physical Attachment Capability、Storage Backend、Revision/Authorization Proof、Attachment Retention、Snapshot/Restore 与多租户数据面隔离尚未实现，因此状态为 `in-progress`。
+当前证据只覆盖 Opaque Identity、Provider Request、Readiness 和依赖边界。`REQ-2026-0013` 已形成 draft provider-neutral `SandboxWorkspaceAttachmentPort`/L4 `SandboxWorkspaceBlockDevicePort`、Agents/Drive Ownership、Grant、Encryption、Sanitization、Residue 与 Quarantine 候选边界，但生产 Physical Attachment Capability、Storage/KMS Backend、Revision/Authorization Proof、Attachment Retention、Snapshot/Restore 与多租户数据面隔离仍未实现，因此状态为 `in-progress`。
 
 ## Review Boundary
 
-本需求建立跨仓库 `0.1` 候选契约与依赖方向。生产 Workspace Attachment 持久化 Schema、Lease Expiry/Fencing、Reconciler、Storage Backend、Snapshot/Restore、Retention 和多租户数据面隔离仍必须由独立 Ready Requirement 与人工数据/安全评审管理。
+本需求建立跨仓库 `0.1` 候选契约与依赖方向。REQ-2026-0013 只补充 Firecracker Block Device/Sanitization Gate 0；生产 Workspace Attachment 持久化 Schema、Lease Expiry/Fencing、Reconciler、具体 Storage/KMS Backend、Snapshot/Restore、Retention 和多租户数据面隔离仍必须由 Ready Requirement 与人工数据/安全评审管理。

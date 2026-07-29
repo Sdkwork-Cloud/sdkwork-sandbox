@@ -34,9 +34,19 @@ Risk: critical - public Rust contract, execution security boundary, Provider com
 ## Review Evidence
 
 - 当前 Provider SPI、Lifecycle Service、PostgreSQL Repository 与 Kernel Adapter 已通过 Cargo Test/Clippy、Component Port、Layering、Naming 与依赖链检查。
+- Gate 0 下 Local crate 的 `#[cfg(test)]` Fake Host Boundary 已通过 5 个纯数据测试：Logical Relative Path/Windows 设备路径拒绝、Typed Argv 无 Shell 解析、Executable/Environment Allowlist、参数与环境边界；该 Harness 不访问 Host、不导出 Command Port，也不构成执行或隔离证据。
+- `npm test` / `node --test tests/contract/provider-delivery-gate.contract.test.mjs` 通过 8 个跨组件 Contract Test，其中 4 个专门锁定 Gate 0 的 REQ/ADR 状态、Local 空 Port、延迟 Provider Crate 和公共 Command Port 禁止项。
 - `cargo tree` 证明当前依赖方向为 `sdkwork-agents -> sdkwork-kernel -> sdkwork-sandbox`；本设计不向 Kernel 引入 Local/Firecracker 分支。
 - REQ/ADR 已定义 No-shell、Byte Output、Bounded Buffer、Stale Fencing、Idempotency、Cleanup、Redaction 与 Unsupported Capability Negative Cases。
 - 真实 Local Host 与 Linux KVM Firecracker Evidence 尚不存在，不能作为本 Design Review 的完成证据。
+
+## Candidate Contract Evidence
+
+- `apis/commands/sandbox-command-execution-request.schema.json` fixes Sandbox identity, provider binding, fencing, request fingerprint, typed executable, bounded Argv, logical relative working directory, deny-by-default environment, and bounded limits.
+- `apis/commands/sandbox-command-execution-result.schema.json` fixes binary-safe base64 output, truncation flags, bounded timing/resource usage, and a closed execution outcome set.
+- `apis/commands/sandbox-command-execution-error.schema.json` fixes the safe error taxonomy and explicit retryability without host, allocation, or secret details.
+- `apis/commands/sandbox-command-contract.json` fixes forbidden execution modes and common conformance scenario names.
+- `node --test tests/contract/sandbox-command-contract.contract.test.mjs` passes 6/6. This is static contract evidence only and does not authorize implementation or replace human review.
 
 ## Blocking Review Questions
 

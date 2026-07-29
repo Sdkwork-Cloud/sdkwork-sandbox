@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sdkwork.dev/sandbox/commands/sandbox-command-execution-request.schema.v1.json",
+  "title": "SandboxCommandExecutionRequest",
+  "description": "Candidate Sandbox-owned bounded executable plus Argv request. REQ-2026-0007 remains draft.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "tenantId",
+    "sandboxProviderId",
+    "sandboxWorkspaceId",
+    "sandboxSessionId",
+    "sandboxId",
+    "sandboxRuntimeBindingId",
+    "sandboxFencingToken",
+    "sandboxCommandOperationId",
+    "sandboxRequestFingerprint",
+    "sandboxExecutable",
+    "sandboxArguments",
+    "sandboxWorkingDirectory",
+    "sandboxEnvironment",
+    "sandboxCommandLimits"
+  ],
+  "properties": {
+    "tenantId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "sandboxProviderId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "sandboxWorkspaceId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "sandboxSessionId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "sandboxId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "sandboxRuntimeBindingId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "sandboxFencingToken": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9223372036854775807
+    },
+    "sandboxCommandOperationId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "sandboxRequestFingerprint": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "sandboxExecutable": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]{0,127}$",
+      "maxLength": 128,
+      "x-sdkwork-shell": false
+    },
+    "sandboxArguments": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "string",
+        "maxLength": 4096,
+        "pattern": "^[^\\u0000\\r\\n]*$",
+        "x-sdkwork-max-utf8-bytes": 4096
+      }
+    },
+    "sandboxWorkingDirectory": {
+      "oneOf": [
+        { "const": "." },
+        {
+          "type": "string",
+          "pattern": "^(?!.*(?:^|/)\\.\\.(?:/|$))[A-Za-z0-9_-]+(?:\\.[A-Za-z0-9_-]+)?(?:/[A-Za-z0-9_-]+(?:\\.[A-Za-z0-9_-]+)?)*$",
+          "maxLength": 512
+        }
+      ],
+      "x-sdkwork-path-kind": "workspace-logical-relative"
+    },
+    "sandboxEnvironment": {
+      "type": "object",
+      "maxProperties": 64,
+      "propertyNames": {
+        "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+        "not": {
+          "pattern": "(^|_)(TOKEN|SECRET|PASSWORD|CREDENTIAL|PRIVATE|SSH|DOCKER|AWS|AZURE|GOOGLE|PROXY)(_|$)"
+        }
+      },
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 1024,
+        "pattern": "^[^\\u0000\\r\\n]*$",
+        "x-sdkwork-max-utf8-bytes": 4096
+      },
+      "x-sdkwork-secret-policy": "deny-by-default"
+    },
+    "sandboxCommandLimits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sandboxTimeoutMs",
+        "sandboxStdoutByteLimit",
+        "sandboxStderrByteLimit",
+        "sandboxCleanupTimeoutMs",
+        "sandboxMaxProcessCount"
+      ],
+      "properties": {
+        "sandboxTimeoutMs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 86400000
+        },
+        "sandboxStdoutByteLimit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 67108864
+        },
+        "sandboxStderrByteLimit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 67108864
+        },
+        "sandboxCleanupTimeoutMs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60000
+        },
+        "sandboxMaxProcessCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 128
+        }
+      }
+    }
+  },
+  "x-sdkwork-status": "draft",
+  "x-sdkwork-requirement-id": "REQ-2026-0007",
+  "x-sdkwork-no-shell": true
+}

@@ -33,14 +33,15 @@ affected_surfaces:
 - `SandboxProviderAllocationKeySource` 由 Composition 注入，分别提供当前密钥和按精确 `sandbox_allocation_key_id`/`sandbox_allocation_key_version` 查询的历史密钥；Repository、Protector 与 Service Host 不读取环境变量或普通 Config 中的 Key Material。
 - `sandbox_allocation_key_id` 必须为 `1..=128` bytes 的 printable ASCII；`SandboxProviderAllocationKey`、保护元数据 Domain Constructor 与 PostgreSQL `CHECK` Constraint 必须分别拒绝空值、空格、控制字符和非 ASCII 值，防止绕过单层校验写入不安全 Identity。
 - 新保护操作只使用当前 Key ID/Version；恢复操作严格使用 Ciphertext 自带的 Key ID/Version，并校验 Key Source 返回的 Identity 一致。
+- Key Source 必须保证一个已发布的 `(sandbox_allocation_key_id, sandbox_allocation_key_version)` 在保留期内始终映射到同一 Key Material；更换 Key Material 必须递增 Key Version，禁止在同一 Identity 下原地换料。
 - 重加密在 `SandboxProviderAllocationProtector` 内完成 Restore + Protect；Provider-private 明文不得进入 Repository SQL、Debug、Log、Event、Metric、Wire 或 Operator Result，`SandboxProviderAllocationRef` Drop 时清零内部 Buffer。
 - PostgreSQL 重加密只接受显式 `tenant_id`、可选 `sandbox_runtime_binding_id` Cursor 和 `sandbox_page_size`；Page Size 必须为 `1..=200`，按 `sandbox_runtime_binding_id` 稳定升序，禁止无界收集。
-- 每页只扫描仍使用非当前 Key ID/Version 或 Crypto Version 的非空 Allocation Ciphertext；当前版本行不重复写入。
-- 每行 Update 必须同时匹配 Tenant、Binding、旧 Ciphertext、旧 Key ID/Version 与旧 Crypto Version；并发生命周期 Save 改变任一值时，重加密记录 Conflict/Skipped，不覆盖新值。
+- 每页在查询前只捕获一次目标 Key ID/Version 与 Crypto Version，只扫描仍使用非该目标版本的非空 Allocation Ciphertext；当前版本行不重复写入。每行重保护结果必须匹配该页目标三元组；页内 Current Version 漂移时以 `ProtectionFailed` 关闭失败，不写入漂移结果，已独立提交的较早行保持有效并可由重试幂等跳过。
+- 每行 Update 必须同时匹配 Tenant、Binding、Session、旧 Ciphertext、旧 Key ID/Version 与旧 Crypto Version；并发生命周期 Save 或 Binding/Session ABA 改变任一值时，重加密记录 Conflict/Skipped，不覆盖新值。
 - Page Result 报告 Scanned、Re-encrypted、Conflict 数量和可选下一 Cursor；结果不得包含 Ciphertext、Key Material 或 Provider Allocation Reference。
 - 重加密可安全重试；进程在任意页或任意行后中断时，已提交行保持当前版本，未提交行仍可由旧密钥恢复。
 - 旧密钥只能在完整 Tenant Scope 扫描返回零待重加密行、冲突完成重试、活跃 Runtime Binding 恢复验证通过，并由 Service Host/KMS 运维流程记录人工撤销后移除。
-- 测试覆盖 V1 Protect/V1 Restore、V2 Current + V1 Historical Restore、V1 -> V2 Re-encryption、旧密钥缺失关闭失败、错误 Identity 关闭失败、Context 搬移失败、当前版本幂等跳过、分页、Tenant 隔离和并发 CAS。
+- 测试覆盖 V1 Protect/V1 Restore、V2 Current + V1 Historical Restore、V1 -> V2 Re-encryption、旧密钥缺失关闭失败、错误 Identity 关闭失败、Context 搬移失败、当前版本幂等跳过、分页、Tenant 隔离、页内目标版本漂移关闭失败、Lifecycle Metadata CAS 与 Session ABA CAS。
 - Cargo Format/Check/Test/Clippy、Database Framework、Component、Layering、Naming、Documentation 与 Repository Baseline 检查通过；真实 PostgreSQL Page/CAS/Restart Evidence 缺失时不得标记 `accepted`。
 
 ## 非功能需求
@@ -78,7 +79,7 @@ node ../sdkwork-specs/tools/check-identity-naming.mjs --root .
 
 ## Verification Evidence
 
-2026-07-29 已通过一次性 PostgreSQL 17 的空库 Migration、幂等重跑、Status/Drift、V1 -> V2 Tenant-scoped Cursor Page、Page Size Boundary、Current-version Skip、Tenant 隔离、并发 Lifecycle Save Ciphertext Metadata CAS、第二次扫描收敛与 Repository 重建恢复验证。修订后的 Migration 还以 SQLSTATE `23514` 和 Constraint `ck_sandbox_runtime_binding_allocation_metadata` 拒绝含换行的 Key ID，并证明失败语句未改变原 Ciphertext Metadata。Rust 负向测试覆盖空格、控制字符、非 ASCII Key ID 及 31/1025-byte Key Material 边界。完整环境、命令、结果和未关闭门禁见 [REVIEW-20260729: Sandbox Provider Allocation Key Rotation Verification](../../engineering/reviews/REVIEW-20260729-sandbox-provider-allocation-key-rotation-verification.md)。候选运维顺序、停止条件与旧密钥撤销门禁见 [Sandbox Provider Allocation Key Rotation And Old-key Revocation Runbook](../../runbooks/RUNBOOK-sandbox-provider-allocation-key-rotation.md)。
+2026-07-29 已通过一次性 PostgreSQL 17 的空库 Migration、幂等重跑、Status/Drift、V1 -> V2 Tenant-scoped Cursor Page、Page Size Boundary、Current-version Skip、Tenant 隔离、并发 Lifecycle Save Ciphertext Metadata CAS、Session ABA CAS、页目标从 V2 漂移到 V3 时关闭失败且旧密文不变、从空 Cursor 重试后收敛到 V3、第二次扫描收敛与 Repository 重建恢复验证。修订后的 Migration 还以 SQLSTATE `23514` 和 Constraint `ck_sandbox_runtime_binding_allocation_metadata` 拒绝含换行的 Key ID，并证明失败语句未改变原 Ciphertext Metadata。Rust 负向测试覆盖空格、控制字符、非 ASCII Key ID 及 31/1025-byte Key Material 边界。完整环境、命令、结果和未关闭门禁见 [REVIEW-20260729: Sandbox Provider Allocation Key Rotation Verification](../../engineering/reviews/REVIEW-20260729-sandbox-provider-allocation-key-rotation-verification.md)。候选运维顺序、停止条件与旧密钥撤销门禁见 [Sandbox Provider Allocation Key Rotation And Old-key Revocation Runbook](../../runbooks/RUNBOOK-sandbox-provider-allocation-key-rotation.md)。
 
 真实 PostgreSQL 证据已关闭本 Requirement 中的 Repository Page/CAS/Restart 验证缺口，但不替代生产 Secret/KMS Adapter、Operator Entry Point、Audit/Metric、KMS Failure、Multi-replica、PITR、撤销演练或人工安全/架构评审，因此状态保持 `in-progress`。
 

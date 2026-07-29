@@ -1,0 +1,259 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.sandbox.provider-delivery-gates",
+  "status": "draft",
+  "implementationAuthorized": false,
+  "requirementIds": [
+    "REQ-2026-0003",
+    "REQ-2026-0007",
+    "REQ-2026-0008",
+    "REQ-2026-0012",
+    "REQ-2026-0013",
+    "REQ-2026-0014",
+    "REQ-2026-0015",
+    "REQ-2026-0016",
+    "REQ-2026-0017",
+    "REQ-2026-0018"
+  ],
+  "decisionIds": [
+    "ADR-20260728-local-provider-assurance-and-host-boundaries",
+    "ADR-20260729-sandbox-command-execution-and-terminal-boundary",
+    "ADR-20260729-firecracker-provider-isolation-and-node-boundaries",
+    "ADR-20260729-sandbox-firecracker-artifact-compatibility-and-supply-chain",
+    "ADR-20260729-sandbox-workspace-block-device-attachment-and-sanitization",
+    "ADR-20260729-sandbox-firecracker-network-isolation-and-egress-policy",
+    "ADR-20260729-sandbox-firecracker-resource-isolation-and-usage-facts",
+    "ADR-20260729-sandbox-multi-tenant-admission-scheduling-and-capacity-reservation",
+    "ADR-20260729-sandbox-node-trust-enrollment-attestation-and-inventory",
+    "ADR-20260729-sandbox-postgresql-quota-and-capacity-reservation-persistence"
+  ],
+  "sharedConformance": {
+    "requestContract": "../apis/commands/sandbox-command-contract.json",
+    "requiredScenarios": [
+      "typed-executable-and-argv-preservation",
+      "shell-string-rejection",
+      "logical-working-directory-escape-rejection",
+      "deny-by-default-environment",
+      "timeout-and-descendant-cleanup",
+      "cancellation-and-descendant-cleanup",
+      "stdout-and-stderr-hard-bounds",
+      "stale-fencing-fail-closed",
+      "same-operation-same-fingerprint-replay",
+      "same-operation-different-fingerprint-conflict",
+      "safe-error-and-private-metadata-redaction"
+    ],
+    "kernelBranchingAllowed": false,
+    "providerPrivateCommandDtosAllowed": false,
+    "shellFallbackAllowed": false
+  },
+  "providers": [
+    {
+      "sandbox_provider_name": "sandbox_local_provider",
+      "componentName": "sdkwork-sandbox-provider-local",
+      "requirementId": "REQ-2026-0003",
+      "status": "draft",
+      "implementationAuthorized": false,
+      "identity": {
+        "sandbox_kind": "local",
+        "sandbox_assurance": "HostUser",
+        "sandbox_deployment_profiles": ["standalone"],
+        "sandbox_supported_host_platforms": ["windows", "macos", "linux"]
+      },
+      "capabilityPolicy": {
+        "sandbox_filesystem": "candidate-capability-rooted-only",
+        "sandbox_command": "candidate-shared-command-contract",
+        "sandbox_terminal": "platform-supervision-evidence-required",
+        "sandbox_shell": "denied-by-default-explicit-policy-only",
+        "sandbox_network": "denied-until-egress-enforcement-evidence",
+        "sandbox_browser": "denied",
+        "sandbox_port_forward": "denied"
+      },
+      "requiredEvidence": [
+        "sandbox_workspace_attachment_authority",
+        "sandbox_windows_reparse_device_ads_negative_tests",
+        "sandbox_unix_symlink_mount_negative_tests",
+        "sandbox_windows_job_object_descendant_cleanup",
+        "sandbox_linux_process_group_or_cgroup_descendant_cleanup",
+        "sandbox_macos_supervision_scope_or_terminal_denial",
+        "sandbox_real_host_runner_matrix",
+        "sandbox_provider_descriptor_known_limitations"
+      ],
+      "gate0Evidence": {
+        "sandbox_fake_host_boundary": "test-only",
+        "sandbox_host_io": false,
+        "sandbox_process_spawn": false,
+        "sandbox_public_ports": false
+      },
+      "forbiddenAssuranceClaims": ["Container", "MicroVm", "DedicatedVm", "multi-tenant-isolation"],
+      "forbiddenFallbacks": ["sandbox_network", "sandbox_browser", "sandbox_port_forward", "sandbox_weak-provider"]
+    },
+    {
+      "sandbox_provider_name": "sandbox_firecracker_provider",
+      "componentName": "sdkwork-sandbox-provider-firecracker",
+      "requirementId": "REQ-2026-0008",
+      "status": "draft",
+      "implementationAuthorized": false,
+      "identity": {
+        "sandbox_kind": "firecracker",
+        "sandbox_assurance": "MicroVm",
+        "sandbox_deployment_profiles": ["standalone", "cloud"],
+        "sandbox_supported_host_platforms": ["linux-kvm-x86_64", "linux-kvm-aarch64"]
+      },
+      "preflight": {
+        "sandbox_linux_required": true,
+        "sandbox_kvm_required": true,
+        "sandbox_cgroup_v2_required": true,
+        "sandbox_jailer_required": true,
+        "sandbox_artifact_digest_and_signature_required": true,
+        "sandbox_workspace_attachment_required": true,
+        "sandbox_fencing_required": true,
+        "sandbox_policy_enforcement_required": true,
+        "sandbox_missing_preflight_is_ready": false
+      },
+      "artifactCompatibility": {
+        "sandbox_contract": "sandbox-firecracker-artifact-compatibility.contract.json",
+        "sandbox_manifest_type": "SandboxFirecrackerArtifactManifest",
+        "sandbox_status": "draft",
+        "sandbox_implementation_authorized": false,
+        "sandbox_exact_tuple_required": true,
+        "sandbox_runtime_download_allowed": false,
+        "sandbox_mutable_alias_allowed": false,
+        "sandbox_preflight_dependency_required": true
+      },
+      "workspaceAttachment": {
+        "sandbox_contract": "sandbox-workspace-block-device-attachment.contract.json",
+        "sandbox_port_type": "SandboxWorkspaceBlockDevicePort",
+        "sandbox_status": "draft",
+        "sandbox_implementation_authorized": false,
+        "sandbox_guest_block_device_required": true,
+        "sandbox_direct_host_directory_mount_allowed": false,
+        "sandbox_sanitization_and_residue_gate_required": true,
+        "sandbox_preflight_dependency_required": true
+      },
+      "networkIsolation": {
+        "sandbox_contract": "sandbox-firecracker-network-isolation.contract.json",
+        "sandbox_policy_port_type": "SandboxNetworkPolicyPort",
+        "sandbox_mechanism_port_type": "SandboxNetworkIsolationPort",
+        "sandbox_status": "draft",
+        "sandbox_implementation_authorized": false,
+        "sandbox_default_action": "DenyAll",
+        "sandbox_per_binding_namespace_and_tap_required": true,
+        "sandbox_permanent_denials_required": true,
+        "sandbox_atomic_apply_and_verify_required": true,
+        "sandbox_preflight_dependency_required": true
+      },
+      "resourceIsolation": {
+        "sandbox_contract": "sandbox-firecracker-resource-isolation.contract.json",
+        "sandbox_policy_port_type": "SandboxResourcePolicyPort",
+        "sandbox_mechanism_port_type": "SandboxResourceIsolationPort",
+        "sandbox_usage_fact_type": "SandboxResourceUsageFact",
+        "sandbox_status": "draft",
+        "sandbox_implementation_authorized": false,
+        "sandbox_machine_config_and_cgroup_v2_required": true,
+        "sandbox_cpu_memory_pid_io_verification_required": true,
+        "sandbox_final_usage_and_residue_gate_required": true,
+        "sandbox_metrics_are_billing_truth": false,
+        "sandbox_preflight_dependency_required": true
+      },
+      "schedulingAndCapacity": {
+        "sandbox_contract": "sandbox-multi-tenant-scheduling.contract.json",
+        "sandbox_persistence_contract": "sandbox-quota-and-capacity-persistence.contract.json",
+        "sandbox_admission_port_type": "SandboxAdmissionPolicyPort",
+        "sandbox_scheduler_port_type": "SandboxSchedulerPort",
+        "sandbox_capacity_reservation_port_type": "SandboxCapacityReservationPort",
+        "sandbox_status": "draft",
+        "sandbox_implementation_authorized": false,
+        "sandbox_persistence_implementation_authorized": false,
+        "sandbox_admission_before_provider_selection_required": true,
+        "sandbox_capacity_reservation_before_provider_allocate_required": true,
+        "sandbox_assurance_downgrade_allowed": false,
+        "sandbox_cloud_preflight_dependency_required": true
+      },
+      "nodeTrustAndInventory": {
+        "sandbox_contract": "sandbox-node-trust-and-inventory.contract.json",
+        "sandbox_enrollment_port_type": "SandboxNodeEnrollmentPort",
+        "sandbox_attestation_verification_port_type": "SandboxNodeAttestationVerificationPort",
+        "sandbox_inventory_publication_port_type": "SandboxNodeInventoryPublicationPort",
+        "sandbox_lifecycle_control_port_type": "SandboxNodeLifecycleControlPort",
+        "sandbox_status": "draft",
+        "sandbox_implementation_authorized": false,
+        "sandbox_short_lived_mutual_identity_required": true,
+        "sandbox_authentication_is_attestation": false,
+        "sandbox_verified_inventory_before_scheduler_candidate_required": true,
+        "sandbox_active_trusted_node_before_provider_allocate_required": true,
+        "sandbox_cloud_preflight_dependency_required": true
+      },
+      "capabilityPolicy": {
+        "sandbox_filesystem": "guest-block-device-attachment-evidence-required",
+        "sandbox_command": "candidate-shared-command-contract",
+        "sandbox_terminal": "authenticated-guest-readiness-evidence-required",
+        "sandbox_shell": "denied-by-default",
+        "sandbox_network": "denied-until-policy-verification",
+        "sandbox_browser": "denied",
+        "sandbox_port_forward": "denied",
+        "sandbox_snapshot": "deferred",
+        "sandbox_restore": "deferred",
+        "sandbox_warm_pool": "deferred"
+      },
+      "requiredEvidence": [
+        "sandbox_real_linux_kvm_node_matrix",
+        "sandbox_firecracker_artifact_compatibility_contract",
+        "sandbox_firecracker_jailer_compatibility_manifest",
+        "sandbox_kernel_rootfs_guest_agent_digest_signature",
+        "sandbox_workspace_block_device_attachment_contract",
+        "sandbox_firecracker_network_isolation_contract",
+        "sandbox_firecracker_resource_isolation_contract",
+        "sandbox_multi_tenant_admission_scheduling_capacity_contract",
+        "sandbox_node_trust_enrollment_attestation_inventory_contract",
+        "sandbox_minimum_privilege_host_isolation_broker",
+        "sandbox_jailer_uid_gid_chroot_seccomp",
+        "sandbox_cgroup_v2_cpu_memory_pid_io_limits",
+        "sandbox_network_namespace_tap_egress_denial",
+        "sandbox_guest_vsock_authenticated_readiness",
+        "sandbox_fencing_restart_recovery",
+        "sandbox_vmm_crash_and_destroy_cleanup",
+        "sandbox_cross_tenant_residue_scan",
+        "sandbox_node_drain_and_artifact_rollback_runbook"
+      ],
+      "forbiddenPublicMetadata": [
+        "sandbox_host_path",
+        "sandbox_api_socket",
+        "sandbox_tap_name",
+        "sandbox_cgroup_path",
+        "sandbox_guest_credential",
+        "sandbox_microvm_id",
+        "sandbox_provider_allocation_reference"
+      ],
+      "forbiddenFallbacks": ["sandbox_local_provider", "sandbox_docker_provider", "sandbox_weak-provider", "sandbox_no-kvm-success"]
+    }
+  ],
+  "commonForbiddenOwnership": [
+    "docker-provider",
+    "public-api",
+    "generated-sdk",
+    "scheduler",
+    "quota-metering",
+    "secret-injection",
+    "deployment-profile",
+    "automatic-image-building"
+  ],
+  "humanReview": {
+    "required": true,
+    "reviewPackets": [
+      "REVIEW-20260729-sandbox-command-execution-architecture-security",
+      "REVIEW-20260729-local-provider-architecture-security",
+      "REVIEW-20260729-firecracker-provider-architecture-security",
+      "REVIEW-20260729-sandbox-firecracker-artifact-compatibility-and-supply-chain",
+      "REVIEW-20260729-sandbox-workspace-block-device-attachment-and-sanitization",
+      "REVIEW-20260729-sandbox-firecracker-network-isolation",
+      "REVIEW-20260729-sandbox-firecracker-resource-isolation",
+      "REVIEW-20260729-sandbox-multi-tenant-admission-scheduling-and-capacity",
+      "REVIEW-20260729-sandbox-node-trust-enrollment-attestation-and-inventory",
+      "REVIEW-20260729-sandbox-postgresql-quota-and-capacity-persistence"
+    ],
+    "approvedOutcomeRequiredBeforeImplementation": true
+  },
+  "x-sdkwork-status": "draft",
+  "x-sdkwork-require-human-review": true,
+  "x-sdkwork-no-provider-runtime": true
+}

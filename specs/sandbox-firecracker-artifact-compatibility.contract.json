@@ -1,0 +1,232 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.sandbox.firecracker-artifact-compatibility-contract",
+  "status": "draft",
+  "requirementId": "REQ-2026-0012",
+  "implementationAuthorized": false,
+  "manifestCandidate": {
+    "type": "SandboxFirecrackerArtifactManifest",
+    "requiredFields": [
+      "sandbox_artifact_manifest_id",
+      "sandbox_artifact_manifest_version",
+      "sandbox_artifact_manifest_digest",
+      "sandbox_release_version",
+      "sandbox_supported_host_architecture",
+      "sandbox_compatibility_tuple",
+      "sandbox_artifacts",
+      "sandbox_evidence_bundle_ref",
+      "sandbox_signature_policy_ref",
+      "sandbox_revocation_policy_ref",
+      "sandbox_published_at"
+    ],
+    "unknownFieldsRejected": true,
+    "allSandboxOwnedFieldsRequirePrefix": "sandbox_",
+    "immutableAfterPublication": true,
+    "manifestSignatureRequired": true,
+    "sourceAuthority": "release-published-manifest"
+  },
+  "artifactDescriptor": {
+    "type": "SandboxFirecrackerArtifactDescriptor",
+    "requiredFields": [
+      "sandbox_artifact_role",
+      "sandbox_artifact_version",
+      "sandbox_artifact_sha256",
+      "sandbox_artifact_size_bytes",
+      "sandbox_artifact_media_type",
+      "sandbox_artifact_release_ref",
+      "sandbox_artifact_signature_ref",
+      "sandbox_artifact_sbom_ref",
+      "sandbox_artifact_provenance_ref",
+      "sandbox_artifact_license_record_ref",
+      "sandbox_artifact_advisory_snapshot_ref"
+    ],
+    "digestAlgorithm": "sha256",
+    "digestEncoding": "lowercase-hex",
+    "digestLength": 64,
+    "releaseReferenceOpaque": true,
+    "hostPathAllowed": false,
+    "downloadUrlAllowed": false,
+    "embeddedSignatureOrKeyMaterialAllowed": false
+  },
+  "artifactRoles": [
+    {
+      "name": "sandbox_firecracker",
+      "required": true,
+      "executable": true
+    },
+    {
+      "name": "sandbox_jailer",
+      "required": true,
+      "executable": true
+    },
+    {
+      "name": "sandbox_guest_kernel",
+      "required": true,
+      "executable": false
+    },
+    {
+      "name": "sandbox_rootfs",
+      "required": true,
+      "executable": false
+    },
+    {
+      "name": "sandbox_guest_agent",
+      "required": true,
+      "executable": true
+    },
+    {
+      "name": "sandbox_initrd",
+      "required": false,
+      "executable": false
+    }
+  ],
+  "compatibilityTuple": {
+    "type": "SandboxFirecrackerCompatibilityTuple",
+    "requiredFields": [
+      "sandbox_supported_host_architecture",
+      "sandbox_minimum_host_kernel_version",
+      "sandbox_kvm_api_requirement",
+      "sandbox_firecracker_artifact_sha256",
+      "sandbox_jailer_artifact_sha256",
+      "sandbox_guest_kernel_artifact_sha256",
+      "sandbox_rootfs_artifact_sha256",
+      "sandbox_guest_agent_artifact_sha256",
+      "sandbox_guest_boot_contract_version",
+      "sandbox_rootfs_schema_version",
+      "sandbox_guest_agent_protocol_version"
+    ],
+    "supportedHostArchitectures": ["linux-kvm-x86_64", "linux-kvm-aarch64"],
+    "exactArtifactDigestReferencesRequired": true,
+    "firecrackerAndJailerReleaseMustMatch": true,
+    "crossArchitectureTupleReuseAllowed": false,
+    "partialTupleAllowed": false,
+    "runtimeCompatibilityOverrideAllowed": false
+  },
+  "evidence": {
+    "sdkworkArtifactEvidenceSchema": "../../sdkwork-specs/schemas/sdkwork.artifact-evidence.schema.v1.json",
+    "bundleChecksumRequired": true,
+    "bundleSignatureRequired": true,
+    "sbomRequiredForEveryArtifact": true,
+    "provenanceRequiredForEveryArtifact": true,
+    "licenseRecordRequiredForEveryArtifact": true,
+    "advisorySnapshotRequiredForEveryArtifact": true,
+    "sourceRevisionRequired": true,
+    "buildWorkflowAndToolchainRequired": true,
+    "evidenceMustMatchReleaseAndArchitecture": true,
+    "missingOrInvalidEvidenceFailsClosed": true,
+    "signingPrivateMaterialAllowedInManifest": false
+  },
+  "runtimeConsumption": {
+    "sandbox_provider_builds_artifacts": false,
+    "sandbox_provider_publishes_artifacts": false,
+    "sandbox_provider_downloads_artifacts": false,
+    "sandbox_runtime_network_fetch_allowed": false,
+    "sandbox_arbitrary_url_allowed": false,
+    "sandbox_mutable_alias_allowed": false,
+    "sandbox_latest_allowed": false,
+    "sandbox_unverified_local_artifact_allowed": false,
+    "sandbox_source_checkout_fallback_allowed": false,
+    "sandbox_artifacts_materialized_under_provider_private_runtime_root": true,
+    "sandbox_regular_file_required": true,
+    "sandbox_symlink_allowed": false,
+    "sandbox_hardlink_allowed": false,
+    "sandbox_read_only_materialization_required": true,
+    "sandbox_atomic_publish_required": true,
+    "sandbox_verify_after_open_before_use": true,
+    "sandbox_fail_closed_on_file_identity_or_metadata_change": true,
+    "sandbox_manifest_selected_before_allocation": true,
+    "sandbox_manifest_reverified_before_start": true
+  },
+  "revocationAndRollback": {
+    "sandbox_revocation_check_before_allocate": true,
+    "sandbox_revocation_check_before_start": true,
+    "sandbox_critical_advisory_blocks_new_allocations": true,
+    "sandbox_unknown_advisory_state_blocks_new_allocations": true,
+    "sandbox_revoked_tuple_never_selected_for_recovery": true,
+    "sandbox_active_allocation_drain_or_quarantine_policy_required": true,
+    "sandbox_rollback_target_must_be_previous_approved_manifest_digest": true,
+    "sandbox_rollback_rebuild_allowed": false,
+    "sandbox_rollback_mutable_alias_allowed": false,
+    "sandbox_rollback_requires_audit": true,
+    "sandbox_cross_architecture_rollback_allowed": false
+  },
+  "readiness": {
+    "type": "SandboxFirecrackerArtifactReadiness",
+    "failureMode": "fail-closed",
+    "requiredDimensions": [
+      "sandbox_manifest_signature",
+      "sandbox_exact_compatibility_tuple",
+      "sandbox_artifact_digests",
+      "sandbox_release_evidence",
+      "sandbox_advisory_and_revocation_state",
+      "sandbox_runtime_file_identity",
+      "sandbox_host_architecture_compatibility"
+    ],
+    "degradedMayAuthorizeAllocationOrStart": false,
+    "readinessClaimIsMicroVmEvidenceByItself": false
+  },
+  "bounds": {
+    "sandbox_manifest_max_bytes": 131072,
+    "sandbox_artifact_count_max": 6,
+    "sandbox_artifact_size_bytes_max": 68719476736,
+    "sandbox_reference_max_length": 512,
+    "sandbox_version_max_length": 128,
+    "sandbox_protocol_version_max_length": 64
+  },
+  "safeOperationalFields": [
+    "sandbox_artifact_manifest_id",
+    "sandbox_artifact_manifest_digest",
+    "sandbox_release_version",
+    "sandbox_supported_host_architecture",
+    "sandbox_artifact_readiness",
+    "sandbox_reason_code",
+    "sandbox_trace_id"
+  ],
+  "forbiddenPublicMetadata": [
+    "sandbox_artifact_host_path",
+    "sandbox_artifact_download_url",
+    "sandbox_artifact_signature_material",
+    "sandbox_signing_private_key",
+    "sandbox_build_credential",
+    "sandbox_guest_credential",
+    "sandbox_provider_private_runtime_root",
+    "sandbox_firecracker_api_socket",
+    "sandbox_microvm_id"
+  ],
+  "ownership": {
+    "sandbox_release_authority_owns_publication_and_revocation": true,
+    "sandbox_provider_only_validates_and_consumes": true,
+    "sandbox_host_isolation_broker_may_select_or_build": false,
+    "sandbox_service_host_may_override_digest": false,
+    "sandbox_kernel_may_select_provider_private_artifact": false,
+    "sandbox_agents_may_select_provider_private_artifact": false
+  },
+  "requiredImplementationEvidence": [
+    "sandbox_approved_exact_artifact_tuple_inventory",
+    "sandbox_release_authority_and_key_custody_review",
+    "sandbox_manifest_and_artifact_signature_verification_tests",
+    "sandbox_sbom_provenance_checksum_license_advisory_bundle",
+    "sandbox_tamper_truncation_substitution_and_wrong_architecture_negative_tests",
+    "sandbox_symlink_hardlink_and_toctou_negative_tests",
+    "sandbox_revocation_and_critical_advisory_fail_closed_tests",
+    "sandbox_previous_digest_rollback_and_audit_test",
+    "sandbox_no_runtime_network_fetch_test",
+    "sandbox_real_linux_kvm_x86_64_or_aarch64_boot_evidence",
+    "sandbox_vulnerability_response_and_node_drain_runbook"
+  ],
+  "forbiddenOwnership": [
+    "automatic-image-building",
+    "runtime-artifact-download",
+    "signing-key-management",
+    "secret-kms-implementation",
+    "node-enrollment",
+    "scheduler",
+    "deployment-profile",
+    "public-api",
+    "generated-sdk"
+  ],
+  "x-sdkwork-status": "draft",
+  "x-sdkwork-require-human-review": true,
+  "x-sdkwork-no-runtime-implementation": true,
+  "x-sdkwork-no-release-artifacts": true
+}

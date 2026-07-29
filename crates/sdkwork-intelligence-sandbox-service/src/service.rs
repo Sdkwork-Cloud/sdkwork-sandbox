@@ -131,8 +131,7 @@ impl SandboxLifecycleService {
             .await;
         match (sandbox_lifecycle_result, sandbox_release_result) {
             (Err(sandbox_lifecycle_error), _) => Err(sandbox_lifecycle_error),
-            (Ok(_), Err(sandbox_repository_error)) => Err(sandbox_repository_error.into()),
-            (Ok(_), Ok(false)) => Err(SandboxLifecycleError::LeaseLost),
+            (Ok(_), Err(_) | Ok(false)) => Err(SandboxLifecycleError::LeaseLost),
             (Ok(value), Ok(true)) => Ok(value),
         }
     }
@@ -147,11 +146,14 @@ impl SandboxLifecycleService {
     where
         F: Future<Output = Result<T, SandboxProviderError>>,
     {
-        let renewed_sandbox_session_lease = self
+        let renewed_sandbox_session_lease = match self
             .sandbox_session_repository
             .renew_sandbox_session_lease(sandbox_session_lease, self.sandbox_lease_duration)
-            .await?
-            .ok_or(SandboxLifecycleError::LeaseLost)?;
+            .await
+        {
+            Ok(Some(renewed_sandbox_session_lease)) => renewed_sandbox_session_lease,
+            Ok(None) | Err(_) => return Err(SandboxLifecycleError::LeaseLost),
+        };
         if renewed_sandbox_session_lease.tenant_id() != sandbox_session_lease.tenant_id()
             || renewed_sandbox_session_lease.sandbox_session_id()
                 != sandbox_session_lease.sandbox_session_id()
@@ -314,16 +316,32 @@ impl SandboxLifecycleService {
                 ));
                 continue;
             };
+            let sandbox_reconciliation_result = match self
+                .get_sandbox_session(tenant_id, &sandbox_session_id)
+                .await
+            {
+                Ok(authoritative_sandbox_session)
+                    if matches!(
+                        authoritative_sandbox_session.sandbox_session_state(),
+                        SandboxSessionState::Starting
+                            | SandboxSessionState::Stopping
+                            | SandboxSessionState::Destroying
+                    ) =>
+                {
+                    self.reconcile_sandbox_session_with_lease(
+                        authoritative_sandbox_session,
+                        &sandbox_session_lease,
+                    )
+                    .await
+                }
+                authoritative_sandbox_result => authoritative_sandbox_result,
+            };
             let sandbox_reconciliation_result = self
-                .reconcile_sandbox_session_with_lease(sandbox_session, &sandbox_session_lease)
+                .release_sandbox_session_lease(
+                    &sandbox_session_lease,
+                    sandbox_reconciliation_result,
+                )
                 .await;
-            let sandbox_released = self
-                .sandbox_session_repository
-                .release_sandbox_session_lease(&sandbox_session_lease)
-                .await?;
-            if !sandbox_released {
-                return Err(SandboxLifecycleError::LeaseLost);
-            }
             match sandbox_reconciliation_result {
                 Ok(sandbox_session) => {
                     sandbox_items.push(SandboxSessionReconciliationItem::new(
@@ -694,18 +712,6 @@ impl SandboxLifecycleService {
             }
             _ => self.select_sandbox_provider(&sandbox_session).await?,
         };
-        sandbox_session.begin_sandbox_operation(
-            command.sandbox_operation_id.clone(),
-            SandboxSessionOperationKind::Start,
-        );
-        sandbox_session.transition_sandbox_session(
-            SandboxSessionState::Starting,
-            SandboxSessionOperationKind::Start,
-        )?;
-        let mut sandbox_session = self
-            .persist_sandbox_session(sandbox_session, sandbox_session_lease)
-            .await?;
-
         if let Some(previous_sandbox_runtime_binding) = previous_sandbox_runtime_binding.as_ref() {
             if previous_sandbox_runtime_binding
                 .sandbox_allocation_reference()
@@ -728,6 +734,14 @@ impl SandboxLifecycleService {
                     )
                     .await?
                 {
+                    sandbox_session.begin_sandbox_operation(
+                        command.sandbox_operation_id.clone(),
+                        SandboxSessionOperationKind::Start,
+                    );
+                    sandbox_session.transition_sandbox_session(
+                        SandboxSessionState::Starting,
+                        SandboxSessionOperationKind::Start,
+                    )?;
                     return self
                         .fail_with_sandbox_provider_error(
                             sandbox_session,
@@ -739,10 +753,6 @@ impl SandboxLifecycleService {
                         )
                         .await;
                 }
-                sandbox_session.clear_sandbox_runtime_binding();
-                sandbox_session = self
-                    .persist_sandbox_session(sandbox_session, sandbox_session_lease)
-                    .await?;
             }
         }
 
@@ -764,7 +774,15 @@ impl SandboxLifecycleService {
             ),
         };
         sandbox_session.set_sandbox_runtime_binding(sandbox_runtime_binding.clone());
-        sandbox_session = self
+        sandbox_session.begin_sandbox_operation(
+            command.sandbox_operation_id.clone(),
+            SandboxSessionOperationKind::Start,
+        );
+        sandbox_session.transition_sandbox_session(
+            SandboxSessionState::Starting,
+            SandboxSessionOperationKind::Start,
+        )?;
+        let mut sandbox_session = self
             .persist_sandbox_session(sandbox_session, sandbox_session_lease)
             .await?;
         let sandbox_allocation = match self
@@ -1208,14 +1226,21 @@ impl SandboxLifecycleService {
         sandbox_session_lease: &SandboxSessionLease,
     ) -> SandboxLifecycleResult<SandboxSession> {
         let expected_sandbox_version = sandbox_session.next_sandbox_version()?;
-        self.sandbox_session_repository
+        match self
+            .sandbox_session_repository
             .save_sandbox_session(
                 sandbox_session.clone(),
                 expected_sandbox_version,
                 sandbox_session_lease,
             )
-            .await?;
-        Ok(sandbox_session)
+            .await
+        {
+            Ok(()) => Ok(sandbox_session),
+            Err(SandboxSessionRepositoryError::LeaseConflict) => {
+                Err(SandboxLifecycleError::LeaseLost)
+            }
+            Err(sandbox_repository_error) => Err(sandbox_repository_error.into()),
+        }
     }
 
     async fn fail_with_sandbox_provider_error(

@@ -24,7 +24,7 @@ Sandbox 仍需要把经授权的 Workspace 连接到一次 Provider Allocation�
 4. Kernel 把经授权的 Agents Workspace/Session ID 映射为 Opaque `SandboxWorkspaceId` 与 `SandboxSessionId`。二者由调用方提供、在 Sandbox 中 Parse-only，不由 Sandbox 生成。
 5. Sandbox 生成并拥有 `SandboxId`、`SandboxRuntimeBindingId` 与 `OperationId`。Sandbox 自有且跨域易混淆的公共领域类型使用 `Sandbox` 前缀；`OperationId` 等 SDKWork 共享类型保持标准名称；存在领域歧义的字段和变量使用 `sandbox_` 前缀。
 6. `SandboxSessionLifecyclePort` 是 Kernel 消费的生命周期权威。`CreateSandboxSessionCommand`、`SandboxSessionLifecycleCommand`、`SandboxSession` 与 `SandboxRuntimeBinding` 不复制 Agents 业务模型。
-7. Sandbox 拥有 Physical Workspace Attachment Mechanism、Lease/Fencing、`SandboxProviderAllocationRef` 与 Cleanup；Attachment 不授予 Workspace 业务所有权。
+7. Sandbox 拥有 Physical Workspace Attachment Mechanism、Lease/Fencing、`SandboxProviderAllocationRef` 与 Cleanup；Attachment 不授予 Workspace 业务所有权。Firecracker Block Device/Sanitization 候选机制由 `ADR-20260729-sandbox-workspace-block-device-attachment-and-sanitization` 收敛，Service Host 仍只依赖 provider-neutral `SandboxWorkspaceAttachmentPort`。
 8. Local/Remote Provider 只消费经过 Composition/Adapter 授权的 Attachment Capability。禁止根据 `sandbox_workspace_id` 猜测 Host Path，禁止把 Host Path 或 Credential 放入公共 Domain Type。
 9. Stop/Destroy 释放 Attachment 和 Sandbox Allocation，不删除或变更 `AgentWorkspace`。Workspace Delete、Archive、Revision、Retention 与 Snapshot 仍由对应业务/存储权威治理。
 10. Kernel 可把 `SandboxRuntimeBindingId` 映射为 Agents 的 Opaque `runtimeLocationId`；该映射不暴露 Provider ID、Host Path 或 Allocation Reference。

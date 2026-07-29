@@ -1,0 +1,254 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.sandbox.host-isolation-broker-contract",
+  "status": "draft",
+  "requirementId": "REQ-2026-0011",
+  "relatedRequirementIds": ["REQ-2026-0013", "REQ-2026-0014", "REQ-2026-0015"],
+  "implementationAuthorized": false,
+  "relatedContracts": [
+    "sandbox-workspace-block-device-attachment.contract.json",
+    "sandbox-firecracker-network-isolation.contract.json",
+    "sandbox-firecracker-resource-isolation.contract.json"
+  ],
+  "componentCandidate": "sdkwork-sandbox-host-isolation-broker",
+  "layerRole": "infrastructure-adapter",
+  "publicPort": {
+    "type": "SandboxHostIsolationBroker",
+    "requestType": "SandboxHostIsolationRequest",
+    "resultType": "SandboxHostIsolationResult",
+    "errorType": "SandboxHostIsolationError",
+    "grantType": "SandboxHostIsolationGrant"
+  },
+  "operations": [
+    {
+      "name": "sandbox_inspect_node",
+      "sideEffect": false,
+      "requiredGrantAction": "sandbox.host.inspect"
+    },
+    {
+      "name": "sandbox_prepare_allocation",
+      "sideEffect": true,
+      "requiredGrantAction": "sandbox.host.allocation.prepare"
+    },
+    {
+      "name": "sandbox_apply_resource_limits",
+      "sideEffect": true,
+      "requiredGrantAction": "sandbox.host.resource.apply",
+      "boundaryContract": "sandbox-firecracker-resource-isolation.contract.json"
+    },
+    {
+      "name": "sandbox_prepare_network",
+      "sideEffect": true,
+      "requiredGrantAction": "sandbox.host.network.prepare",
+      "boundaryContract": "sandbox-firecracker-network-isolation.contract.json"
+    },
+    {
+      "name": "sandbox_attach_workspace_device",
+      "sideEffect": true,
+      "requiredGrantAction": "sandbox.host.workspace.attach",
+      "boundaryContract": "sandbox-workspace-block-device-attachment.contract.json"
+    },
+    {
+      "name": "sandbox_launch_jailer",
+      "sideEffect": true,
+      "requiredGrantAction": "sandbox.host.jailer.launch"
+    },
+    {
+      "name": "sandbox_inspect_allocation",
+      "sideEffect": false,
+      "requiredGrantAction": "sandbox.host.allocation.inspect"
+    },
+    {
+      "name": "sandbox_cleanup_allocation",
+      "sideEffect": true,
+      "requiredGrantAction": "sandbox.host.allocation.cleanup"
+    }
+  ],
+  "request": {
+    "requiredFields": [
+      "sandbox_host_broker_operation_id",
+      "sandbox_tenant_scope_hash",
+      "sandbox_runtime_binding_id",
+      "sandbox_provider_id",
+      "sandbox_fencing_token",
+      "sandbox_request_fingerprint",
+      "sandbox_host_isolation_grant",
+      "sandbox_operation",
+      "sandbox_deadline_ms"
+    ],
+    "optionalOpaqueFields": [
+      "sandbox_artifact_set_ref",
+      "sandbox_workspace_attachment_ref",
+      "sandbox_network_policy_ref",
+      "sandbox_resource_limits",
+      "sandbox_target_identity_ref"
+    ],
+    "unknownFieldsRejected": true,
+    "allSandboxOwnedFieldsRequirePrefix": "sandbox_"
+  },
+  "grant": {
+    "requiredFields": [
+      "sandbox_grant_id",
+      "sandbox_grant_issuer",
+      "sandbox_grant_audience",
+      "sandbox_runtime_binding_id",
+      "sandbox_provider_id",
+      "sandbox_fencing_token",
+      "sandbox_allowed_actions",
+      "sandbox_policy_revision",
+      "sandbox_issued_at",
+      "sandbox_expires_at",
+      "sandbox_nonce",
+      "sandbox_signature"
+    ],
+    "audience": "sdkwork-sandbox-host-isolation-broker",
+    "shortLived": true,
+    "singleBinding": true,
+    "singleProvider": true,
+    "actionAllowlistRequired": true,
+    "requestFingerprintBound": true,
+    "replayProtectionRequired": true,
+    "revocationCheckRequired": true,
+    "failClosedOnClockUncertainty": true
+  },
+  "transport": {
+    "kind": "linux-unix-domain-socket",
+    "tcpAllowed": false,
+    "remoteNetworkAllowed": false,
+    "socketInProviderPrivateRuntimeDirectory": true,
+    "filesystemAclRequired": true,
+    "peerCredentialsRequired": true,
+    "peerExecutableIdentityRequired": true,
+    "mutualProtocolVersionNegotiation": true,
+    "messageLengthPrefixRequired": true,
+    "unknownMessageRejected": true
+  },
+  "privilegeBoundary": {
+    "sandbox_broker_is_dedicated_host_service": true,
+    "sandbox_broker_privilege_profile_must_be_declared": true,
+    "sandbox_effective_capability_allowlist_required": true,
+    "sandbox_ambient_capabilities_allowed": false,
+    "sandbox_no_new_privileges_required_when_compatible": true,
+    "sandbox_seccomp_or_equivalent_required": true,
+    "sandbox_service_filesystem_protection_required": true,
+    "sandbox_firecracker_runs_as_root": false,
+    "sandbox_jailer_target_uid_gid_required": true,
+    "sandbox_arbitrary_shell_allowed": false,
+    "sandbox_arbitrary_executable_allowed": false,
+    "sandbox_arbitrary_host_path_allowed": false,
+    "sandbox_arbitrary_device_allowed": false,
+    "sandbox_docker_socket_allowed": false,
+    "sandbox_cloud_credentials_allowed": false
+  },
+  "fencingAndIdempotency": {
+    "sandbox_highest_fencing_token_persisted_per_binding": true,
+    "sandbox_stale_token_rejected_before_side_effect": true,
+    "sandbox_same_operation_same_fingerprint_replays_result": true,
+    "sandbox_same_operation_different_fingerprint_conflicts": true,
+    "sandbox_state_update_atomic_with_privileged_side_effect_record": true,
+    "sandbox_restart_recovery_required": true
+  },
+  "readiness": {
+    "type": "SandboxHostIsolationBrokerReadiness",
+    "failureMode": "fail-closed",
+    "requiredDimensions": [
+      "sandbox_protocol_version",
+      "sandbox_peer_authentication",
+      "sandbox_grant_verification",
+      "sandbox_privilege_profile",
+      "sandbox_runtime_directory",
+      "sandbox_fencing_store",
+      "sandbox_audit_sink",
+      "sandbox_cleanup_reconciliation"
+    ],
+    "degradedMayAuthorizeSideEffects": false
+  },
+  "result": {
+    "safeFields": [
+      "sandbox_host_broker_operation_id",
+      "sandbox_outcome",
+      "sandbox_reason_code",
+      "sandbox_retryable",
+      "sandbox_provider_resource_ref",
+      "sandbox_observed_fencing_token",
+      "sandbox_duration_ms",
+      "sandbox_trace_id"
+    ],
+    "providerResourceReferenceOpaqueAndProtected": true,
+    "physicalMetadataAllowed": false
+  },
+  "errorCodes": [
+    { "code": "sandbox_invalid_request", "retryable": false },
+    { "code": "sandbox_unauthenticated_peer", "retryable": false },
+    { "code": "sandbox_grant_denied", "retryable": false },
+    { "code": "sandbox_grant_expired", "retryable": false },
+    { "code": "sandbox_stale_fencing", "retryable": true },
+    { "code": "sandbox_operation_conflict", "retryable": false },
+    { "code": "sandbox_policy_unavailable", "retryable": true },
+    { "code": "sandbox_resource_exhausted", "retryable": true },
+    { "code": "sandbox_deadline_exceeded", "retryable": true },
+    { "code": "sandbox_cleanup_incomplete", "retryable": true },
+    { "code": "sandbox_internal_failure", "retryable": false }
+  ],
+  "bounds": {
+    "sandbox_request_max_bytes": 65536,
+    "sandbox_result_max_bytes": 65536,
+    "sandbox_deadline_ms_max": 300000,
+    "sandbox_grant_ttl_seconds_max": 60,
+    "sandbox_allowed_action_count_max": 16,
+    "sandbox_cleanup_step_count_max": 64,
+    "sandbox_reconciliation_batch_size_max": 100,
+    "sandbox_reason_code_max_length": 128
+  },
+  "audit": {
+    "sandbox_every_side_effect_emits_audit_fact": true,
+    "sandbox_denial_emits_security_fact": true,
+    "sandbox_audit_schema": "../apis/async/sandbox-audit-record.schema.json",
+    "sandbox_audit_durable_when_telemetry_unavailable": true,
+    "sandbox_trace_authority": "server-owned-trace-id"
+  },
+  "forbiddenInputsAndOutputs": [
+    "sandbox_raw_shell",
+    "sandbox_raw_executable",
+    "sandbox_raw_host_path",
+    "sandbox_raw_device_path",
+    "sandbox_raw_environment",
+    "sandbox_secret_material",
+    "sandbox_guest_credential",
+    "sandbox_api_socket_path",
+    "sandbox_tap_name",
+    "sandbox_cgroup_path",
+    "sandbox_microvm_id",
+    "sandbox_provider_private_metadata"
+  ],
+  "requiredImplementationEvidence": [
+    "sandbox_broker_threat_model",
+    "sandbox_protocol_schema_compatibility",
+    "sandbox_peer_credential_spoofing_negative_tests",
+    "sandbox_grant_expiry_replay_revocation_tests",
+    "sandbox_stale_fencing_and_restart_recovery_tests",
+    "sandbox_privilege_capability_diff",
+    "sandbox_arbitrary_shell_path_device_negative_tests",
+    "sandbox_cleanup_fault_injection",
+    "sandbox_audit_redaction_tests",
+    "sandbox_linux_kvm_end_to_end_evidence",
+    "sandbox_firecracker_network_isolation_contract",
+    "sandbox_firecracker_resource_isolation_contract",
+    "sandbox_sbom_provenance_checksum_advisory_record",
+    "sandbox_install_upgrade_rollback_runbook"
+  ],
+  "forbiddenOwnership": [
+    "sandbox-provider-policy",
+    "sandbox-lifecycle-policy",
+    "workspace-business-ownership",
+    "public-api",
+    "generated-sdk",
+    "scheduler",
+    "node-enrollment",
+    "secret-kms-implementation",
+    "deployment-profile"
+  ],
+  "x-sdkwork-status": "draft",
+  "x-sdkwork-require-human-review": true,
+  "x-sdkwork-no-runtime-implementation": true
+}

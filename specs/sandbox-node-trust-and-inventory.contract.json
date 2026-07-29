@@ -1,0 +1,388 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.sandbox.node-trust-and-inventory",
+  "status": "draft",
+  "requirementId": "REQ-2026-0017",
+  "relatedRequirementIds": ["REQ-2026-0008", "REQ-2026-0010", "REQ-2026-0011", "REQ-2026-0012", "REQ-2026-0016", "REQ-2026-0018"],
+  "relatedContracts": [
+    "sandbox-provider-delivery-gates.contract.json",
+    "sandbox-firecracker-artifact-compatibility.contract.json",
+    "sandbox-host-isolation-broker.contract.json",
+    "sandbox-multi-tenant-scheduling.contract.json",
+    "sandbox-quota-and-capacity-persistence.contract.json",
+    "../apis/async/sandbox-event-catalog.json",
+    "../apis/async/sandbox-observability-catalog.json"
+  ],
+  "implementationAuthorized": false,
+  "ownership": {
+    "sandbox_node_enrollment_authority": "approved-control-plane-machine-identity-authority",
+    "sandbox_node_attestation_policy_authority": "approved-control-plane-node-trust-policy",
+    "sandbox_node_inventory_projection_authority": "sandbox-control-plane-verified-node-inventory",
+    "sandbox_node_agent_is_claimant_and_publisher_only": true,
+    "sandbox_scheduler_may_enroll_or_attest_node": false,
+    "sandbox_provider_may_issue_node_identity_or_trust": false,
+    "sandbox_host_broker_may_issue_node_identity_or_trust": false,
+    "sandbox_node_agent_may_self_approve_or_expand_capabilities": false,
+    "sandbox_identity_authentication_is_hardware_attestation": false
+  },
+  "ports": {
+    "sandbox_node_enrollment_port": {
+      "type": "SandboxNodeEnrollmentPort",
+      "layer": "L3",
+      "providerNeutral": true
+    },
+    "sandbox_node_attestation_verification_port": {
+      "type": "SandboxNodeAttestationVerificationPort",
+      "layer": "L3",
+      "providerNeutral": true
+    },
+    "sandbox_node_inventory_publication_port": {
+      "type": "SandboxNodeInventoryPublicationPort",
+      "layer": "L3",
+      "providerNeutral": true
+    },
+    "sandbox_node_lifecycle_control_port": {
+      "type": "SandboxNodeLifecycleControlPort",
+      "layer": "L3",
+      "providerNeutral": true
+    }
+  },
+  "types": {
+    "sandbox_node_enrollment_request": "SandboxNodeEnrollmentRequest",
+    "sandbox_node_identity": "SandboxNodeIdentity",
+    "sandbox_node_attestation_evidence": "SandboxNodeAttestationEvidence",
+    "sandbox_node_attestation_verification": "SandboxNodeAttestationVerification",
+    "sandbox_node_inventory_publication": "SandboxNodeInventoryPublication",
+    "sandbox_verified_node_inventory_record": "SandboxVerifiedNodeInventoryRecord",
+    "sandbox_node_trust_profile": "SandboxNodeTrustProfile",
+    "sandbox_node_lifecycle_state": "SandboxNodeLifecycleState",
+    "sandbox_node_trust_error": "SandboxNodeTrustError"
+  },
+  "operations": [
+    "sandbox_request_node_enrollment",
+    "sandbox_activate_node_identity",
+    "sandbox_renew_node_identity",
+    "sandbox_verify_node_attestation",
+    "sandbox_publish_node_inventory",
+    "sandbox_begin_node_drain",
+    "sandbox_quarantine_node",
+    "sandbox_revoke_node_identity",
+    "sandbox_reconcile_node_trust"
+  ],
+  "enrollmentRequest": {
+    "type": "SandboxNodeEnrollmentRequest",
+    "unknownFieldsRejected": true,
+    "requiredFields": [
+      "sandbox_enrollment_operation_id",
+      "sandbox_enrollment_request_fingerprint",
+      "sandbox_enrollment_nonce",
+      "sandbox_bootstrap_credential_reference",
+      "sandbox_node_public_key_thumbprint",
+      "sandbox_claimed_provider_kinds",
+      "sandbox_claimed_os",
+      "sandbox_claimed_architecture",
+      "sandbox_claimed_runtime_profile",
+      "sandbox_requested_trust_domain"
+    ],
+    "sandbox_bootstrap_credential_single_use": true,
+    "sandbox_bootstrap_credential_short_lived": true,
+    "sandbox_bootstrap_credential_replay_allowed": false,
+    "sandbox_bootstrap_secret_value_in_request_allowed": false,
+    "sandbox_private_key_or_csr_private_material_allowed": false,
+    "sandbox_caller_supplied_node_reference_allowed": false,
+    "sandbox_caller_supplied_trust_profile_allowed": false,
+    "sandbox_manual_unreviewed_approval_allowed": false
+  },
+  "nodeIdentity": {
+    "type": "SandboxNodeIdentity",
+    "requiredFields": [
+      "sandbox_node_reference",
+      "sandbox_node_identity_id",
+      "sandbox_node_public_key_thumbprint",
+      "sandbox_node_trust_domain",
+      "sandbox_node_identity_revision",
+      "sandbox_node_identity_not_before",
+      "sandbox_node_identity_expires_at",
+      "sandbox_node_identity_audience",
+      "sandbox_node_identity_issuer",
+      "sandbox_node_identity_signature"
+    ],
+    "sandbox_node_reference_opaque": true,
+    "sandbox_identity_short_lived": true,
+    "sandbox_identity_ttl_seconds_max": 86400,
+    "sandbox_identity_bound_to_public_key": true,
+    "sandbox_identity_bound_to_trust_domain_and_audience": true,
+    "sandbox_private_key_non_exportable_required": true,
+    "sandbox_node_identity_shared_across_nodes_allowed": false,
+    "sandbox_static_permanent_certificate_allowed": false,
+    "sandbox_wildcard_node_identity_allowed": false
+  },
+  "mutualAuthentication": {
+    "sandbox_mutual_authentication_required": true,
+    "sandbox_minimum_tls_version": "1.3",
+    "sandbox_server_identity_validation_required": true,
+    "sandbox_client_identity_validation_required": true,
+    "sandbox_trust_bundle_version_required": true,
+    "sandbox_certificate_status_and_revocation_checked": true,
+    "sandbox_uri_san_or_equivalent_workload_identity_required": true,
+    "sandbox_plaintext_transport_allowed": false,
+    "sandbox_bearer_token_as_steady_state_node_identity_allowed": false,
+    "sandbox_certificate_or_private_key_in_source_config_allowed": false,
+    "sandbox_certificate_or_private_key_in_event_log_metric_allowed": false
+  },
+  "trustProfiles": {
+    "values": [
+      "sandbox_authenticated_machine_identity",
+      "sandbox_verified_platform_attestation"
+    ],
+    "sandbox_authenticated_identity_may_claim_platform_attestation": false,
+    "sandbox_required_profile_selected_by_control_plane_policy": true,
+    "sandbox_node_agent_may_upgrade_profile": false,
+    "sandbox_unknown_profile_schedulable": false
+  },
+  "attestationEvidence": {
+    "type": "SandboxNodeAttestationEvidence",
+    "requiredFields": [
+      "sandbox_node_reference",
+      "sandbox_attestation_nonce",
+      "sandbox_node_public_key_thumbprint",
+      "sandbox_attestation_evidence_digest",
+      "sandbox_attestation_evidence_format",
+      "sandbox_attestation_policy_revision",
+      "sandbox_boot_measurement_digest",
+      "sandbox_host_kernel_measurement_digest",
+      "sandbox_artifact_manifest_digest",
+      "sandbox_attestation_issued_at",
+      "sandbox_attestation_expires_at"
+    ],
+    "sandbox_fresh_nonce_required": true,
+    "sandbox_evidence_bound_to_node_key": true,
+    "sandbox_evidence_bound_to_artifact_manifest": true,
+    "sandbox_evidence_signature_and_chain_verified": true,
+    "sandbox_measurements_compared_to_approved_baseline": true,
+    "sandbox_attestation_verifier_independent_of_node_agent": true,
+    "sandbox_attestation_ttl_seconds_max": 3600,
+    "sandbox_replayed_or_stale_evidence_accepted": false,
+    "sandbox_unknown_evidence_format_accepted": false,
+    "sandbox_missing_hardware_evidence_may_claim_verified_platform_attestation": false,
+    "sandbox_raw_attestation_evidence_in_public_contract_allowed": false
+  },
+  "attestationVerification": {
+    "type": "SandboxNodeAttestationVerification",
+    "requiredFields": [
+      "sandbox_attestation_verification_id",
+      "sandbox_node_reference",
+      "sandbox_node_trust_profile",
+      "sandbox_attestation_policy_revision",
+      "sandbox_attestation_evidence_digest",
+      "sandbox_attestation_verifier_identity",
+      "sandbox_attestation_verified_at",
+      "sandbox_attestation_expires_at",
+      "sandbox_attestation_outcome",
+      "sandbox_attestation_signature"
+    ],
+    "sandbox_verification_immutable": true,
+    "sandbox_verification_signed": true,
+    "sandbox_failed_or_unknown_outcome_schedulable": false
+  },
+  "inventoryPublication": {
+    "type": "SandboxNodeInventoryPublication",
+    "unknownFieldsRejected": true,
+    "requiredFields": [
+      "sandbox_node_reference",
+      "sandbox_node_identity_revision",
+      "sandbox_inventory_sequence",
+      "sandbox_inventory_revision",
+      "sandbox_inventory_issued_at",
+      "sandbox_inventory_expires_at",
+      "sandbox_node_lifecycle_state",
+      "sandbox_node_trust_profile",
+      "sandbox_attestation_verification_id",
+      "sandbox_provider_kinds",
+      "sandbox_runtime_capabilities",
+      "sandbox_isolation_assurances",
+      "sandbox_host_os",
+      "sandbox_host_architecture",
+      "sandbox_artifact_manifest_digest",
+      "sandbox_network_policy_revision",
+      "sandbox_resource_policy_revision",
+      "sandbox_locality_code",
+      "sandbox_residency_code",
+      "sandbox_fault_domain_code",
+      "sandbox_health_state",
+      "sandbox_capacity_revision",
+      "sandbox_capacity_vector",
+      "sandbox_inventory_signature"
+    ],
+    "sandbox_inventory_signed_by_active_node_identity": true,
+    "sandbox_inventory_sequence_strictly_monotonic": true,
+    "sandbox_inventory_ttl_seconds_max": 60,
+    "sandbox_capacity_vector_finite_non_negative": true,
+    "sandbox_capabilities_derived_from_verified_effective_state": true,
+    "sandbox_node_self_report_is_scheduler_authority": false,
+    "sandbox_stale_or_out_of_order_inventory_accepted": false,
+    "sandbox_unbounded_custom_labels_allowed": false,
+    "sandbox_host_address_or_path_allowed": false
+  },
+  "verifiedInventoryRecord": {
+    "type": "SandboxVerifiedNodeInventoryRecord",
+    "sandbox_control_plane_signature_required": true,
+    "sandbox_identity_attestation_inventory_revisions_bound": true,
+    "sandbox_scheduler_consumes_verified_projection_only": true,
+    "sandbox_candidate_snapshot_source": "SandboxNodeInventoryPort",
+    "sandbox_candidate_snapshot_node_reference_opaque": true,
+    "sandbox_raw_node_agent_publication_direct_to_scheduler_allowed": false,
+    "sandbox_inventory_or_trust_unknown_schedulable": false
+  },
+  "nodeLifecycle": {
+    "states": [
+      "sandbox_pending_enrollment",
+      "sandbox_enrolled",
+      "sandbox_attesting",
+      "sandbox_active",
+      "sandbox_draining",
+      "sandbox_quarantined",
+      "sandbox_revoked",
+      "sandbox_expired"
+    ],
+    "sandbox_only_active_state_schedulable": true,
+    "sandbox_new_enrollment_defaults_schedulable": false,
+    "sandbox_drain_blocks_new_placement_before_evict_or_wait": true,
+    "sandbox_quarantine_blocks_new_and_existing_side_effects": true,
+    "sandbox_revocation_immediately_blocks_authentication_and_placement": true,
+    "sandbox_expired_identity_or_attestation_blocks_placement": true,
+    "sandbox_unknown_state_schedulable": false
+  },
+  "rotationRevocationAndRecovery": {
+    "sandbox_identity_rotation_before_expiry_required": true,
+    "sandbox_rotation_proves_possession_of_new_key": true,
+    "sandbox_rotation_overlap_identity_count_max": 2,
+    "sandbox_old_identity_revoked_after_bounded_overlap": true,
+    "sandbox_compromise_quarantines_node_and_revokes_identity": true,
+    "sandbox_duplicate_active_key_or_cloned_identity_quarantines_nodes": true,
+    "sandbox_trust_bundle_rotation_versioned_and_rollback_safe": true,
+    "sandbox_restart_may_reuse_bootstrap_credential": false,
+    "sandbox_same_operation_same_fingerprint_replays_result": true,
+    "sandbox_same_operation_different_fingerprint_conflicts": true,
+    "sandbox_stale_identity_inventory_or_attestation_revision_rejected": true,
+    "sandbox_reconciliation_tenant_or_node_partitioned_and_bounded": true,
+    "sandbox_unbounded_full_node_scan_allowed": false
+  },
+  "denialAndErrorTaxonomy": {
+    "type": "SandboxNodeTrustError",
+    "sandbox_errors": [
+      "sandbox_bootstrap_credential_invalid",
+      "sandbox_bootstrap_credential_replayed",
+      "sandbox_identity_proof_invalid",
+      "sandbox_identity_expired",
+      "sandbox_identity_revoked",
+      "sandbox_attestation_invalid",
+      "sandbox_attestation_stale",
+      "sandbox_attestation_policy_mismatch",
+      "sandbox_inventory_invalid",
+      "sandbox_inventory_stale",
+      "sandbox_inventory_revision_conflict",
+      "sandbox_node_draining",
+      "sandbox_node_quarantined",
+      "sandbox_node_trust_unavailable"
+    ],
+    "sandbox_retryability_explicit": true,
+    "sandbox_retry_after_bounded": true,
+    "sandbox_raw_certificate_attestation_node_or_topology_detail_in_error_allowed": false,
+    "sandbox_unknown_error_fails_closed": true
+  },
+  "eventAndAudit": {
+    "sandbox_event_types": [
+      "sandbox.node.enrollment.approved",
+      "sandbox.node.identity.rotated",
+      "sandbox.node.trust.changed",
+      "sandbox.node.inventory.updated",
+      "sandbox.node.draining",
+      "sandbox.node.quarantined"
+    ],
+    "sandbox_enrollment_rotation_revocation_attestation_drain_quarantine_audited": true,
+    "sandbox_security_audit_durable_when_telemetry_unavailable": true,
+    "sandbox_event_or_metric_is_identity_or_attestation_authority": false
+  },
+  "telemetry": {
+    "sandbox_required_metric_names": [
+      "sdkwork_sandbox_node_enrollment_operations_total",
+      "sdkwork_sandbox_node_enrollment_duration_seconds",
+      "sdkwork_sandbox_node_identity_rotation_operations_total",
+      "sdkwork_sandbox_node_attestation_verifications_total",
+      "sdkwork_sandbox_node_attestation_verification_duration_seconds",
+      "sdkwork_sandbox_node_inventory_publications_total",
+      "sdkwork_sandbox_nodes_by_scheduling_state"
+    ],
+    "sandbox_low_cardinality_trust_profile_and_state_labels_only": true,
+    "sandbox_node_reference_identity_serial_key_thumbprint_measurement_labels_allowed": false,
+    "sandbox_raw_locality_residency_fault_domain_labels_allowed": false
+  },
+  "privacyAndPublicBoundary": {
+    "sandbox_node_trust_data_classification": "InternalSecuritySensitive",
+    "sandbox_public_node_identity_allowed": false,
+    "sandbox_public_certificate_or_attestation_evidence_allowed": false,
+    "sandbox_public_host_address_topology_or_capacity_allowed": false,
+    "sandbox_audit_uses_hashed_or_opaque_node_reference": true,
+    "sandbox_secret_private_key_certificate_bootstrap_value_allowed": false
+  },
+  "bounds": {
+    "sandbox_enrollment_request_bytes_max": 32768,
+    "sandbox_attestation_evidence_bytes_max": 1048576,
+    "sandbox_inventory_publication_bytes_max": 262144,
+    "sandbox_provider_kind_count_max": 16,
+    "sandbox_capability_count_max": 128,
+    "sandbox_fault_domain_dimension_count_max": 8,
+    "sandbox_identity_rotation_attempt_count_max": 5,
+    "sandbox_attestation_verification_timeout_ms_max": 10000,
+    "sandbox_inventory_publication_interval_seconds_min": 5,
+    "sandbox_inventory_publication_interval_seconds_max": 30,
+    "sandbox_reconciliation_batch_size_max": 100
+  },
+  "deploymentScope": {
+    "sandbox_cloud_node_trust_required": true,
+    "sandbox_local_provider_node_enrollment_required": false,
+    "sandbox_standalone_may_use_explicit_single_node_adapter_after_review": true,
+    "sandbox_node_agent_implementation_in_scope": false,
+    "sandbox_pki_ca_hsm_implementation_in_scope": false,
+    "sandbox_attestation_verifier_implementation_in_scope": false,
+    "sandbox_database_schema_or_migration_in_scope": false,
+    "sandbox_service_unit_or_deployment_profile_in_scope": false
+  },
+  "forbiddenPublicMetadata": [
+    "sandbox_node_ip_address",
+    "sandbox_node_hostname",
+    "sandbox_node_certificate",
+    "sandbox_node_identity_serial",
+    "sandbox_node_public_key_thumbprint",
+    "sandbox_bootstrap_credential",
+    "sandbox_attestation_quote",
+    "sandbox_attestation_event_log",
+    "sandbox_pcr_values",
+    "sandbox_host_kernel_command_line",
+    "sandbox_raw_locality",
+    "sandbox_raw_fault_domain",
+    "sandbox_raw_capacity"
+  ],
+  "humanReview": {
+    "required": true,
+    "reviewPacket": "REVIEW-20260729-sandbox-node-trust-enrollment-attestation-and-inventory",
+    "requiredReviewers": [
+      "architecture-owner",
+      "security-identity-owner",
+      "pki-key-custody-owner",
+      "attestation-platform-owner",
+      "capacity-scheduler-owner",
+      "database-reliability-owner",
+      "firecracker-kvm-operations-owner",
+      "observability-incident-response-owner"
+    ],
+    "approvedOutcomeRequiredBeforeImplementation": true
+  },
+  "x-sdkwork-status": "draft",
+  "x-sdkwork-require-human-review": true,
+  "x-sdkwork-no-node-agent-implementation": true,
+  "x-sdkwork-no-pki-or-attestation-verifier-implementation": true,
+  "x-sdkwork-no-database-implementation": true,
+  "x-sdkwork-no-runtime-or-deployment-implementation": true
+}

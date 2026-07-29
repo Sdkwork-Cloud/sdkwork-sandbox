@@ -67,6 +67,6 @@
     "configKeys": []
   },
   "verification": {
-    "commands": ["cargo check -p sdkwork-sandbox-provider-local"]
+    "commands": ["cargo test -p sdkwork-sandbox-provider-local"]
   }
 }

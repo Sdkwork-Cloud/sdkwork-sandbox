@@ -33,12 +33,13 @@ flowchart TB
     KERNEL --> API["Sandbox internal API / generated SDK"]
     API --> CONTROL["Lifecycle service + scheduler"]
     CONTROL --> META["Durable metadata / leases"]
-    CONTROL --> NODE["Enrolled Sandbox Provider node"]
+    CONTROL --> TRUST["Node trust and verified inventory"]
+    TRUST --> NODE["Enrolled active Sandbox Provider node"]
     NODE --> PROVIDER["Firecracker / future gVisor / Remote VM"]
     PROVIDER --> WORKSPACE["Authorized Workspace attachment backend"]
 ```
 
-Internal API 属于 Application-local Surface，使用锁定的 `/internal/v3/api` Prefix 和 Ingress-token Validation，默认不能暴露在 Platform API Gateway。Provider Node 通过单独评审的 Machine Identity 与 Transport 向 Control Plane 认证。
+Internal API 属于 Application-local Surface，使用锁定的 `/internal/v3/api` Prefix 和 Ingress-token Validation，默认不能暴露在 Platform API Gateway。Cloud Provider Node 必须经 REQ-2026-0017 的单次 Bootstrap、Key-bound 短期 Machine Identity、TLS 1.3 Mutual Authentication、独立 Attestation 和 Verified Inventory Gate；当前只存在 draft 契约，不存在真实 Node Agent、PKI/CA/HSM、Verifier 或 Transport Runtime。
 
 当前优先远程 Data Plane 是真实 Linux KVM Firecracker。Docker 在 Local 与 Firecracker 完成共同 Conformance 和安全评审前保持延期；不可用的 Firecracker 不回退为 Local、Docker 或更弱 Assurance。
 
@@ -53,17 +54,20 @@ flowchart TB
     CP2 --> DB
     CP1 --> COORD["Distributed leases / cache / rate limits"]
     CP2 --> COORD
-    CP1 --> SCHED["Scheduler"]
+    CP1 --> TRUST["Enrollment / identity / attestation control"]
+    CP2 --> TRUST
+    TRUST --> INVENTORY["Verified node inventory projection"]
+    CP1 --> SCHED["Admission / scheduler / capacity"]
     CP2 --> SCHED
-    SCHED --> POOL["Sanitized warm pools"]
-    SCHED --> NODES["Sandbox Provider node groups"]
+    INVENTORY --> SCHED
+    SCHED --> NODES["Active trusted Sandbox Provider nodes"]
     NODES --> DATA["Tenant-isolated Sandbox data planes"]
     DATA --> WS["Workspace and snapshot storage"]
     CP1 --> EVENTS["Events / metrics / metering"]
     CP2 --> EVENTS
 ```
 
-Control-plane Replica 对活动 Ownership 保持 Stateless；Durable Metadata 与 Atomic Lease 防止重复分配。Data-plane Node 按 Capability、OS、Architecture、Isolation Assurance、Region 与 Capacity 分组。Warm Allocation 在未完成清理验证前不得跨租户重新分配。
+Control-plane Replica 对活动 Ownership 保持 Stateless；Durable Metadata、Atomic Lease 与版本化 Node Trust/Inventory Authority 防止重复分配和过期 Node 参与调度。Data-plane Node 只有在 Identity、Attestation、Artifact、Policy、Health、Lifecycle 与 Capacity Revision 一致且新鲜时才进入 Verified Projection。Warm Pool 已明确延期，不属于当前 Cloud 正常链路；未来只有独立 Ready Requirement/ADR 和跨 Tenant Sanitization Evidence 完成后才能进入拓扑。
 
 ## 4. Control Plane And Data Plane
 
@@ -79,9 +83,9 @@ Data-plane Failure 不能直接重写产品生命周期历史，只能报告 Obs
 - Workspace/Snapshot Locality 与 Data Residency。
 - CPU、Memory、Disk、IO、PID、Port 与 Network Capacity。
 - Tenant/Session/Node/Cluster Quota 与 Concurrency。
-- Node Health、Maintenance、Failure Domain 与 Warm-pool Compatibility。
+- Verified Node Identity/Attestation/Inventory Revision、Node Health、Lifecycle、Maintenance 与 Failure Domain。
 
-没有 Candidate 满足全部 Hard Constraint 时必须拒绝。Cost、Warmness、Locality 只能对合规 Candidate 排序，不能覆盖 Security Constraint。
+没有 Candidate 满足全部 Hard Constraint 时必须拒绝。Cost 与 Locality 只能对合规 Candidate 排序，不能覆盖 Security Constraint；延期的 Warmness 不是当前 Placement Input。
 
 ## 6. Failure And Recovery
 
@@ -89,6 +93,9 @@ Data-plane Failure 不能直接重写产品生命周期历史，只能报告 Obs
 | --- | --- |
 | `SandboxRuntimeBinding` 前 Sandbox Provider Allocation Failure | `sandbox_operation_id` 对应 Operation 失败或重试同等级 Sandbox Provider；`SandboxSession` 不进入 Running。 |
 | Node Disappears | Lease 到期；`SandboxSession` 进入 Recovering；Replacement 必须取得独占 Ownership 和有效 Checkpoint。 |
+| Node Identity/Attestation/Inventory Expired Or Revoked | 立即从 Verified Projection 移除并拒绝新 Placement；按 Lifecycle Policy Drain 或 Quarantine，不能使用旧 Snapshot 继续分配。 |
+| PKI/CA Or Attestation Verifier Unavailable | 新 Enrollment、Rotation 或 Verification 关闭失败；仅在仍有效且未撤销的短期证据窗口内维持既有状态，不延长 TTL 或降级 Trust Profile。 |
+| Duplicate Key、Clone Or Compromise Suspected | 撤销相关 Identity，Quarantine 受影响 Node，阻止新 Side Effect，并保留不含 Raw Credential/Evidence 的 Durable Security Audit。 |
 | Control-plane Replica Restart | Durable Command/Idempotency/Lease State 防止重复活动 `SandboxRuntimeBinding`。 |
 | Workspace Backend Unavailable | Write Fail Closed；除非有明确 Read-only Policy，否则不使用不完整或 Stale Mount 启动。 |
 | Distributed Coordination Unavailable | Cloud Admission 与 Coordination-critical Operation Fail Closed；禁止 Process-local Split-brain Fallback。 |

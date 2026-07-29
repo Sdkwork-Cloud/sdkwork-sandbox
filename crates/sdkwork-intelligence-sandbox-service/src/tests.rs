@@ -44,9 +44,130 @@ struct TestSandboxSessionLease {
 #[derive(Default)]
 struct TestSandboxSessionRepository {
     sandbox_state: Mutex<TestSandboxSessionRepositoryState>,
+    sandbox_enforce_recoverable_starting_transition: bool,
+    sandbox_save_calls: AtomicUsize,
+    sandbox_fail_save: Mutex<Option<(usize, SandboxSessionRepositoryError)>>,
+    sandbox_renew_calls: AtomicUsize,
+    sandbox_fail_renew_call: Mutex<Option<usize>>,
+    sandbox_release_calls: AtomicUsize,
+    sandbox_fail_release_call: Mutex<Option<usize>>,
+    sandbox_reconciliation_page_override: Mutex<Option<Vec<SandboxSession>>>,
 }
 
 impl TestSandboxSessionRepository {
+    fn enforcing_recoverable_starting_transition() -> Self {
+        Self {
+            sandbox_state: Mutex::new(TestSandboxSessionRepositoryState::default()),
+            sandbox_enforce_recoverable_starting_transition: true,
+            sandbox_save_calls: AtomicUsize::new(0),
+            sandbox_fail_save: Mutex::new(None),
+            sandbox_renew_calls: AtomicUsize::new(0),
+            sandbox_fail_renew_call: Mutex::new(None),
+            sandbox_release_calls: AtomicUsize::new(0),
+            sandbox_fail_release_call: Mutex::new(None),
+            sandbox_reconciliation_page_override: Mutex::new(None),
+        }
+    }
+
+    fn fail_sandbox_save_call(&self, sandbox_save_call: usize) {
+        self.fail_sandbox_save_call_with_error(
+            sandbox_save_call,
+            SandboxSessionRepositoryError::Unavailable,
+        );
+    }
+
+    fn fail_sandbox_save_call_with_error(
+        &self,
+        sandbox_save_call: usize,
+        sandbox_repository_error: SandboxSessionRepositoryError,
+    ) {
+        let mut sandbox_fail_save = match self.sandbox_fail_save.lock() {
+            Ok(sandbox_fail_save) => sandbox_fail_save,
+            Err(poisoned_sandbox_fail_save) => poisoned_sandbox_fail_save.into_inner(),
+        };
+        *sandbox_fail_save = Some((sandbox_save_call, sandbox_repository_error));
+    }
+
+    fn sandbox_save_error(&self) -> Option<SandboxSessionRepositoryError> {
+        let sandbox_save_call = self.sandbox_save_calls.fetch_add(1, Ordering::SeqCst) + 1;
+        let mut sandbox_fail_save = match self.sandbox_fail_save.lock() {
+            Ok(sandbox_fail_save) => sandbox_fail_save,
+            Err(poisoned_sandbox_fail_save) => poisoned_sandbox_fail_save.into_inner(),
+        };
+        match sandbox_fail_save.as_ref() {
+            Some((failed_sandbox_save_call, _))
+                if *failed_sandbox_save_call == sandbox_save_call =>
+            {
+                sandbox_fail_save
+                    .take()
+                    .map(|(_, sandbox_error)| sandbox_error)
+            }
+            _ => None,
+        }
+    }
+
+    fn fail_sandbox_renew_call(&self, sandbox_renew_call: usize) {
+        let mut sandbox_fail_renew_call = match self.sandbox_fail_renew_call.lock() {
+            Ok(sandbox_fail_renew_call) => sandbox_fail_renew_call,
+            Err(poisoned_sandbox_fail_renew_call) => poisoned_sandbox_fail_renew_call.into_inner(),
+        };
+        *sandbox_fail_renew_call = Some(sandbox_renew_call);
+    }
+
+    fn should_fail_sandbox_renew(&self) -> bool {
+        let sandbox_renew_call = self.sandbox_renew_calls.fetch_add(1, Ordering::SeqCst) + 1;
+        let mut sandbox_fail_renew_call = match self.sandbox_fail_renew_call.lock() {
+            Ok(sandbox_fail_renew_call) => sandbox_fail_renew_call,
+            Err(poisoned_sandbox_fail_renew_call) => poisoned_sandbox_fail_renew_call.into_inner(),
+        };
+        if *sandbox_fail_renew_call == Some(sandbox_renew_call) {
+            *sandbox_fail_renew_call = None;
+            true
+        } else {
+            false
+        }
+    }
+
+    fn fail_sandbox_release_call(&self, sandbox_release_call: usize) {
+        let mut sandbox_fail_release_call = match self.sandbox_fail_release_call.lock() {
+            Ok(sandbox_fail_release_call) => sandbox_fail_release_call,
+            Err(poisoned_sandbox_fail_release_call) => {
+                poisoned_sandbox_fail_release_call.into_inner()
+            }
+        };
+        *sandbox_fail_release_call = Some(sandbox_release_call);
+    }
+
+    fn should_fail_sandbox_release(&self) -> bool {
+        let sandbox_release_call = self.sandbox_release_calls.fetch_add(1, Ordering::SeqCst) + 1;
+        let mut sandbox_fail_release_call = match self.sandbox_fail_release_call.lock() {
+            Ok(sandbox_fail_release_call) => sandbox_fail_release_call,
+            Err(poisoned_sandbox_fail_release_call) => {
+                poisoned_sandbox_fail_release_call.into_inner()
+            }
+        };
+        if *sandbox_fail_release_call == Some(sandbox_release_call) {
+            *sandbox_fail_release_call = None;
+            true
+        } else {
+            false
+        }
+    }
+
+    fn return_sandbox_reconciliation_page_once(
+        &self,
+        sandbox_reconciliation_page: Vec<SandboxSession>,
+    ) {
+        let mut sandbox_reconciliation_page_override =
+            match self.sandbox_reconciliation_page_override.lock() {
+                Ok(sandbox_reconciliation_page_override) => sandbox_reconciliation_page_override,
+                Err(poisoned_sandbox_reconciliation_page_override) => {
+                    poisoned_sandbox_reconciliation_page_override.into_inner()
+                }
+            };
+        *sandbox_reconciliation_page_override = Some(sandbox_reconciliation_page);
+    }
+
     fn lock_sandbox_state(&self) -> MutexGuard<'_, TestSandboxSessionRepositoryState> {
         match self.sandbox_state.lock() {
             Ok(sandbox_state) => sandbox_state,
@@ -178,6 +299,9 @@ impl SandboxSessionRepository for TestSandboxSessionRepository {
         expected_sandbox_version: u64,
         sandbox_session_lease: &SandboxSessionLease,
     ) -> SandboxSessionRepositoryResult<()> {
+        if let Some(sandbox_repository_error) = self.sandbox_save_error() {
+            return Err(sandbox_repository_error);
+        }
         let mut sandbox_state = self.lock_sandbox_state();
         let sandbox_session_key = (
             sandbox_session.tenant_id().clone(),
@@ -187,6 +311,19 @@ impl SandboxSessionRepository for TestSandboxSessionRepository {
             .sandbox_sessions
             .get(&sandbox_session_key)
             .ok_or(SandboxSessionRepositoryError::NotFound)?;
+        if self.sandbox_enforce_recoverable_starting_transition
+            && current_sandbox_session.sandbox_session_state() != SandboxSessionState::Starting
+            && sandbox_session.sandbox_session_state() == SandboxSessionState::Starting
+            && sandbox_session
+                .sandbox_runtime_binding()
+                .is_none_or(|sandbox_runtime_binding| {
+                    sandbox_runtime_binding
+                        .sandbox_allocation_reference()
+                        .is_some()
+                })
+        {
+            return Err(SandboxSessionRepositoryError::InvalidStoredData);
+        }
         let sandbox_lease = sandbox_state
             .sandbox_leases
             .get(&sandbox_session_key)
@@ -269,6 +406,9 @@ impl SandboxSessionRepository for TestSandboxSessionRepository {
         sandbox_session_lease: &SandboxSessionLease,
         sandbox_lease_duration: Duration,
     ) -> SandboxSessionRepositoryResult<Option<SandboxSessionLease>> {
+        if self.should_fail_sandbox_renew() {
+            return Err(SandboxSessionRepositoryError::Unavailable);
+        }
         let sandbox_lease_duration_millis =
             Self::sandbox_lease_duration_millis(sandbox_lease_duration)?;
         let mut sandbox_state = self.lock_sandbox_state();
@@ -308,6 +448,9 @@ impl SandboxSessionRepository for TestSandboxSessionRepository {
         &self,
         sandbox_session_lease: &SandboxSessionLease,
     ) -> SandboxSessionRepositoryResult<bool> {
+        if self.should_fail_sandbox_release() {
+            return Err(SandboxSessionRepositoryError::Unavailable);
+        }
         let mut sandbox_state = self.lock_sandbox_state();
         let sandbox_lease = sandbox_state
             .sandbox_leases
@@ -337,6 +480,21 @@ impl SandboxSessionRepository for TestSandboxSessionRepository {
     ) -> SandboxSessionRepositoryResult<Vec<SandboxSession>> {
         if !(1..=200).contains(&sandbox_page_size) {
             return Err(SandboxSessionRepositoryError::InvalidPageRequest);
+        }
+        let sandbox_reconciliation_page_override = {
+            let mut sandbox_reconciliation_page_override = match self
+                .sandbox_reconciliation_page_override
+                .lock()
+            {
+                Ok(sandbox_reconciliation_page_override) => sandbox_reconciliation_page_override,
+                Err(poisoned_sandbox_reconciliation_page_override) => {
+                    poisoned_sandbox_reconciliation_page_override.into_inner()
+                }
+            };
+            sandbox_reconciliation_page_override.take()
+        };
+        if let Some(sandbox_reconciliation_page_override) = sandbox_reconciliation_page_override {
+            return Ok(sandbox_reconciliation_page_override);
         }
         let sandbox_state = self.lock_sandbox_state();
         let mut sandbox_sessions = sandbox_state
@@ -1133,6 +1291,184 @@ async fn sandbox_retry_start_releases_failed_binding_before_allocating_again() {
 }
 
 #[tokio::test]
+async fn sandbox_start_persists_recoverable_binding_intent_before_provider_allocation() {
+    let sandbox_provider = Arc::new(FakeSandboxProvider::with_behavior(
+        SandboxProviderHealthStatus::Ready,
+        [RuntimeCapability::Filesystem],
+        IsolationAssurance::HostUser,
+        VecDeque::from([
+            Err(SandboxProviderErrorKind::Unavailable),
+            Ok(SandboxProviderReadiness {
+                sandbox_provider_ready: true,
+                sandbox_policy_enforced: true,
+                sandbox_workspace_attached: true,
+            }),
+        ]),
+        Some(1),
+    ));
+    let sandbox_session_repository =
+        Arc::new(TestSandboxSessionRepository::enforcing_recoverable_starting_transition());
+    let sandbox_lifecycle_service = sandbox_lifecycle_service_with_repository(
+        sandbox_session_repository,
+        sandbox_provider.clone(),
+    );
+    let sandbox_session = create_sandbox_session(
+        &sandbox_lifecycle_service,
+        [RuntimeCapability::Filesystem],
+        IsolationAssurance::HostUser,
+    )
+    .await;
+
+    let first_sandbox_start_result = sandbox_lifecycle_service
+        .start_sandbox_session(sandbox_session_lifecycle_command(&sandbox_session))
+        .await;
+    assert!(matches!(
+        first_sandbox_start_result,
+        Err(SandboxLifecycleError::Provider(_))
+    ));
+    let failed_sandbox_session = sandbox_lifecycle_service
+        .get_sandbox_session(
+            sandbox_session.tenant_id(),
+            sandbox_session.sandbox_session_id(),
+        )
+        .await
+        .unwrap_or_else(|error| panic!("failed sandbox session lookup: {error}"));
+    assert_eq!(
+        failed_sandbox_session.sandbox_last_failure(),
+        Some(SandboxSessionFailure::Cleanup)
+    );
+
+    let retried_sandbox_session = sandbox_lifecycle_service
+        .start_sandbox_session(sandbox_session_lifecycle_command(&failed_sandbox_session))
+        .await
+        .unwrap_or_else(|error| panic!("sandbox retry start failed: {error}"));
+
+    assert_eq!(
+        retried_sandbox_session.sandbox_session_state(),
+        SandboxSessionState::Running
+    );
+    assert_eq!(
+        sandbox_provider
+            .sandbox_allocate_calls
+            .load(Ordering::SeqCst),
+        2
+    );
+    assert_eq!(
+        sandbox_provider
+            .sandbox_destroy_calls
+            .load(Ordering::SeqCst),
+        2
+    );
+}
+
+#[tokio::test]
+async fn sandbox_reconciler_recovers_after_allocation_persistence_failure() {
+    let sandbox_provider = Arc::new(FakeSandboxProvider::ready(
+        [RuntimeCapability::Filesystem],
+        IsolationAssurance::HostUser,
+    ));
+    let sandbox_session_repository =
+        Arc::new(TestSandboxSessionRepository::enforcing_recoverable_starting_transition());
+    sandbox_session_repository.fail_sandbox_save_call(2);
+    let sandbox_lifecycle_service = sandbox_lifecycle_service_with_repository(
+        sandbox_session_repository,
+        sandbox_provider.clone(),
+    );
+    let sandbox_session = create_sandbox_session(
+        &sandbox_lifecycle_service,
+        [RuntimeCapability::Filesystem],
+        IsolationAssurance::HostUser,
+    )
+    .await;
+
+    let sandbox_start_result = sandbox_lifecycle_service
+        .start_sandbox_session(sandbox_session_lifecycle_command(&sandbox_session))
+        .await;
+    assert!(matches!(
+        sandbox_start_result,
+        Err(SandboxLifecycleError::Repository(
+            SandboxSessionRepositoryError::Unavailable
+        ))
+    ));
+
+    let persisted_sandbox_session = sandbox_lifecycle_service
+        .get_sandbox_session(
+            sandbox_session.tenant_id(),
+            sandbox_session.sandbox_session_id(),
+        )
+        .await
+        .unwrap_or_else(|error| panic!("persisted sandbox session lookup failed: {error}"));
+    assert_eq!(
+        persisted_sandbox_session.sandbox_session_state(),
+        SandboxSessionState::Starting
+    );
+    let persisted_sandbox_runtime_binding = persisted_sandbox_session
+        .sandbox_runtime_binding()
+        .unwrap_or_else(|| panic!("starting sandbox session must retain its binding intent"));
+    assert!(persisted_sandbox_runtime_binding
+        .sandbox_allocation_reference()
+        .is_none());
+    assert_eq!(
+        sandbox_provider
+            .sandbox_allocate_calls
+            .load(Ordering::SeqCst),
+        1
+    );
+    assert_eq!(
+        sandbox_provider
+            .sandbox_destroy_calls
+            .load(Ordering::SeqCst),
+        1
+    );
+    assert_eq!(
+        sandbox_provider.sandbox_start_calls.load(Ordering::SeqCst),
+        0
+    );
+
+    let sandbox_reconciliation_page = sandbox_lifecycle_service
+        .reconcile_sandbox_sessions(sandbox_session.tenant_id(), None, 10)
+        .await
+        .unwrap_or_else(|error| panic!("sandbox reconciliation failed: {error}"));
+    assert_eq!(sandbox_reconciliation_page.sandbox_items().len(), 1);
+    assert_eq!(
+        sandbox_reconciliation_page.sandbox_items()[0].sandbox_reconciliation_outcome(),
+        SandboxSessionReconciliationOutcome::Reconciled
+    );
+
+    let recovered_sandbox_session = sandbox_lifecycle_service
+        .get_sandbox_session(
+            sandbox_session.tenant_id(),
+            sandbox_session.sandbox_session_id(),
+        )
+        .await
+        .unwrap_or_else(|error| panic!("recovered sandbox session lookup failed: {error}"));
+    assert_eq!(
+        recovered_sandbox_session.sandbox_session_state(),
+        SandboxSessionState::Running
+    );
+    assert_eq!(
+        sandbox_provider
+            .sandbox_allocate_calls
+            .load(Ordering::SeqCst),
+        2
+    );
+    assert_eq!(
+        sandbox_provider.sandbox_start_calls.load(Ordering::SeqCst),
+        1
+    );
+    let sandbox_start_requests =
+        FakeSandboxProvider::sandbox_requests(&sandbox_provider.sandbox_start_requests);
+    assert_eq!(sandbox_start_requests.len(), 1);
+    assert_eq!(
+        sandbox_start_requests[0]
+            .sandbox_allocation_reference
+            .expose_to_provider(),
+        "allocation-2"
+    );
+    assert_eq!(sandbox_start_requests[0].sandbox_fencing_token.value(), 2);
+}
+
+#[tokio::test]
 async fn sandbox_tenant_scope_and_invalid_transitions_are_enforced() {
     let sandbox_provider = Arc::new(FakeSandboxProvider::ready(
         BTreeSet::new(),
@@ -1419,7 +1755,7 @@ async fn sandbox_reconciler_skips_an_actively_leased_session() {
 }
 
 #[tokio::test]
-async fn sandbox_reconciler_persists_provider_failure_and_releases_the_binding() {
+async fn sandbox_reconciler_preserves_provider_failure_when_sandbox_lease_release_fails() {
     let sandbox_session_repository = Arc::new(TestSandboxSessionRepository::default());
     let sandbox_session = transient_sandbox_session(
         "reconcile-failure",
@@ -1433,6 +1769,7 @@ async fn sandbox_reconciler_persists_provider_failure_and_releases_the_binding()
         .insert_sandbox_session(sandbox_session)
         .await
         .unwrap_or_else(|error| panic!("transient sandbox session insert failed: {error}"));
+    sandbox_session_repository.fail_sandbox_release_call(1);
     let sandbox_provider = Arc::new(FakeSandboxProvider::with_behavior(
         SandboxProviderHealthStatus::Ready,
         [RuntimeCapability::Filesystem],
@@ -1473,6 +1810,197 @@ async fn sandbox_reconciler_persists_provider_failure_and_releases_the_binding()
         FakeSandboxProvider::sandbox_fencing_tokens(
             &sandbox_provider.sandbox_destroy_fencing_tokens
         )
+    );
+}
+
+#[tokio::test]
+async fn sandbox_reconciler_reloads_authoritative_session_after_acquiring_the_sandbox_lease() {
+    let sandbox_session_repository = Arc::new(TestSandboxSessionRepository::default());
+    let stale_sandbox_session = transient_sandbox_session(
+        "reconcile-stale",
+        SandboxSessionState::Starting,
+        SandboxSessionOperationKind::Start,
+        true,
+    );
+    let sandbox_operation_id = stale_sandbox_session.sandbox_operations()[1]
+        .sandbox_operation_id()
+        .clone();
+    let mut authoritative_sandbox_session = stale_sandbox_session.clone();
+    authoritative_sandbox_session
+        .transition_sandbox_session(
+            SandboxSessionState::Running,
+            SandboxSessionOperationKind::Start,
+        )
+        .unwrap_or_else(|error| panic!("sandbox transition to running failed: {error}"));
+    authoritative_sandbox_session.complete_sandbox_operation(&sandbox_operation_id);
+    authoritative_sandbox_session
+        .next_sandbox_version()
+        .unwrap_or_else(|error| panic!("sandbox version increment failed: {error}"));
+    let tenant_id = authoritative_sandbox_session.tenant_id().clone();
+    sandbox_session_repository
+        .insert_sandbox_session(authoritative_sandbox_session)
+        .await
+        .unwrap_or_else(|error| panic!("authoritative sandbox session insert failed: {error}"));
+    sandbox_session_repository.return_sandbox_reconciliation_page_once(vec![stale_sandbox_session]);
+    let sandbox_provider = Arc::new(FakeSandboxProvider::ready(
+        [RuntimeCapability::Filesystem],
+        IsolationAssurance::HostUser,
+    ));
+    let sandbox_lifecycle_service = sandbox_lifecycle_service_with_repository(
+        Arc::clone(&sandbox_session_repository),
+        Arc::clone(&sandbox_provider),
+    );
+
+    let sandbox_page = sandbox_lifecycle_service
+        .reconcile_sandbox_sessions(&tenant_id, None, 20)
+        .await
+        .unwrap_or_else(|error| panic!("sandbox reconciliation failed: {error}"));
+
+    assert_eq!(sandbox_page.sandbox_items().len(), 1);
+    assert_eq!(
+        sandbox_page.sandbox_items()[0].sandbox_session_state(),
+        SandboxSessionState::Running
+    );
+    assert_eq!(
+        sandbox_page.sandbox_items()[0].sandbox_reconciliation_outcome(),
+        SandboxSessionReconciliationOutcome::Reconciled
+    );
+    assert_eq!(
+        sandbox_provider
+            .sandbox_allocate_calls
+            .load(Ordering::SeqCst),
+        0
+    );
+    assert_eq!(
+        sandbox_provider.sandbox_start_calls.load(Ordering::SeqCst),
+        0
+    );
+}
+
+#[tokio::test]
+async fn successful_sandbox_lifecycle_maps_sandbox_lease_release_failure_to_lease_lost() {
+    let sandbox_session_repository = Arc::new(TestSandboxSessionRepository::default());
+    sandbox_session_repository.fail_sandbox_release_call(1);
+    let sandbox_provider = Arc::new(FakeSandboxProvider::ready(
+        [RuntimeCapability::Filesystem],
+        IsolationAssurance::HostUser,
+    ));
+    let sandbox_lifecycle_service = sandbox_lifecycle_service_with_repository(
+        Arc::clone(&sandbox_session_repository),
+        sandbox_provider,
+    );
+    let sandbox_session = create_sandbox_session(
+        &sandbox_lifecycle_service,
+        [RuntimeCapability::Filesystem],
+        IsolationAssurance::HostUser,
+    )
+    .await;
+
+    assert!(matches!(
+        sandbox_lifecycle_service
+            .start_sandbox_session(sandbox_session_lifecycle_command(&sandbox_session))
+            .await,
+        Err(SandboxLifecycleError::LeaseLost)
+    ));
+    let stored_sandbox_session = sandbox_lifecycle_service
+        .get_sandbox_session(
+            sandbox_session.tenant_id(),
+            sandbox_session.sandbox_session_id(),
+        )
+        .await
+        .unwrap_or_else(|error| panic!("running sandbox session lookup failed: {error}"));
+    assert_eq!(
+        stored_sandbox_session.sandbox_session_state(),
+        SandboxSessionState::Running
+    );
+}
+
+#[tokio::test]
+async fn sandbox_provider_call_maps_sandbox_lease_renewal_failure_to_lease_lost() {
+    let sandbox_session_repository = Arc::new(TestSandboxSessionRepository::default());
+    sandbox_session_repository.fail_sandbox_renew_call(1);
+    let sandbox_provider = Arc::new(FakeSandboxProvider::ready(
+        [RuntimeCapability::Filesystem],
+        IsolationAssurance::HostUser,
+    ));
+    let sandbox_lifecycle_service = sandbox_lifecycle_service_with_repository(
+        Arc::clone(&sandbox_session_repository),
+        Arc::clone(&sandbox_provider),
+    );
+    let sandbox_session = create_sandbox_session(
+        &sandbox_lifecycle_service,
+        [RuntimeCapability::Filesystem],
+        IsolationAssurance::HostUser,
+    )
+    .await;
+
+    assert!(matches!(
+        sandbox_lifecycle_service
+            .start_sandbox_session(sandbox_session_lifecycle_command(&sandbox_session))
+            .await,
+        Err(SandboxLifecycleError::LeaseLost)
+    ));
+    let stored_sandbox_session = sandbox_lifecycle_service
+        .get_sandbox_session(
+            sandbox_session.tenant_id(),
+            sandbox_session.sandbox_session_id(),
+        )
+        .await
+        .unwrap_or_else(|error| panic!("starting sandbox session lookup failed: {error}"));
+    assert_eq!(
+        stored_sandbox_session.sandbox_session_state(),
+        SandboxSessionState::Starting
+    );
+    assert_eq!(
+        sandbox_provider
+            .sandbox_allocate_calls
+            .load(Ordering::SeqCst),
+        0
+    );
+}
+
+#[tokio::test]
+async fn sandbox_persistence_maps_sandbox_lease_conflict_to_lease_lost() {
+    let sandbox_session_repository = Arc::new(TestSandboxSessionRepository::default());
+    sandbox_session_repository
+        .fail_sandbox_save_call_with_error(1, SandboxSessionRepositoryError::LeaseConflict);
+    let sandbox_provider = Arc::new(FakeSandboxProvider::ready(
+        [RuntimeCapability::Filesystem],
+        IsolationAssurance::HostUser,
+    ));
+    let sandbox_lifecycle_service = sandbox_lifecycle_service_with_repository(
+        Arc::clone(&sandbox_session_repository),
+        Arc::clone(&sandbox_provider),
+    );
+    let sandbox_session = create_sandbox_session(
+        &sandbox_lifecycle_service,
+        [RuntimeCapability::Filesystem],
+        IsolationAssurance::HostUser,
+    )
+    .await;
+
+    assert!(matches!(
+        sandbox_lifecycle_service
+            .start_sandbox_session(sandbox_session_lifecycle_command(&sandbox_session))
+            .await,
+        Err(SandboxLifecycleError::LeaseLost)
+    ));
+    let stored_sandbox_session = sandbox_lifecycle_service
+        .get_sandbox_session(
+            sandbox_session.tenant_id(),
+            sandbox_session.sandbox_session_id(),
+        )
+        .await
+        .unwrap_or_else(|error| panic!("created sandbox session lookup failed: {error}"));
+    assert_eq!(
+        stored_sandbox_session.sandbox_session_state(),
+        SandboxSessionState::Created
+    );
+    assert_eq!(
+        sandbox_provider
+            .sandbox_allocate_calls
+            .load(Ordering::SeqCst),
+        0
     );
 }
 

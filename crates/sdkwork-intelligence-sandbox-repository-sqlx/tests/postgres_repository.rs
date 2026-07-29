@@ -58,6 +58,17 @@ impl TestSandboxAllocationKeySource {
             .unwrap_or_else(|error| panic!("sandbox current key lock poisoned: {error}")) = 2;
     }
 
+    fn rotate_to_v3(&self) {
+        self.sandbox_key_material_by_version
+            .write()
+            .unwrap_or_else(|error| panic!("sandbox key material lock poisoned: {error}"))
+            .insert(3, vec![29_u8; 32]);
+        *self
+            .sandbox_current_key_version
+            .write()
+            .unwrap_or_else(|error| panic!("sandbox current key lock poisoned: {error}")) = 3;
+    }
+
     fn sandbox_key(
         &self,
         sandbox_allocation_key_version: u64,
@@ -822,6 +833,54 @@ async fn sandbox_postgres_repository_enforces_durable_lifecycle_contract() {
         ))
         .await
         .unwrap_or_else(|error| panic!("conflict rotation session insert failed: {error}"));
+    let sandbox_session_cas_tenant = tenant_id("tenant-postgres-rotation-session-cas");
+    let sandbox_session_cas_original_session_id =
+        parse_sandbox_session_id("session-postgres-rotation-session-cas-original");
+    let sandbox_session_cas_replacement_session_id =
+        parse_sandbox_session_id("session-postgres-rotation-session-cas-replacement");
+    let sandbox_session_cas_runtime_binding_id =
+        SandboxRuntimeBindingId::parse("binding-postgres-rotation-session-cas")
+            .unwrap_or_else(|error| panic!("invalid session CAS binding: {error}"));
+    sandbox_session_repository
+        .insert_sandbox_session(sandbox_bound_session(
+            sandbox_session_cas_tenant.clone(),
+            sandbox_session_cas_original_session_id.clone(),
+            sandbox_session_cas_runtime_binding_id.clone(),
+            "private-provider-allocation-rotation-session-cas",
+            sandbox_allocation_protector.as_ref(),
+        ))
+        .await
+        .unwrap_or_else(|error| panic!("session CAS rotation session insert failed: {error}"));
+    sandbox_session_repository
+        .insert_sandbox_session(sandbox_session_from_snapshot(
+            sandbox_session_cas_tenant.clone(),
+            sandbox_session_cas_replacement_session_id.clone(),
+            SandboxSessionState::Created,
+            None,
+            vec![SandboxSessionOperationRepositorySnapshot::new(
+                OperationId::generate(),
+                SandboxSessionOperationKind::Create,
+                SandboxOperationOutcome::Succeeded,
+            )],
+            0,
+            sandbox_allocation_protector.as_ref(),
+        ))
+        .await
+        .unwrap_or_else(|error| panic!("session CAS replacement session insert failed: {error}"));
+    let sandbox_version_drift_tenant = tenant_id("tenant-postgres-rotation-version-drift");
+    let sandbox_version_drift_session_id =
+        parse_sandbox_session_id("session-postgres-rotation-version-drift");
+    sandbox_session_repository
+        .insert_sandbox_session(sandbox_bound_session(
+            sandbox_version_drift_tenant.clone(),
+            sandbox_version_drift_session_id.clone(),
+            SandboxRuntimeBindingId::parse("binding-postgres-rotation-version-drift")
+                .unwrap_or_else(|error| panic!("invalid version drift binding: {error}")),
+            "private-provider-allocation-rotation-version-drift",
+            sandbox_allocation_protector.as_ref(),
+        ))
+        .await
+        .unwrap_or_else(|error| panic!("version drift rotation session insert failed: {error}"));
 
     sandbox_allocation_key_source.rotate_to_v2();
     sandbox_session_repository
@@ -1037,6 +1096,197 @@ async fn sandbox_postgres_repository_enforces_durable_lifecycle_contract() {
         .release_sandbox_session_lease(&sandbox_conflict_lease)
         .await
         .unwrap_or_else(|error| panic!("conflict sandbox lease release failed: {error}")));
+
+    let sandbox_session_cas_ciphertext_before: String = sqlx::query_scalar(
+        "SELECT sandbox_allocation_ciphertext FROM sandbox_runtime_binding \
+         WHERE tenant_id = $1 AND sandbox_runtime_binding_id = $2",
+    )
+    .bind(sandbox_session_cas_tenant.as_str())
+    .bind(sandbox_session_cas_runtime_binding_id.as_str())
+    .fetch_one(sandbox_postgres_pool)
+    .await
+    .unwrap_or_else(|error| panic!("session CAS ciphertext lookup failed: {error}"));
+    let sandbox_session_cas_database_pool = PoolBuilder::from_env("SANDBOX_TEST")
+        .unwrap_or_else(|error| panic!("session CAS database config failed: {error}"))
+        .max_connections(1)
+        .build()
+        .await
+        .unwrap_or_else(|error| panic!("session CAS database pool failed: {error}"));
+    let (sandbox_session_cas_entered, sandbox_session_cas_resume) =
+        sandbox_test_allocation_protector.pause_next_sandbox_reencryption();
+    let sandbox_session_cas_repository = Arc::clone(&sandbox_session_repository);
+    let sandbox_session_cas_tenant_for_task = sandbox_session_cas_tenant.clone();
+    let sandbox_session_cas_task = tokio::spawn(async move {
+        sandbox_session_cas_repository
+            .reencrypt_sandbox_provider_allocation_references_page(
+                &sandbox_session_cas_tenant_for_task,
+                None,
+                20,
+            )
+            .await
+    });
+    let sandbox_session_cas_tenant_for_update = sandbox_session_cas_tenant.clone();
+    let sandbox_session_cas_runtime_binding_id_for_update =
+        sandbox_session_cas_runtime_binding_id.clone();
+    let sandbox_session_cas_replacement_session_id_for_update =
+        sandbox_session_cas_replacement_session_id.clone();
+    let sandbox_session_cas_update_task = tokio::spawn(async move {
+        tokio::task::spawn_blocking(move || {
+            sandbox_session_cas_entered
+                .recv_timeout(Duration::from_secs(10))
+                .unwrap_or_else(|error| panic!("session CAS re-encryption did not pause: {error}"));
+        })
+        .await
+        .unwrap_or_else(|error| panic!("session CAS pause task failed: {error}"));
+        let sandbox_session_cas_postgres_pool = sandbox_session_cas_database_pool
+            .as_postgres()
+            .unwrap_or_else(|| panic!("session CAS database must use PostgreSQL"));
+        sqlx::query(
+            "UPDATE sandbox_runtime_binding SET sandbox_session_id = $3 \
+             WHERE tenant_id = $1 AND sandbox_runtime_binding_id = $2",
+        )
+        .bind(sandbox_session_cas_tenant_for_update.as_str())
+        .bind(sandbox_session_cas_runtime_binding_id_for_update.as_str())
+        .bind(sandbox_session_cas_replacement_session_id_for_update.as_str())
+        .execute(sandbox_session_cas_postgres_pool)
+        .await
+        .unwrap_or_else(|error| panic!("session CAS concurrent replacement failed: {error}"));
+        sandbox_session_cas_resume
+            .send(())
+            .unwrap_or_else(|error| panic!("session CAS re-encryption did not resume: {error}"));
+    });
+    let (sandbox_session_cas_page, ()) = tokio::join!(
+        async {
+            sandbox_session_cas_task
+                .await
+                .unwrap_or_else(|error| panic!("session CAS re-encryption task failed: {error}"))
+                .unwrap_or_else(|error| panic!("session CAS re-encryption failed: {error}"))
+        },
+        async {
+            sandbox_session_cas_update_task
+                .await
+                .unwrap_or_else(|error| panic!("session CAS update task failed: {error}"))
+        }
+    );
+    assert_eq!(sandbox_session_cas_page.sandbox_scanned_count(), 1);
+    assert_eq!(sandbox_session_cas_page.sandbox_reencrypted_count(), 0);
+    assert_eq!(sandbox_session_cas_page.sandbox_conflict_count(), 1);
+    let sandbox_session_cas_ciphertext_after: String = sqlx::query_scalar(
+        "SELECT sandbox_allocation_ciphertext FROM sandbox_runtime_binding \
+         WHERE tenant_id = $1 AND sandbox_runtime_binding_id = $2",
+    )
+    .bind(sandbox_session_cas_tenant.as_str())
+    .bind(sandbox_session_cas_runtime_binding_id.as_str())
+    .fetch_one(sandbox_postgres_pool)
+    .await
+    .unwrap_or_else(|error| panic!("session CAS post-conflict lookup failed: {error}"));
+    assert_eq!(
+        sandbox_session_cas_ciphertext_after,
+        sandbox_session_cas_ciphertext_before
+    );
+    sqlx::query(
+        "UPDATE sandbox_runtime_binding SET sandbox_session_id = $3 \
+         WHERE tenant_id = $1 AND sandbox_runtime_binding_id = $2",
+    )
+    .bind(sandbox_session_cas_tenant.as_str())
+    .bind(sandbox_session_cas_runtime_binding_id.as_str())
+    .bind(sandbox_session_cas_original_session_id.as_str())
+    .execute(sandbox_postgres_pool)
+    .await
+    .unwrap_or_else(|error| panic!("session CAS test cleanup failed: {error}"));
+    let sandbox_session_cas_retry_page = sandbox_session_repository
+        .reencrypt_sandbox_provider_allocation_references_page(
+            &sandbox_session_cas_tenant,
+            None,
+            20,
+        )
+        .await
+        .unwrap_or_else(|error| panic!("session CAS retry failed: {error}"));
+    assert_eq!(sandbox_session_cas_retry_page.sandbox_scanned_count(), 1);
+    assert_eq!(
+        sandbox_session_cas_retry_page.sandbox_reencrypted_count(),
+        1
+    );
+    assert_eq!(sandbox_session_cas_retry_page.sandbox_conflict_count(), 0);
+
+    let sandbox_version_drift_ciphertext_before: String = sqlx::query_scalar(
+        "SELECT sandbox_allocation_ciphertext FROM sandbox_runtime_binding \
+         WHERE tenant_id = $1 AND sandbox_session_id = $2",
+    )
+    .bind(sandbox_version_drift_tenant.as_str())
+    .bind(sandbox_version_drift_session_id.as_str())
+    .fetch_one(sandbox_postgres_pool)
+    .await
+    .unwrap_or_else(|error| panic!("version drift ciphertext lookup failed: {error}"));
+    let (sandbox_version_drift_entered, sandbox_version_drift_resume) =
+        sandbox_test_allocation_protector.pause_next_sandbox_reencryption();
+    let sandbox_version_drift_repository = Arc::clone(&sandbox_session_repository);
+    let sandbox_version_drift_tenant_for_task = sandbox_version_drift_tenant.clone();
+    let sandbox_version_drift_task = tokio::spawn(async move {
+        sandbox_version_drift_repository
+            .reencrypt_sandbox_provider_allocation_references_page(
+                &sandbox_version_drift_tenant_for_task,
+                None,
+                20,
+            )
+            .await
+    });
+    tokio::task::spawn_blocking(move || {
+        sandbox_version_drift_entered
+            .recv_timeout(Duration::from_secs(10))
+            .unwrap_or_else(|error| panic!("version drift re-encryption did not pause: {error}"));
+    })
+    .await
+    .unwrap_or_else(|error| panic!("version drift pause task failed: {error}"));
+    sandbox_allocation_key_source.rotate_to_v3();
+    sandbox_version_drift_resume
+        .send(())
+        .unwrap_or_else(|error| panic!("version drift re-encryption did not resume: {error}"));
+    assert_eq!(
+        sandbox_version_drift_task
+            .await
+            .unwrap_or_else(|error| panic!("version drift task failed: {error}")),
+        Err(SandboxSessionRepositoryError::ProtectionFailed)
+    );
+    let sandbox_version_drift_metadata_after_failure: (String, i64) = sqlx::query_as(
+        "SELECT sandbox_allocation_ciphertext, sandbox_allocation_key_version \
+         FROM sandbox_runtime_binding \
+         WHERE tenant_id = $1 AND sandbox_session_id = $2",
+    )
+    .bind(sandbox_version_drift_tenant.as_str())
+    .bind(sandbox_version_drift_session_id.as_str())
+    .fetch_one(sandbox_postgres_pool)
+    .await
+    .unwrap_or_else(|error| panic!("version drift metadata lookup failed: {error}"));
+    assert_eq!(
+        sandbox_version_drift_metadata_after_failure,
+        (sandbox_version_drift_ciphertext_before, 1)
+    );
+
+    let sandbox_version_drift_retry_page = sandbox_session_repository
+        .reencrypt_sandbox_provider_allocation_references_page(
+            &sandbox_version_drift_tenant,
+            None,
+            20,
+        )
+        .await
+        .unwrap_or_else(|error| panic!("version drift retry failed: {error}"));
+    assert_eq!(sandbox_version_drift_retry_page.sandbox_scanned_count(), 1);
+    assert_eq!(
+        sandbox_version_drift_retry_page.sandbox_reencrypted_count(),
+        1
+    );
+    assert_eq!(sandbox_version_drift_retry_page.sandbox_conflict_count(), 0);
+    let sandbox_version_after_retry: i64 = sqlx::query_scalar(
+        "SELECT sandbox_allocation_key_version FROM sandbox_runtime_binding \
+         WHERE tenant_id = $1 AND sandbox_session_id = $2",
+    )
+    .bind(sandbox_version_drift_tenant.as_str())
+    .bind(sandbox_version_drift_session_id.as_str())
+    .fetch_one(sandbox_postgres_pool)
+    .await
+    .unwrap_or_else(|error| panic!("version drift retry version lookup failed: {error}"));
+    assert_eq!(sandbox_version_after_retry, 3);
 
     let transient_sandbox_session_id = parse_sandbox_session_id("session-postgres-reconcile");
     let transient_sandbox_session = sandbox_session_from_snapshot(

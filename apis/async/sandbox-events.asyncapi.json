@@ -1,0 +1,48 @@
+{
+  "asyncapi": "3.0.0",
+  "info": {
+    "title": "SDKWork Sandbox Events",
+    "version": "1.0.0",
+    "description": "Candidate Sandbox-owned event contract. REQ-2026-0010 is draft and this document does not authorize runtime publication.",
+    "x-sdkwork-status": "draft",
+    "x-sdkwork-requirement-id": "REQ-2026-0010"
+  },
+  "defaultContentType": "application/json",
+  "channels": {
+    "sandboxEvents": {
+      "address": "sandbox.events",
+      "messages": {
+        "sandboxEventEnvelope": {
+          "$ref": "#/components/messages/SandboxEventEnvelope"
+        }
+      }
+    }
+  },
+  "operations": {
+    "publishSandboxEvent": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/sandboxEvents"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/sandboxEvents/messages/sandboxEventEnvelope"
+        }
+      ],
+      "summary": "Publish a versioned Sandbox event after the authoritative transaction commits"
+    }
+  },
+  "components": {
+    "messages": {
+      "SandboxEventEnvelope": {
+        "name": "SandboxEventEnvelope",
+        "title": "Sandbox Event Envelope",
+        "contentType": "application/json",
+        "payload": {
+          "$ref": "./sandbox-event-envelope.schema.json"
+        },
+        "examples": []
+      }
+    }
+  }
+}

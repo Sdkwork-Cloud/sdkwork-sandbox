@@ -18,6 +18,12 @@ Risk: critical - Host filesystem/process access, public Provider assurance, cros
 
 Local 只面向 Single-user Standalone Development，不承载不可信多租户 SaaS Workload。Docker Provider 不在范围内，也不能作为 Local 隔离或测试回退。
 
+## Candidate Machine Contract Evidence
+
+- `specs/sandbox-provider-delivery-gates.contract.json` fixes Local Kind `local`, Assurance `HostUser`, standalone scope, fail-closed capability policy, platform-specific supervision evidence, forbidden assurance claims and forbidden weak fallbacks; `implementationAuthorized` remains `false`.
+- `node --test tests/contract/provider-delivery-gate.contract.test.mjs` passes 7/7 and proves the Local component still has no public ports, Host IO or process spawn while the review remains pending.
+- This evidence makes LOCAL-01..LOCAL-08 machine-reviewable but does not replace Windows/macOS/Linux real Host runner, filesystem race, descendant cleanup, credential isolation or supply-chain evidence.
+
 ## Decision Matrix
 
 | ID | Proposed decision | Accept effect | Reject effect |
@@ -43,6 +49,7 @@ Local 只面向 Single-user Standalone Development，不承载不可信多租户
 
 ## Required Evidence Before Ready
 
+- Gate 0 Fake Host Boundary 已有 5 个纯数据负向测试，覆盖 Logical Relative Path、Windows 设备路径、Executable/Environment Allowlist、Typed Argv 与请求边界；这些测试不访问 Host、不启动进程，不替代以下真实平台证据。
 - 接受 Lifecycle、Workspace Attachment、Command Execution 与本 ADR 的人工记录。
 - Dependency/Supply-chain Record：Capability Filesystem、Windows API、Unix/Linux Process/Cgroup 使用的精确 Crate/Version/License/Advisory/MSRV。
 - Windows Job Object 与 Linux cgroup v2 Preflight、Kill-on-close/Delegation、Timeout、Cancel、Detached Child、Output Limit 与 Residue Test Design。

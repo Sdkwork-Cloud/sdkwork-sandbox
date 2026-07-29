@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sdkwork.dev/sandbox/commands/sandbox-command-execution-error.schema.v1.json",
+  "title": "SandboxCommandExecutionError",
+  "description": "Candidate safe Sandbox command error taxonomy. REQ-2026-0007 remains draft.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "traceId",
+    "sandboxCommandOperationId",
+    "sandboxErrorCode",
+    "sandboxRetryable",
+    "sandboxSafeMessage"
+  ],
+  "properties": {
+    "traceId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "sandboxCommandOperationId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "sandboxErrorCode": {
+      "type": "string",
+      "enum": [
+        "invalid-request",
+        "unsupported-capability",
+        "policy-denied",
+        "stale-fencing",
+        "timeout",
+        "cancelled",
+        "output-limit",
+        "resource-exhausted",
+        "provider-unavailable",
+        "internal-failure"
+      ]
+    },
+    "sandboxRetryable": { "type": "boolean" },
+    "sandboxSafeMessage": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[^\\u0000\\r\\n]*$"
+    },
+    "sandboxRetryAfterMs": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 60000
+    }
+  },
+  "x-sdkwork-status": "draft",
+  "x-sdkwork-requirement-id": "REQ-2026-0007",
+  "x-sdkwork-detail-policy": "safe-message-only"
+}

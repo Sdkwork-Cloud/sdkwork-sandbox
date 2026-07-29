@@ -21,13 +21,14 @@ Specs: `ARCHITECTURE_DECISION_SPEC.md`, `SECURITY_SPEC.md`, `CONFIG_SPEC.md`, `D
 3. `SandboxProviderAllocationProtector` 提供当前 Protection Version 和 Re-encryption 操作。Decrypt + Encrypt 在 Protector 内完成，Repository 只接触旧/新受保护对象。
 4. `SandboxProviderAllocationRef` 在 Drop 时清零内部 String Buffer；`SandboxProviderAllocationKey` 使用 `Zeroizing<Vec<u8>>`，无效构造输入同样在返回错误时清零；派生 AES Key 直接使用 `Zeroizing<[u8; 32]>` 承载。
 5. `SqlxSandboxSessionRepository` 提供 Tenant-scoped、Cursor-based、Page Size `1..=200` 的 `reencrypt_sandbox_provider_allocation_references_page` 维护操作。
-6. 查询只选择非空且 Protection Version 不等于 Current Version 的行，按 `sandbox_runtime_binding_id` 稳定升序，最多读取 `page_size + 1` 以确定下一 Cursor。
-7. Crypto/KMS 调用不在长事务或行锁内执行。每行重保护后使用旧 Ciphertext + Key ID/Version + Crypto Version 的完整 Compare-and-swap Update；零行更新计为 Conflict，禁止覆盖并发生命周期写入。
+6. 每页在查询前捕获一次目标 Key ID/Version 与 Crypto Version，查询只选择非空且 Protection Version 不等于该页目标版本的行，按 `sandbox_runtime_binding_id` 稳定升序，最多读取 `page_size + 1` 以确定下一 Cursor。每行重保护输出必须匹配捕获的目标三元组；若 Current Version 在页内漂移则以 `ProtectionFailed` 关闭失败，禁止写入漂移结果。此前已逐行提交的结果保持有效，重试时由 Current-version Skip 幂等收敛。
+7. Crypto/KMS 调用不在长事务或行锁内执行。每行重保护后使用 Tenant + Binding + Session + 旧 Ciphertext + Key ID/Version + Crypto Version 的完整 Compare-and-swap Update；零行更新计为 Conflict，禁止覆盖并发生命周期写入或 Binding/Session ABA。
 8. 每行独立提交，支持 Pause/Resume 和部分成功；Page Result 只报告 Count 与 Cursor，不返回 Secret/Ciphertext。
 9. 当前版本行是幂等跳过。旧密钥保留到所有 Tenant 的完整扫描、Conflict Retry、恢复 Smoke 和显式人工撤销完成；Repository 不自动删除密钥。
 10. Crypto Version 升级与 Key Version 轮换使用同一有界 Re-encryption 机制，但二者保持独立字段和语义。
 11. 本 ADR 不批准实际 KMS Provider、Secret 配置格式、Operator HTTP API、Background Worker、Deployment Profile 或自动 Key Revocation。
 12. Key ID 仅允许 `1..=128` bytes printable ASCII。Key Carrier、Service Domain Constructor 与 PostgreSQL `ck_sandbox_runtime_binding_allocation_metadata` 形成独立校验层，数据库必须拒绝空格、控制字符和非 ASCII Key ID。
+13. 已发布的 Key ID/Version 到 Key Material 映射在保留期内不可变；Key Material 变化必须产生新 Key Version。Repository 通过页目标三元组验证关闭可观察的版本漂移，但不能把同 Identity 下的 Key Material 原地替换修复为安全行为，因此生产 Secret/KMS Adapter 必须在 Composition 与运维层强制该不变量。
 
 ## Alternatives
 
@@ -39,9 +40,9 @@ Specs: `ARCHITECTURE_DECISION_SPEC.md`, `SECURITY_SPEC.md`, `CONFIG_SPEC.md`, `D
 
 拒绝。它会导致无界锁、WAL、延迟和失败回滚成本，不满足生产可运维性。
 
-### 只按 Binding ID 更新
+### 只按 Binding ID 或不匹配 Session 更新
 
-拒绝。Lifecycle Save 可能在重加密期间写入新的 Allocation Reference；没有旧密文元数据 CAS 会覆盖并发新值。
+拒绝。Lifecycle Save 可能在重加密期间写入新的 Allocation Reference，Binding 也可能被删除后以同一 ID 重新建立；没有 Session 与旧密文元数据 CAS 会覆盖并发新值或跨 Session 写入。
 
 ### Key Source 只保留当前密钥
 
@@ -56,7 +57,7 @@ Specs: `ARCHITECTURE_DECISION_SPEC.md`, `SECURITY_SPEC.md`, `CONFIG_SPEC.md`, `D
 ## Verification
 
 - Protector Unit Test 覆盖多版本恢复、重加密、错误/不安全 Key Identity、Key Material 长度边界、旧密钥缺失、Context 绑定和 Debug/Drop 安全。
-- PostgreSQL Test 覆盖 Tenant Cursor Page、Current-version Skip、旧元数据 CAS、并发 Lifecycle Update Conflict、unsafe Key ID `23514` 约束和 Restart 后恢复。
+- PostgreSQL Test 覆盖 Tenant Cursor Page、Current-version Skip、Tenant+Binding+Session+旧元数据 CAS、并发 Lifecycle Update Conflict、Session ABA Conflict、页目标版本漂移关闭失败、unsafe Key ID `23514` 约束和 Restart 后恢复。
 - Query Plan、WAL/Lock Bound、KMS Failure、Pause/Resume 与旧密钥撤销由生产运维证据追踪。
 - Cargo/Clippy、Database Framework、Component、Layering、Naming、Documentation 与 Repository Baseline 检查必须通过。
 

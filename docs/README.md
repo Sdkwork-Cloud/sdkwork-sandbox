@@ -33,7 +33,7 @@ Allowed content: Canon PRD and technical architecture, stable `REQ-*`/`ADR-*`/`P
 
 ## Active Delivery Focus
 
-[PLAN-2026-0001: Local And Firecracker Sandbox Provider Delivery](engineering/plans/PLAN-2026-0001-local-and-firecracker-provider-delivery.md) fixes the delivery order as Local, shared Command/Terminal conformance, then Firecracker. Docker remains deferred.
+[PLAN-2026-0001: Local And Firecracker Sandbox Provider Delivery](engineering/plans/PLAN-2026-0001-local-and-firecracker-provider-delivery.md) fixes the delivery order as Local, shared Command/Terminal conformance, then Firecracker. Docker remains deferred. Draft Observability/Event/Audit/Outbox, Host Isolation Broker, Firecracker Artifact Compatibility/Supply-chain, Workspace Block Device/Sanitization, Firecracker Network Isolation, Firecracker Resource Isolation/Usage, Multi-tenant Admission/Scheduling/Capacity, Node Trust/Enrollment/Attestation/Verified Inventory, and PostgreSQL Quota/Capacity Reservation Persistence boundaries are governed separately by REQ-2026-0010 through REQ-2026-0018; none is runtime implementation authority. REQ-2026-0018 also records the human-reviewed pre-release migration gate required before existing `tenant_id TEXT` persistence can adopt standard positive `BIGINT` SQL subject semantics.
 
 ## Verification
 

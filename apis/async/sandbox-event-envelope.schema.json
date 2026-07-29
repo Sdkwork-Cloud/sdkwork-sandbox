@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sdkwork.dev/sandbox/async/sandbox-event-envelope.schema.v1.json",
+  "title": "SandboxEventEnvelope",
+  "description": "Candidate Sandbox-owned event envelope. REQ-2026-0010 remains draft.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "type",
+    "source",
+    "specversion",
+    "time",
+    "dataSchemaVersion",
+    "tenantId",
+    "traceId",
+    "redactionClassification",
+    "data"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^sandbox_evt_[A-Za-z0-9][A-Za-z0-9._-]{0,159}$"
+    },
+    "type": {
+      "type": "string",
+      "pattern": "^sandbox\\.[a-z][a-z0-9]*(\\.[a-z][a-z0-9_]*){1,4}$"
+    },
+    "source": {
+      "type": "string",
+      "pattern": "^sandbox\\.[a-z][a-z0-9-]{1,63}$"
+    },
+    "specversion": {
+      "const": "1.0"
+    },
+    "time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "dataSchemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "tenantId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "organizationId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "subject": {
+      "type": "string",
+      "pattern": "^sandbox:[A-Za-z0-9._:-]{1,255}$"
+    },
+    "traceId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "correlationId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "sandboxSessionId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "sandboxWorkspaceId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "sandboxId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "sandboxRuntimeBindingId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "sandboxOperationId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "sandboxProviderId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "redactionClassification": {
+      "enum": [
+        "Public",
+        "Internal",
+        "TenantSensitive",
+        "PersonalData",
+        "Secret",
+        "Regulated",
+        "Unknown"
+      ]
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "data": {
+      "$ref": "#/$defs/SandboxEventData"
+    }
+  },
+  "$defs": {
+    "SandboxEventData": {
+      "title": "SandboxEventData",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "operation": { "type": "string", "maxLength": 64 },
+        "outcome": { "type": "string", "maxLength": 64 },
+        "reasonCode": { "type": "string", "maxLength": 128 },
+        "state": { "type": "string", "maxLength": 64 },
+        "durationMs": { "type": "integer", "minimum": 0, "maximum": 86400000 },
+        "bytes": { "type": "integer", "minimum": 0, "maximum": 1073741824 },
+        "count": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+        "resourceKind": { "type": "string", "maxLength": 64 },
+        "sandboxProviderKind": { "type": "string", "maxLength": 64 },
+        "sandboxIsolationAssurance": { "type": "string", "maxLength": 64 },
+        "sandboxSessionState": { "type": "string", "maxLength": 64 },
+        "sandboxWorkspaceAttachmentState": { "type": "string", "maxLength": 64 },
+        "sandboxCommandState": { "type": "string", "maxLength": 64 },
+        "sandboxQuotaDecision": { "type": "string", "maxLength": 64 },
+        "sandboxSnapshotState": { "type": "string", "maxLength": 64 },
+        "policyCategory": { "type": "string", "maxLength": 64 },
+        "auditAction": { "type": "string", "maxLength": 128 },
+        "auditResult": { "type": "string", "maxLength": 64 }
+      }
+    }
+  }
+}
