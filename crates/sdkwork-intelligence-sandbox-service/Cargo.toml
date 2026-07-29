@@ -1,0 +1,22 @@
+[package]
+name = "sdkwork-intelligence-sandbox-service"
+description = "Provider-neutral SDKWork Sandbox Session lifecycle service."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+sdkwork-sandbox-provider-spi.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+
+[lib]
+path = "src/lib.rs"
+
+[lints]
+workspace = true

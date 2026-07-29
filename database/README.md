@@ -1,0 +1,39 @@
+# SDKWork Sandbox Database Lifecycle
+
+Purpose: PostgreSQL authoritative-server contracts and lifecycle assets for durable `SandboxSession`, Operation, `SandboxRuntimeBinding`, and recovery Lease/Fencing state.
+
+Owner: SDKWork Runtime Platform.
+
+Database role: `authoritative-server`.
+
+Supported engine: PostgreSQL 16 and 17, UTF-8, UTC, no required extension. Production connections require a fixed trusted `search_path`, TLS, bounded connection/acquire/statement/lock/idle-in-transaction timeouts, and separate owner/migrator/runtime/backup roles. SQLite is not a supported Server Authority or fallback.
+
+The `sandbox_allocation_ciphertext` column contains encrypted Provider-private recovery metadata. Key material is injected by the Service Host Secret Port and is never stored in this directory, ordinary configuration, logs, events, fixtures, or Wire contracts. Allocation Key IDs are limited to 1..=128-byte printable ASCII by both Domain constructors and `ck_sandbox_runtime_binding_allocation_metadata`; the database rejects bypass writes containing whitespace, control characters, or non-ASCII values. Workspace files, Agent records, Provider snapshot bytes, credentials, production rows, and runtime database files are forbidden here.
+
+`sandbox_session_operation.sandbox_operation_sequence` is the authoritative zero-based Aggregate order, protected by a Tenant+Session unique constraint and continuity checks during restore. Timestamps remain audit metadata and must not determine lifecycle replay order. Snapshot restore validates State, Failure, Operation, Binding, and protected Allocation combinations before decryption.
+
+## Bootstrap And Lifecycle
+
+```bash
+pnpm run db:validate
+pnpm run db:plan
+pnpm run db:migrate
+pnpm run db:status
+pnpm run db:drift:check
+```
+
+Production `autoMigrate` is disabled. A dedicated migrator applies reviewed PostgreSQL migrations before application readiness. The standard SDKWork Database Framework owns history tables, checksums, planning, execution, seed history, and drift state; this repository does not implement a second lifecycle engine.
+
+## Recovery And Operations
+
+Live PostgreSQL migration, concurrency, key re-encryption, CAS, restart, query-plan, and backup/restore candidate evidence is archived in the linked Engineering Reviews. Production PITR, RPO/RTO, privilege, multi-replica, load/SLO, monitoring, and restore-drill evidence remain release gates rather than assumptions of this schema; REQ-2026-0005 and REQ-2026-0006 remain `in-progress` until their human and production operations gates close.
+
+## Verification
+
+```bash
+node ../sdkwork-specs/tools/check-database-framework-standard.mjs --root .
+node --test tests/contract/database-framework.contract.test.mjs
+cargo test -p sdkwork-intelligence-sandbox-repository-sqlx
+```
+
+Related: `../docs/product/requirements/REQ-2026-0005-durable-sandbox-session-repository-and-reconciliation.md`, `../docs/product/requirements/REQ-2026-0006-sandbox-provider-allocation-key-rotation.md`, `../docs/architecture/decisions/ADR-20260728-postgresql-sandbox-lifecycle-persistence-and-reconciliation.md`, `../docs/engineering/reviews/REVIEW-20260729-sandbox-provider-allocation-key-rotation-verification.md`, `../../sdkwork-specs/DATABASE_SPEC.md`, `../../sdkwork-specs/DATABASE_FRAMEWORK_SPEC.md`, `../../sdkwork-specs/MIGRATION_SPEC.md`, `../../sdkwork-specs/SECURITY_SPEC.md`.

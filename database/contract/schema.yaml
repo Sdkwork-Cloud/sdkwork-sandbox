@@ -1,0 +1,42 @@
+schema_version: 1
+kind: sdkwork.database.schema
+database_role: authoritative-server
+module_id: sandbox
+contract_version: 0.1.0
+owner_team: sdkwork-runtime-platform
+compliance_level: L2
+engines:
+  - postgres
+table_prefix: sandbox_
+write_owner: sdkwork-intelligence-sandbox-repository-sqlx
+tables:
+  - name: sandbox_session
+    profile: tenant_entity
+    lifecycle_status: active
+    owner: sdkwork-runtime-platform
+    description: Provider-neutral Sandbox Session lifecycle authority and optimistic version.
+  - name: sandbox_session_operation
+    profile: operational_state
+    lifecycle_status: active
+    owner: sdkwork-runtime-platform
+    description: Tenant-scoped idempotent Sandbox lifecycle operation state.
+  - name: sandbox_runtime_binding
+    profile: operational_state
+    lifecycle_status: active
+    owner: sdkwork-runtime-platform
+    description: Current Sandbox Runtime Binding intent and encrypted Provider-private recovery reference.
+    sensitive_columns:
+      - name: sandbox_allocation_ciphertext
+        classification: confidential
+        protection: application-aes-256-gcm-with-context-bound-hkdf
+        logging: forbidden
+        wire: forbidden
+  - name: sandbox_session_lease
+    profile: operational_state
+    lifecycle_status: active
+    owner: sdkwork-runtime-platform
+    description: Database-clock Session recovery lease and monotonically increasing fencing token.
+external_references:
+  - module: sdkwork-agents
+    columns: [sandbox_workspace_id, sandbox_session_id]
+    semantics: Opaque authorized identity mapping only; no cross-repository database foreign key.

@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-sandbox-cli",
+    "displayName": "SDKWork Sandbox CLI",
+    "version": "0.1.0",
+    "type": "rust-crate",
+    "root": "sdkwork-sandbox/crates/sdkwork-sandbox-cli",
+    "domain": "intelligence",
+    "capability": "sandbox-cli",
+    "surface": "host",
+    "languages": ["rust"],
+    "generated": false,
+    "manifests": ["Cargo.toml"]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Executable component and runtime entrypoint rules."
+    },
+    {
+      "file": "APPLICATION_LAYERED_ARCHITECTURE_SPEC.md",
+      "path": "../../../sdkwork-specs/APPLICATION_LAYERED_ARCHITECTURE_SPEC.md",
+      "purpose": "L6 command adapter dependency direction."
+    },
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Authored CLI source boundaries."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Canonical CLI and application naming."
+    },
+    {
+      "file": "RUST_CODE_SPEC.md",
+      "path": "../../../sdkwork-specs/RUST_CODE_SPEC.md",
+      "purpose": "Rust binary structure and verification."
+    },
+    {
+      "file": "SECURITY_SPEC.md",
+      "path": "../../../sdkwork-specs/SECURITY_SPEC.md",
+      "purpose": "Destructive-action controls and secret-safe output."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "CLI contract and integration verification."
+    }
+  ],
+  "contracts": {
+    "layerRole": "tooling",
+    "publicExports": [],
+    "providedPorts": [],
+    "requiredPorts": [],
+    "runtimeEntrypoints": ["src/main.rs"],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "permissionComposition": {},
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": []
+  },
+  "verification": {
+    "commands": ["cargo check -p sdkwork-sandbox-cli"]
+  }
+}

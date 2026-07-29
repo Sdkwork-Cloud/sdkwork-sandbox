@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.database.table-registry",
+  "contractVersion": "0.1.0",
+  "moduleId": "sandbox",
+  "tables": [
+    {
+      "table_name": "sandbox_session",
+      "profile": "tenant_entity",
+      "owner": "sdkwork-runtime-platform",
+      "write_owner": "sdkwork-intelligence-sandbox-repository-sqlx",
+      "system_of_record": true,
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "sandbox_session_operation",
+      "profile": "operational_state",
+      "owner": "sdkwork-runtime-platform",
+      "write_owner": "sdkwork-intelligence-sandbox-repository-sqlx",
+      "system_of_record": true,
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "sandbox_runtime_binding",
+      "profile": "operational_state",
+      "owner": "sdkwork-runtime-platform",
+      "write_owner": "sdkwork-intelligence-sandbox-repository-sqlx",
+      "system_of_record": true,
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "sandbox_session_lease",
+      "profile": "operational_state",
+      "owner": "sdkwork-runtime-platform",
+      "write_owner": "sdkwork-intelligence-sandbox-repository-sqlx",
+      "system_of_record": true,
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    }
+  ]
+}

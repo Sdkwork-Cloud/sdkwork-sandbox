@@ -1,0 +1,21 @@
+[package]
+name = "sdkwork-intelligence-sandbox-repository-memory"
+description = "Tenant-scoped in-memory lifecycle repository adapter for SDKWork Sandbox development and tests."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+sdkwork-intelligence-sandbox-service.workspace = true
+sdkwork-sandbox-provider-spi.workspace = true
+sdkwork-utils-rust.workspace = true
+tokio.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[lints]
+workspace = true

@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 2,
+  "kind": "sdkwork.database.module",
+  "databaseRole": "authoritative-server",
+  "moduleId": "sandbox",
+  "serviceCode": "SANDBOX",
+  "displayName": "SDKWork Sandbox Database",
+  "owner": "sdkwork-runtime-platform",
+  "engines": ["postgres"],
+  "defaultEngine": "postgres",
+  "tablePrefix": "sandbox_",
+  "contractVersion": "0.1.0",
+  "baselineStrategy": "migrations-only",
+  "modules": [],
+  "lifecycle": {
+    "autoMigrate": false,
+    "seedOnBoot": false,
+    "defaultSeedLocale": "zh-CN",
+    "defaultSeedProfile": "standard",
+    "supportedSeedLocales": ["zh-CN", "en-US", "ja-JP", "de-DE", "fr-FR", "ru-RU", "ko-KR"],
+    "activeSeedLocales": ["zh-CN"],
+    "driftCheckIntervalSec": 60
+  },
+  "paths": {
+    "contract": "contract/schema.yaml",
+    "migrations": "migrations",
+    "seeds": "seeds",
+    "driftPolicy": "drift/policy.yaml"
+  },
+  "spi": {
+    "provider": "default",
+    "hooks": []
+  }
+}

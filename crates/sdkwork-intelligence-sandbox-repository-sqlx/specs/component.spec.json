@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-intelligence-sandbox-repository-sqlx",
+    "displayName": "SDKWork Intelligence Sandbox PostgreSQL Repository",
+    "version": "0.1.0",
+    "type": "rust-crate",
+    "root": "sdkwork-sandbox/crates/sdkwork-intelligence-sandbox-repository-sqlx",
+    "domain": "intelligence",
+    "capability": "sandbox-lifecycle-postgresql-persistence",
+    "surfaceNotRequiredReason": "This L4 PostgreSQL repository adapter owns no HTTP, SDK, UI, or admin surface.",
+    "languages": ["rust"],
+    "generated": false,
+    "manifests": ["Cargo.toml"]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Repository adapter component and port binding rules."
+    },
+    {
+      "file": "APPLICATION_LAYERED_ARCHITECTURE_SPEC.md",
+      "path": "../../../sdkwork-specs/APPLICATION_LAYERED_ARCHITECTURE_SPEC.md",
+      "purpose": "L4 repository adapter dependency direction."
+    },
+    {
+      "file": "DATABASE_SPEC.md",
+      "path": "../../../sdkwork-specs/DATABASE_SPEC.md",
+      "purpose": "PostgreSQL authority, transactions, tenant isolation, and repository rules."
+    },
+    {
+      "file": "DATABASE_FRAMEWORK_SPEC.md",
+      "path": "../../../sdkwork-specs/DATABASE_FRAMEWORK_SPEC.md",
+      "purpose": "Database pool and lifecycle ownership."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Responsibility-specific repository and Sandbox naming."
+    },
+    {
+      "file": "RUST_CODE_SPEC.md",
+      "path": "../../../sdkwork-specs/RUST_CODE_SPEC.md",
+      "purpose": "Rust repository implementation rules."
+    },
+    {
+      "file": "SECURITY_SPEC.md",
+      "path": "../../../sdkwork-specs/SECURITY_SPEC.md",
+      "purpose": "Tenant isolation, secret handling, and safe errors."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "PostgreSQL repository and security verification."
+    }
+  ],
+  "contracts": {
+    "layerRole": "backend-repository",
+    "publicExports": ["."],
+    "providedPorts": [
+      { "name": "sandboxSessionPostgresRepository", "export": "." },
+      { "name": "sandboxProviderAllocationProtector", "export": "." }
+    ],
+    "requiredPorts": [
+      {
+        "name": "sandboxSessionRepositoryPort",
+        "export": ".",
+        "provider": "sdkwork-intelligence-sandbox-service"
+      },
+      {
+        "name": "databasePool",
+        "export": ".",
+        "provider": "sdkwork-database-sqlx"
+      },
+      {
+        "name": "sandboxProviderAllocationKeySource",
+        "export": ".",
+        "provider": "composition-secret-port"
+      }
+    ],
+    "runtimeEntrypoints": [],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "permissionComposition": {},
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": []
+  },
+  "verification": {
+    "commands": [
+      "cargo test -p sdkwork-intelligence-sandbox-repository-sqlx",
+      "node ../sdkwork-specs/tools/check-database-framework-standard.mjs --root ."
+    ]
+  }
+}

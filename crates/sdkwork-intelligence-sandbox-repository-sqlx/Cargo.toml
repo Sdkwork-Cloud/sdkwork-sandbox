@@ -1,0 +1,27 @@
+[package]
+name = "sdkwork-intelligence-sandbox-repository-sqlx"
+description = "PostgreSQL SQLx repository adapter for durable SDKWork Sandbox Session lifecycle state."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+sdkwork-database-sqlx.workspace = true
+sdkwork-intelligence-sandbox-service.workspace = true
+sdkwork-sandbox-provider-spi.workspace = true
+sdkwork-utils-rust.workspace = true
+serde_json.workspace = true
+sqlx.workspace = true
+zeroize.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[lints]
+workspace = true

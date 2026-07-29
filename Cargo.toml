@@ -1,0 +1,40 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/sdkwork-sandbox-provider-spi",
+    "crates/sdkwork-intelligence-sandbox-service",
+    "crates/sdkwork-intelligence-sandbox-repository-memory",
+    "crates/sdkwork-intelligence-sandbox-repository-sqlx",
+    "crates/sdkwork-sandbox-provider-local",
+    "crates/sdkwork-sandbox-service-host",
+    "crates/sdkwork-sandbox-cli",
+]
+
+[workspace.dependencies]
+async-trait = "0.1"
+serde_json = "1"
+sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "postgres", "json"] }
+thiserror = "2"
+tokio = { version = "1.48", features = ["macros", "rt", "rt-multi-thread", "sync", "time"] }
+uuid = { version = "1", features = ["v4"] }
+zeroize = "1"
+
+sdkwork-sandbox-provider-spi = { path = "crates/sdkwork-sandbox-provider-spi" }
+sdkwork-intelligence-sandbox-service = { path = "crates/sdkwork-intelligence-sandbox-service" }
+sdkwork-database-sqlx = { path = "../sdkwork-database/crates/sdkwork-database-sqlx" }
+sdkwork-utils-rust = { path = "../sdkwork-utils/packages/sdkwork-utils-rust" }
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0-or-later"
+authors = ["SDKWork Runtime Platform"]
+repository = "https://github.com/Sdkwork-Cloud/sdkwork-sandbox"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+dbg_macro = "deny"
+todo = "deny"
+unwrap_used = "deny"

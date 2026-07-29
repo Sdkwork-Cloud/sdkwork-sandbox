@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.database.prefix-registry",
+  "prefixes": [
+    {
+      "prefix": "sandbox_",
+      "owner": "sdkwork-runtime-platform",
+      "domain": "intelligence",
+      "capability": "sandbox",
+      "sub_namespace": "sandbox",
+      "description": "Sandbox-owned Session lifecycle, Operation, Runtime Binding, encrypted Provider recovery metadata, and Lease/Fencing state.",
+      "table_examples": [
+        "sandbox_session",
+        "sandbox_session_operation",
+        "sandbox_runtime_binding",
+        "sandbox_session_lease"
+      ],
+      "forbidden_aliases": ["app_", "sys_", "common_", "runtime_"],
+      "status": "ACTIVE",
+      "valid_from": "2026-07-28"
+    }
+  ]
+}

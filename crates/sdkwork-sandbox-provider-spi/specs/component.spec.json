@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-sandbox-provider-spi",
+    "displayName": "SDKWork Sandbox Provider SPI",
+    "version": "0.1.0",
+    "type": "rust-crate",
+    "root": "sdkwork-sandbox/crates/sdkwork-sandbox-provider-spi",
+    "domain": "intelligence",
+    "capability": "sandbox-provider",
+    "surfaceNotRequiredReason": "This L3 provider-port crate has no HTTP, SDK, UI, or admin surface.",
+    "languages": ["rust"],
+    "generated": false,
+    "manifests": ["Cargo.toml"]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Component contract and port declaration rules."
+    },
+    {
+      "file": "APPLICATION_LAYERED_ARCHITECTURE_SPEC.md",
+      "path": "../../../sdkwork-specs/APPLICATION_LAYERED_ARCHITECTURE_SPEC.md",
+      "purpose": "L3 provider-port ownership and dependency direction."
+    },
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Authored source boundaries and public exports."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Canonical provider and crate naming."
+    },
+    {
+      "file": "RUST_CODE_SPEC.md",
+      "path": "../../../sdkwork-specs/RUST_CODE_SPEC.md",
+      "purpose": "Rust crate structure and verification."
+    },
+    {
+      "file": "SECURITY_SPEC.md",
+      "path": "../../../sdkwork-specs/SECURITY_SPEC.md",
+      "purpose": "Least privilege and secret-safe provider boundaries."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "Contract and conformance verification."
+    }
+  ],
+  "contracts": {
+    "layerRole": "backend-domain",
+    "publicExports": ["."],
+    "providedPorts": [{ "name": "sandboxProvider", "export": "." }],
+    "requiredPorts": [],
+    "runtimeEntrypoints": [],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "permissionComposition": {},
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": []
+  },
+  "verification": {
+    "commands": ["cargo test -p sdkwork-sandbox-provider-spi"]
+  }
+}

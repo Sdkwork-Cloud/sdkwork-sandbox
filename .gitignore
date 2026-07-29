@@ -1,0 +1,27 @@
+# Rust
+/target/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# SDKWork local state
+/.sdkwork/local/
+/.sdkwork/tmp/
+/.sdkwork/cache/
+/.sdkwork/secrets/
+/.sdkwork/manual-backups/
+
+# Runtime state
+/data/
+/logs/
+/tmp/

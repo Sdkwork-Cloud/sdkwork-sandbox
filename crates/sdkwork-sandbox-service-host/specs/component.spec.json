@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-sandbox-service-host",
+    "displayName": "SDKWork Sandbox Service Host",
+    "version": "0.1.0",
+    "type": "rust-crate",
+    "root": "sdkwork-sandbox/crates/sdkwork-sandbox-service-host",
+    "domain": "intelligence",
+    "capability": "sandbox-service-host",
+    "surfaceNotRequiredReason": "This L5 service-host crate composes in-process capabilities and does not own an HTTP listener.",
+    "languages": ["rust"],
+    "generated": false,
+    "manifests": ["Cargo.toml"]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Composition ports and component contract rules."
+    },
+    {
+      "file": "APPLICATION_LAYERED_ARCHITECTURE_SPEC.md",
+      "path": "../../../sdkwork-specs/APPLICATION_LAYERED_ARCHITECTURE_SPEC.md",
+      "purpose": "L5 runtime composition ownership."
+    },
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Authored composition source boundaries."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Canonical service-host naming."
+    },
+    {
+      "file": "RUST_CODE_SPEC.md",
+      "path": "../../../sdkwork-specs/RUST_CODE_SPEC.md",
+      "purpose": "Rust composition crate structure."
+    },
+    {
+      "file": "CONFIG_SPEC.md",
+      "path": "../../../sdkwork-specs/CONFIG_SPEC.md",
+      "purpose": "Typed configuration and secret injection boundaries."
+    },
+    {
+      "file": "DEPLOYMENT_SPEC.md",
+      "path": "../../../sdkwork-specs/DEPLOYMENT_SPEC.md",
+      "purpose": "Standalone and cloud runtime composition parity."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "Composition and deployment-profile verification."
+    }
+  ],
+  "contracts": {
+    "layerRole": "runtime-service-host",
+    "publicExports": [],
+    "providedPorts": [],
+    "requiredPorts": [],
+    "runtimeEntrypoints": [],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "permissionComposition": {},
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": []
+  },
+  "verification": {
+    "commands": ["cargo check -p sdkwork-sandbox-service-host"]
+  }
+}
