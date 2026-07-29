@@ -677,6 +677,26 @@ async fn sandbox_postgres_repository_enforces_durable_lifecycle_contract() {
         .release_sandbox_session_lease(&winning_competing_sandbox_lease)
         .await
         .unwrap_or_else(|error| panic!("concurrent sandbox lease release failed: {error}")));
+    sqlx::query(
+        "UPDATE sandbox_session_lease SET sandbox_fencing_token = 9223372036854775807 \
+         WHERE tenant_id = $1 AND sandbox_session_id = $2",
+    )
+    .bind(tenant_a.as_str())
+    .bind(competing_sandbox_session_id.as_str())
+    .execute(sandbox_postgres_pool)
+    .await
+    .unwrap_or_else(|error| panic!("sandbox fencing token saturation failed: {error}"));
+    assert_eq!(
+        sandbox_session_repository
+            .acquire_sandbox_session_lease(
+                &tenant_a,
+                &competing_sandbox_session_id,
+                &competing_first_sandbox_lease_owner_id,
+                Duration::from_secs(30),
+            )
+            .await,
+        Err(SandboxSessionRepositoryError::LeaseConflict)
+    );
 
     let first_sandbox_lease_owner_id = SandboxLeaseOwnerId::generate();
     let second_sandbox_lease_owner_id = SandboxLeaseOwnerId::generate();
