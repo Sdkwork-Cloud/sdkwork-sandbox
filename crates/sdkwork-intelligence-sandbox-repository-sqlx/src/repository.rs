@@ -773,21 +773,30 @@ impl SandboxSessionRepository for SqlxSandboxSessionRepository {
             )
             .map(Some);
         }
-        let sandbox_session_exists: bool = sqlx::query_scalar(
-            "SELECT EXISTS(\
-                SELECT 1 FROM sandbox_session \
-                WHERE tenant_id = $1 AND sandbox_session_id = $2\
-             )",
+        let sandbox_lease_status: Option<(Option<i64>, bool)> = sqlx::query_as(
+            "SELECT sandbox_session_lease.sandbox_fencing_token, \
+                    (sandbox_session_lease.sandbox_lease_owner_id IS NULL \
+                     OR sandbox_session_lease.sandbox_lease_expires_at <= CURRENT_TIMESTAMP) \
+                        AS sandbox_lease_is_available \
+             FROM sandbox_session \
+             LEFT JOIN sandbox_session_lease \
+               ON sandbox_session_lease.tenant_id = sandbox_session.tenant_id \
+              AND sandbox_session_lease.sandbox_session_id = sandbox_session.sandbox_session_id \
+             WHERE sandbox_session.tenant_id = $1 \
+               AND sandbox_session.sandbox_session_id = $2",
         )
         .bind(tenant_id.as_str())
         .bind(sandbox_session_id.as_str())
-        .fetch_one(self.sandbox_postgres_pool()?)
+        .fetch_optional(self.sandbox_postgres_pool()?)
         .await
         .map_err(Self::map_sandbox_sqlx_error)?;
-        if sandbox_session_exists {
-            Ok(None)
-        } else {
-            Err(SandboxSessionRepositoryError::NotFound)
+        match sandbox_lease_status {
+            None => Err(SandboxSessionRepositoryError::NotFound),
+            Some((None, _)) => Err(SandboxSessionRepositoryError::InvalidStoredData),
+            Some((Some(sandbox_fencing_token), true)) if sandbox_fencing_token == i64::MAX => {
+                Err(SandboxSessionRepositoryError::LeaseConflict)
+            }
+            Some((Some(_), _)) => Ok(None),
         }
     }
 
