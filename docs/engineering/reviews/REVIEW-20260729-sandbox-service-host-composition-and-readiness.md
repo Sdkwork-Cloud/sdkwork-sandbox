@@ -60,7 +60,7 @@ Executed from `sdkwork-sandbox` on 2026-07-29:
 
 - `cargo fmt --all -- --check` - passed.
 - `cargo check --workspace --offline` - passed.
-- `cargo test --workspace --offline` - passed; 37 unit tests passed and the external PostgreSQL integration test remained explicitly ignored without `SDKWORK_SANDBOX_TEST_DATABASE_URL`.
+- `cargo test --workspace --offline` - passed; 41 unit tests passed and the external PostgreSQL integration test remained explicitly ignored without `SDKWORK_SANDBOX_TEST_DATABASE_URL`.
 - `cargo clippy --workspace --all-targets --offline -- -D warnings` - passed.
 - `node --test tests/contract/*.test.mjs` - 25 passed, 0 failed.
 - `node ../sdkwork-specs/tools/check-component-port-bindings.mjs --root . --strict` - passed.

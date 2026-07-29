@@ -97,7 +97,7 @@ SDKWork 共享类型 `TenantId`、`OperationId`、`RuntimeCapability` 与 `Isola
 
 公开错误和 Result 也属于领域契约：Identifier Boundary 使用 `SandboxIdentifierError`，生命周期使用 `SandboxLifecycleError`/`SandboxLifecycleResult`，Repository Port 使用 `SandboxSessionRepositoryError`/`SandboxSessionRepositoryResult`。应用尚未发布，不保留 `IdentifierError`、`LifecycleError`、`LifecycleResult`、`RepositoryError` 或 `RepositoryResult` 兼容别名。
 
-生命周期控制权竞争使用 `SandboxLifecycleError::LeaseUnavailable`，已取得控制权后续租、令牌校验或释放失败使用 `SandboxLifecycleError::LeaseLost`；跨 Kernel 边界时二者映射为来源为 Runtime 的可重试 `KernelErrorKind::Conflict`，不得误分类为参数校验或 Sandbox Provider 故障。
+生命周期控制权竞争使用 `SandboxLifecycleError::LeaseUnavailable`，已取得控制权后续租、令牌校验、持久化 Lease 校验或成功业务后的释放失败使用 `SandboxLifecycleError::LeaseLost`；已有 Provider/Readiness 错误不被并发释放错误覆盖。Reconciler 必须在取得 Lease 后重新读取权威 `SandboxSession`，不得依据 Lease 前陈旧状态触发 Provider Side Effect。跨 Kernel 边界时 `LeaseUnavailable`/`LeaseLost` 映射为来源为 Runtime 的可重试 `KernelErrorKind::Conflict`，不得误分类为参数校验或 Sandbox Provider 故障。
 
 依赖方向固定为 `sdkwork-agents -> sdkwork-kernel -> sdkwork-sandbox`。Sandbox 不依赖 Agents，不建立第二套 Workspace Registry，也不从 `sandbox_workspace_id` 猜测物理路径。
 

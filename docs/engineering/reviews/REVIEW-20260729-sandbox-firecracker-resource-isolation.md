@@ -27,7 +27,7 @@ Risk: critical - tenant quota authority, host resource isolation, OOM/PID/IO beh
 | `specs/sandbox-multi-tenant-scheduling.contract.json` | Draft Admission/Capacity authority supplies the Admission Grant and confirmed PostgreSQL Capacity Reservation identity/fingerprint required by the Resource Limit Grant; no runtime exists. |
 | `node --test tests/contract/*.test.mjs` | PASS (104/104) for the complete repository contract suite, including the integrated Provider, Broker, Workspace, Network, Observability, Resource/Usage, Multi-tenant Scheduling/Capacity, Node Trust/Verified Inventory, and PostgreSQL Quota/Capacity Persistence boundaries. |
 | `cargo fmt --all -- --check` / `cargo check --workspace --offline` / `cargo clippy --workspace --all-targets --offline -- -D warnings` | PASS; formatting, compilation and all-target linting are clean. |
-| `cargo test --workspace --offline` | PASS (37 passed, 1 PostgreSQL external-integration test ignored by its declared environment gate). |
+| `cargo test --workspace --offline` | PASS (41 passed, 1 PostgreSQL external-integration test ignored by its declared environment gate). |
 | SDKWork repository validators | PASS: documentation standard, packages layout, strict component ports, application layering, Rust backend composition, identity naming, documentation debt and repository baseline. |
 | `git diff --check` | PASS; no whitespace errors. |
 | `specs/sandbox-provider-delivery-gates.contract.json` | Firecracker Preflight consumes this contract and cannot report Resource/MicroVm readiness while it remains draft or unverified. |

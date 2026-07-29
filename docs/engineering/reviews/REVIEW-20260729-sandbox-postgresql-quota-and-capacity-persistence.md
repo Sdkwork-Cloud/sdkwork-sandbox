@@ -26,7 +26,7 @@ Risk: critical - SQL subject compatibility, tenant isolation, quota oversubscrip
 | `node --test tests/contract/sandbox-quota-and-capacity-persistence.contract.test.mjs` | PASS (13/13). |
 | `node --test tests/contract/*.test.mjs` | PASS (104/104) for the complete repository contract suite. |
 | `cargo fmt --all -- --check` / `cargo check --workspace --offline` / `cargo clippy --workspace --all-targets --offline -- -D warnings` | PASS; formatting, compilation, and all-target linting are clean. |
-| `cargo test --workspace --offline` | PASS (37 passed, 1 PostgreSQL external-integration test ignored by its declared `SDKWORK_SANDBOX_TEST_DATABASE_URL` environment gate). The ignored test is not counted as real PostgreSQL evidence. |
+| `cargo test --workspace --offline` | PASS (41 passed, 1 PostgreSQL external-integration test ignored by its declared `SDKWORK_SANDBOX_TEST_DATABASE_URL` environment gate). The ignored test is not counted as real PostgreSQL evidence. |
 | SDKWork repository documentation, package layout, component port, application layering, Rust composition, identity naming, Provider Session identity, pagination, API operation/envelope, database framework, and strict import-closure validators | PASS. |
 | SDKWork documentation-debt and repository-baseline audits | PASS; zero documentation-debt repositories and all baseline checks passed. |
 | Kernel `cargo check -p sdkwork-agent-kernel --offline` and exact `maps_invalid_sandbox_page_request_to_non_retryable_runtime_validation_error` regression | PASS; `InvalidPageRequest` is exhaustively mapped to a non-retryable Runtime `ValidationError` (1/1 exact test). |

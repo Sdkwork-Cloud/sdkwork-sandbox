@@ -30,7 +30,7 @@ Date: 2026-07-29
 | `sdkwork-database-cli -- --app-root . status` | PASS: `module=sandbox engine=postgres status=clean pending_migrations=0`。 |
 | `sdkwork-database-cli -- --app-root . drift-check` | PASS: `drift check passed`。 |
 | `cargo fmt --all -- --check` and `cargo check --workspace` | PASS。 |
-| `cargo test --workspace --offline` | PASS: 37 个默认 Rust Test；1 个显式 Live PostgreSQL Test 在默认套件中按设计忽略，并已由上方专项命令单独通过。 |
+| `cargo test --workspace --offline` | PASS: 41 个默认 Rust Test；1 个显式 Live PostgreSQL Test 在默认套件中按设计忽略，并已由上方专项命令单独通过。 |
 | `cargo clippy --workspace --all-targets -- -D warnings` | PASS。 |
 | Database Framework、Pagination、Component Port、Application Layering、Identity Naming、Packages Layout、Documentation、Docs Debt 与 Repository Baseline Validators | PASS；Documentation Debt 为 0。 |
 | Kernel `cargo test -p sdkwork-agent-kernel` and package Clippy | PASS: 160 个 Library Test、全部 Package Integration/Doc Test 与 Clippy 通过；Sandbox Runtime 8 个 Error/Identity Mapping Test 包含 `InvalidPageRequest`。 |

@@ -28,7 +28,7 @@ Risk: critical - tenant Workspace data, storage ownership, encryption keys, priv
 | Host Isolation Broker / Firecracker gates | Consume only an authorized opaque Attachment Reference; both remain draft and unimplemented. |
 | Service Host integration | Gate 0 machine contract continues to inject only provider-neutral `SandboxWorkspaceAttachmentPort`; L4 Block Device mechanism remains behind that port. |
 | Complete repository contract suite | `node --test tests/contract/*.test.mjs` PASS (104/104), including Firecracker Network/Resource Isolation, Multi-tenant Scheduling/Capacity, Node Trust/Verified Inventory, and PostgreSQL Quota/Capacity Persistence boundaries. |
-| Cargo and SDKWORK repository gates | Workspace Format/Check/Test/Clippy plus Documentation, Packages Layout, strict Component Ports, Layering, Rust Composition, Naming, Docs-debt, Baseline and Diff checks PASS after final Workspace integration; 37 Rust tests pass and the one explicitly external PostgreSQL fixture remains ignored without its test database variable. |
+| Cargo and SDKWORK repository gates | Workspace Format/Check/Test/Clippy plus Documentation, Packages Layout, strict Component Ports, Layering, Rust Composition, Naming, Docs-debt, Baseline and Diff checks PASS after final Workspace integration; 41 Rust tests pass and the one explicitly external PostgreSQL fixture remains ignored without its test database variable. |
 | Runtime evidence | Absent by design; no Attachment Port/Adapter, Storage Backend, KMS, Device, Guest Mount or Sanitization exists. |
 
 ## Decision Matrix

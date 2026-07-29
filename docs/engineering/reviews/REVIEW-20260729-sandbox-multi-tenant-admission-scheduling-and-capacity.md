@@ -30,7 +30,7 @@ Risk: critical - tenant admission, entitlement input, quota race, node trust, pl
 | `specs/sandbox-firecracker-resource-isolation.contract.json` | Resource Limit Grant consumes Admission Grant and Capacity Reservation identity/fingerprint and cannot exceed the reservation. |
 | `specs/sandbox-provider-delivery-gates.contract.json` | Firecracker cloud delivery consumes the draft scheduling/capacity boundary before Provider selection/allocation. |
 | `cargo fmt --all -- --check` / `cargo check --workspace --offline` / `cargo clippy --workspace --all-targets --offline -- -D warnings` | PASS; formatting, compilation and all-target linting are clean. |
-| `cargo test --workspace --offline` | PASS (37 passed, 1 PostgreSQL external-integration test ignored by its declared environment gate). |
+| `cargo test --workspace --offline` | PASS (41 passed, 1 PostgreSQL external-integration test ignored by its declared environment gate). |
 | SDKWork repository validators | PASS: documentation standard, packages layout, strict component ports, application layering, Rust backend composition, identity naming, documentation debt and repository baseline. |
 | `git diff --check` | PASS; no whitespace errors. |
 | Real PostgreSQL, multi-replica, Node Inventory, KVM and scale evidence | Absent by design; no Scheduler, admission engine, reservation store, Node Agent, Firecracker placement, or production topology exists. |
