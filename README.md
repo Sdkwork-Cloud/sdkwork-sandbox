@@ -44,4 +44,11 @@ node ../sdkwork-specs/tools/check-component-port-bindings.mjs --root . --strict
 node ../sdkwork-specs/tools/audit-repository-baseline.mjs --root .
 ```
 
+Live PostgreSQL 16/17 migration, repository, encryption and backup/restore evidence is available through the disposable loopback-only runner:
+
+```bash
+node tools/testing/sandbox-postgres-evidence.mjs --postgres-major 16
+node tools/testing/sandbox-postgres-evidence.mjs --postgres-major 17
+```
+
 Global standards remain authoritative under `../sdkwork-specs/`; this repository links to them and does not copy their bodies.

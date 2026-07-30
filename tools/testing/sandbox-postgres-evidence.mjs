@@ -138,7 +138,7 @@ function requireSuccess(result, label) {
 }
 
 function waitForPostgres(runProcess, identity) {
-  for (let attempt = 0; attempt < 40; attempt += 1) {
+  for (let attempt = 0; attempt < 120; attempt += 1) {
     const result = runProcess("docker", [
       "exec",
       identity.containerName,
@@ -153,7 +153,7 @@ function waitForPostgres(runProcess, identity) {
     }
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 250);
   }
-  fail("disposable PostgreSQL did not become ready within 10 seconds");
+  fail("disposable PostgreSQL did not become ready within 30 seconds");
 }
 
 function lifecycleQuery(schemaName) {
@@ -195,7 +195,8 @@ export function runSandboxPostgresEvidence({
   runProcess = defaultRunProcess,
   runId,
 } = {}) {
-  const identity = createPostgresEvidenceIdentity(postgresMajor ?? "17", runId);
+  const resolvedPostgresMajor = postgresMajor ?? "17";
+  const identity = createPostgresEvidenceIdentity(resolvedPostgresMajor, runId);
   let containerCreated = false;
   try {
     requireSuccess(
@@ -384,7 +385,7 @@ export function runSandboxPostgresEvidence({
     return {
       schemaVersion: 1,
       kind: "sdkwork.sandbox.postgres-evidence",
-      postgresMajor,
+      postgresMajor: resolvedPostgresMajor,
       image: identity.image,
       imageDigest,
       migration: { firstApplied: 1, secondApplied: 0, status: "clean", drift: "passed" },
@@ -396,9 +397,8 @@ export function runSandboxPostgresEvidence({
     if (containerCreated) {
       const cleanup = runProcess("docker", ["rm", "--force", identity.containerName]);
       if (cleanup.error || cleanup.status !== 0) {
-        process.stderr.write(
-          `warning: disposable PostgreSQL cleanup failed: ${sanitizeProcessOutput(cleanup.stderr)}\n`,
-        );
+        const details = sanitizeProcessOutput(cleanup.stderr || cleanup.error?.message);
+        fail(`disposable PostgreSQL cleanup failed${details ? `: ${details}` : ""}`);
       }
     }
   }

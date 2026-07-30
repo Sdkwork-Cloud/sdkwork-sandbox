@@ -45,7 +45,7 @@ Date: 2026-07-28
 | --- | --- |
 | `cargo test --offline -p sdkwork-agent-kernel sandbox_runtime::tests` from `sdkwork-kernel` | PASS，8 Adapter Tests；Agents-owned ID 映射到 `sandbox_` Command 字段，Path-like ID 在进入 Sandbox 前被拒绝，Lease/Repository Error（含 `InvalidPageRequest`）显式安全映射 |
 | `cargo test --offline -p sdkwork-agent-kernel` from `sdkwork-kernel` | PASS，160 Library Tests、Integration Targets 与 Doc Tests |
-| `cargo test --locked -p sdkwork-intelligence-agents-service` from `sdkwork-agents` | PASS，282 Tests；5 PostgreSQL Live Tests 因未配置 `SDKWORK_AGENTS_TEST_POSTGRES_URL` 保持 ignored |
+| `cargo test --locked -p sdkwork-intelligence-agents-service` from `sdkwork-agents` | PASS，282 Tests；5 PostgreSQL Live Tests 因未配置 `SDKWORK_DATABASE_TEST_POSTGRES_URL` 保持 ignored |
 | `cargo clippy -p sdkwork-intelligence-agents-service --all-targets -- -D warnings` from `sdkwork-agents` | PASS；Session Activity Projection 输入已收束为高内聚 `SessionActivitySummaryParts`，未使用 Clippy Allow 绕过门禁 |
 | `cargo tree -p sdkwork-intelligence-agents-service -i sdkwork-sandbox-provider-spi` from `sdkwork-agents` | PASS；依赖证据为 `sdkwork-agents -> sdkwork-kernel -> sdkwork-sandbox`，无 Sandbox 到 Kernel/Agents 的反向依赖 |
 

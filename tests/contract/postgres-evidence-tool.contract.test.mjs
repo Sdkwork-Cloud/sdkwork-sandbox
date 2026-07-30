@@ -85,6 +85,7 @@ test("PostgreSQL evidence uses argument arrays and internally scoped cleanup", (
   assert.match(source, /spawnSync\(command, args,/u);
   assert.match(source, /shell: false/u);
   assert.match(source, /\["rm", "--force", identity\.containerName\]/u);
+  assert.match(source, /fail\(`disposable PostgreSQL cleanup failed/u);
   assert.doesNotMatch(source, /execSync|shell:\s*true/u);
   assert.doesNotMatch(source, /sdkwork-dev-postgres/u);
 });
