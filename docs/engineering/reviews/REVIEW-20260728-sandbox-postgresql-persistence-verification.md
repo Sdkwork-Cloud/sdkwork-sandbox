@@ -8,7 +8,7 @@ Owner: SDKWork Runtime Platform
 
 Date: 2026-07-28
 
-Updated: 2026-07-29
+Updated: 2026-07-30
 
 ## Scope
 
@@ -18,7 +18,8 @@ Updated: 2026-07-29
 
 - Windows host with Docker Engine `28.0.4`.
 - Ephemeral `postgres:17-alpine`, image digest `sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193`.
-- Database initialized only through `sdkwork-database-cli`; Repository tests constructed the pool through `sdkwork-database-sqlx::PoolBuilder`.
+- The disposable database and same-named schema used canonical identity `sdkwork_ai_test_sandbox_pg17_evidence` with role `sdkwork_ai_test` and loopback-only host port `55432`.
+- Database initialized only through `sdkwork-database-cli`; Repository tests constructed the pool through `sdkwork-database-sqlx::PoolBuilder` from the explicit test URL.
 - The exact temporary container and all generated test databases/dumps were deleted after verification.
 
 ## Evidence
@@ -29,10 +30,10 @@ Updated: 2026-07-29
 | `cargo test --workspace --offline` | PASS: 41 Rust unit/behavior tests; the explicit live PostgreSQL test remains ignored unless `SDKWORK_DATABASE_TEST_POSTGRES_URL` is provided. |
 | `cargo clippy --workspace --all-targets -- -D warnings` | PASS. |
 | `node --test tests/contract/database-framework.contract.test.mjs` | PASS: 4 database contract tests, including stable Tenant+Session Operation Sequence constraints. |
-| `sdkwork-database-cli -- --app-root . init` against an empty database | PASS: 1 migration applied. Immediate second init applied 0 migrations. |
-| `sdkwork-database-cli -- --app-root . status` | PASS: `module=sandbox engine=postgres status=clean pending_migrations=0`. |
-| `sdkwork-database-cli -- --app-root . drift-check` | PASS. |
-| `cargo test -p sdkwork-intelligence-sandbox-repository-sqlx --test postgres_repository -- --ignored --nocapture` | PASS: 1 live PostgreSQL integration test. |
+| `cargo run --manifest-path ../sdkwork-database/Cargo.toml --locked -p sdkwork-database-cli -- --app-root . init` against an empty database | PASS: 1 migration applied. Immediate second init applied 0 migrations. |
+| `cargo run --manifest-path ../sdkwork-database/Cargo.toml --locked -p sdkwork-database-cli -- --app-root . status` | PASS: `module=sandbox engine=postgres status=clean pending_migrations=0`. |
+| `cargo run --manifest-path ../sdkwork-database/Cargo.toml --locked -p sdkwork-database-cli -- --app-root . drift-check` | PASS: `drift check passed`. |
+| `SDKWORK_DATABASE_TEST_POSTGRES_URL=<canonical-test-url> cargo test -p sdkwork-intelligence-sandbox-repository-sqlx --test postgres_repository --locked -- --ignored --nocapture` with `SDKWORK_DATABASE_URL` absent | PASS: 1 live PostgreSQL integration test. The test-only URL selected the pool, closing the former default-development-database fallthrough risk. |
 | Persisted invariant tamper regression | PASS: `Destroyed` with Binding, `Starting` without InProgress Start, `Starting` without Binding Intent, and `Failed` with unmatched Failure all returned `InvalidStoredData`; Capture and Restore apply the same fail-closed validation, and the legal record was restored unchanged. |
 | Exact reconciliation boundary | PASS: page sizes `0/201` return `InvalidPageRequest`; a final page exactly equal to `page_size` has no continuation when no successor exists. |
 | Start Intent ordering regression | PASS: no Provider Allocate occurs before `Starting`、In-progress Start Operation and no-allocation Binding Intent are durably saved; Retry Start clears an old Allocation while the aggregate remains in its stable state. |
@@ -40,7 +41,7 @@ Updated: 2026-07-29
 | Lease authority failure injection | PASS: Renew failure, Save `LeaseConflict`, and successful-business Release failure return `SandboxLifecycleError::LeaseLost`; an existing Provider failure remains authoritative when Release also fails. |
 | Stale reconciliation candidate | PASS: after Lease acquisition the Service reloads the authoritative Session; a candidate already advanced to `Running` causes no Allocate/Start side effect and returns the current stable state. |
 | Fencing token saturation | PASS: Memory and live PostgreSQL return `LeaseConflict` at `9223372036854775807`; neither wraps nor reports temporary Lease unavailability. |
-| PostgreSQL backup/restore using `pg_dump --format=custom` and `pg_restore` | PASS: restored Session/Operation/Binding/Lease counts were `3/4/2/3`; plaintext Allocation Reference matches were `0`. |
+| PostgreSQL backup/restore using `pg_dump --format=custom` and `pg_restore` | PASS on 2026-07-30: restored Session/Operation/Binding/Lease counts were `11/20/9/11`; plaintext Allocation Reference matches were `0`. |
 | Database, Component, Layering, Identity Naming, Documentation, Packages Layout, and Repository Baseline validators | PASS. |
 | Kernel `cargo fmt --manifest-path sdkwork-agent-kernel/Cargo.toml -- --check` and `cargo check --offline -p sdkwork-agent-kernel` | PASS. The Kernel lock change only adds Tokio to the Sandbox Service dependency entry. |
 | Kernel `cargo test --offline -p sdkwork-agent-kernel` | PASS: 160 library tests plus all component contract tests; 2 doc tests passed and 1 remained intentionally ignored. |
