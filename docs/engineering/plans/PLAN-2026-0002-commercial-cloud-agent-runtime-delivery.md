@@ -217,7 +217,7 @@ Additional release evidence must include live PostgreSQL, real cross-platform Lo
 
 | Command | Result |
 | --- | --- |
-| `cargo fmt --all -- --check` | BLOCKED outside this repository: Cargo checks local path dependency `../sdkwork-database`, whose existing `crates/sdkwork-database-history/src/lock.rs` and `crates/sdkwork-database-sqlx/tests/process_shared_pool.rs` changes are not rustfmt-clean. No sibling file was modified. |
+| `cargo fmt --all -- --check` | BLOCKED outside this repository: Cargo checks local path dependency `../sdkwork-database`, whose existing `crates/sdkwork-database-config/src/workspace_database.rs` changes are not rustfmt-clean. No sibling file was modified. |
 | `cargo fmt --package <each Sandbox workspace member> -- --check` | PASS for all 7 `sdkwork-sandbox` crates. |
 | `cargo check --workspace --locked` | PASS; lockfile synchronized with the current sibling database dependency graph (`url`) and Local Provider test-only command-contract parser (`serde_json`). |
 | `cargo test --workspace --locked` | PASS: 43 passed; 1 live PostgreSQL test ignored because `SDKWORK_DATABASE_TEST_POSTGRES_URL` and an initialized database were not available. |
