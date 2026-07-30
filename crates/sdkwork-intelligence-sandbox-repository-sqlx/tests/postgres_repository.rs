@@ -30,19 +30,48 @@ use sdkwork_sandbox_provider_spi::{
 const SANDBOX_POSTGRES_TEST_KEY_ID: &str = "sandbox-postgres-test-key";
 const SANDBOX_POSTGRES_TEST_DATABASE_URL: &str = "SDKWORK_DATABASE_TEST_POSTGRES_URL";
 const SANDBOX_WORKSPACE_DATABASE_URL: &str = "SDKWORK_DATABASE_URL";
+const SANDBOX_POSTGRES_TEST_DATABASE_URL_MISMATCH: &str =
+    "SDKWORK_DATABASE_URL must exactly match SDKWORK_DATABASE_TEST_POSTGRES_URL before destructive PostgreSQL tests";
+
+fn validate_sandbox_postgres_test_database_url(
+    sandbox_workspace_database_url: &str,
+    sandbox_test_database_url: &str,
+) -> Result<(), &'static str> {
+    if sandbox_workspace_database_url == sandbox_test_database_url {
+        Ok(())
+    } else {
+        Err(SANDBOX_POSTGRES_TEST_DATABASE_URL_MISMATCH)
+    }
+}
 
 fn sandbox_postgres_test_pool_builder() -> PoolBuilder {
     let sandbox_test_database_url = std::env::var(SANDBOX_POSTGRES_TEST_DATABASE_URL)
         .unwrap_or_else(|_| panic!("{SANDBOX_POSTGRES_TEST_DATABASE_URL} must be set"));
     let sandbox_workspace_database_url = std::env::var(SANDBOX_WORKSPACE_DATABASE_URL)
         .unwrap_or_else(|_| panic!("{SANDBOX_WORKSPACE_DATABASE_URL} must be set"));
-    assert!(
-        sandbox_workspace_database_url == sandbox_test_database_url,
-        "{SANDBOX_WORKSPACE_DATABASE_URL} must exactly match \
-         {SANDBOX_POSTGRES_TEST_DATABASE_URL} before destructive PostgreSQL tests"
-    );
+    validate_sandbox_postgres_test_database_url(
+        &sandbox_workspace_database_url,
+        &sandbox_test_database_url,
+    )
+    .unwrap_or_else(|error| panic!("{error}"));
     PoolBuilder::from_env("SANDBOX_TEST")
         .unwrap_or_else(|error| panic!("sandbox test database config failed: {error}"))
+}
+
+#[test]
+fn sandbox_postgres_destructive_test_requires_matching_non_echoing_database_urls() {
+    assert_eq!(
+        validate_sandbox_postgres_test_database_url("same-test-url", "same-test-url"),
+        Ok(())
+    );
+    assert_eq!(
+        validate_sandbox_postgres_test_database_url(
+            "workspace-url-containing-secret",
+            "test-url-containing-secret",
+        ),
+        Err(SANDBOX_POSTGRES_TEST_DATABASE_URL_MISMATCH)
+    );
+    assert!(!SANDBOX_POSTGRES_TEST_DATABASE_URL_MISMATCH.contains("containing-secret"));
 }
 
 struct SandboxHistoricalKeyPause {

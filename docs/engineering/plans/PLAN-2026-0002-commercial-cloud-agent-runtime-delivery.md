@@ -220,7 +220,7 @@ Additional release evidence must include live PostgreSQL, real cross-platform Lo
 | `cargo fmt --all -- --check` | BLOCKED outside this repository: Cargo checks local path dependency `../sdkwork-database`, whose existing `crates/sdkwork-database-config/src/workspace_database.rs` changes are not rustfmt-clean. No sibling file was modified. |
 | `cargo fmt --package <each Sandbox workspace member> -- --check` | PASS for all 7 `sdkwork-sandbox` crates. |
 | `cargo check --workspace --locked` | PASS; lockfile synchronized with the current sibling database dependency graph (`url`) and Local Provider test-only command-contract parser (`serde_json`). |
-| `cargo test --workspace --locked` | PASS: 43 passed; 1 live PostgreSQL test intentionally ignored in the default suite because it requires an external database. |
+| `cargo test --workspace --locked` | PASS: 44 passed, including the destructive-test URL guard; 1 live PostgreSQL test intentionally ignored in the default suite because it requires an external database. |
 | `SDKWORK_DATABASE_URL=<canonical-test-url> SDKWORK_DATABASE_TEST_POSTGRES_URL=<same-url> cargo test -p sdkwork-intelligence-sandbox-repository-sqlx --test postgres_repository --locked -- --ignored --nocapture` | PASS on disposable `postgres:17-alpine`: 1 passed, 0 failed. Exact pre-pool URL equality is mandatory, so the destructive test cannot fall through to the default development database or rewrite process-global environment. |
 | PostgreSQL 17 custom-format backup and empty-database restore | PASS: restored Session/Operation/Binding/Lease counts matched `11/20/9/11`; plaintext Allocation Reference matches remained `0`. |
 | `cargo clippy --workspace --all-targets --locked -- -D warnings` | PASS |
