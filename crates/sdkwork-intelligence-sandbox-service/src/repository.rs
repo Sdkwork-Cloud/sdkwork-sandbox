@@ -11,8 +11,9 @@ use sdkwork_sandbox_provider_spi::{
 use thiserror::Error;
 
 use crate::{
-    SandboxOperationOutcome, SandboxRuntimeBinding, SandboxSession, SandboxSessionFailure,
-    SandboxSessionOperation, SandboxSessionOperationKind, SandboxSessionState,
+    model::MAX_SANDBOX_SESSION_VERSION, SandboxOperationOutcome, SandboxRuntimeBinding,
+    SandboxSession, SandboxSessionFailure, SandboxSessionOperation, SandboxSessionOperationKind,
+    SandboxSessionState,
 };
 
 fn is_safe_sandbox_allocation_key_id(sandbox_allocation_key_id: &str) -> bool {
@@ -365,6 +366,9 @@ pub struct SandboxSessionRepositorySnapshot {
 
 impl SandboxSessionRepositorySnapshot {
     fn validate_sandbox_persisted_invariants(&self) -> SandboxSessionRepositoryResult<()> {
+        if self.sandbox_version > MAX_SANDBOX_SESSION_VERSION {
+            return Err(SandboxSessionRepositoryError::InvalidStoredData);
+        }
         let mut sandbox_operation_ids = BTreeSet::new();
         let mut sandbox_operations = self.sandbox_operations.iter();
         let Some(sandbox_create_operation) = sandbox_operations.next() else {
@@ -1141,6 +1145,22 @@ mod tests {
 
         assert_eq!(
             sandbox_snapshot.restore(&PanicSandboxAllocationProtector),
+            Err(SandboxSessionRepositoryError::InvalidStoredData)
+        );
+    }
+
+    #[test]
+    fn sandbox_snapshot_rejects_versions_above_the_persistence_maximum() {
+        let mut sandbox_snapshot = sandbox_snapshot(
+            SandboxSessionState::Created,
+            None,
+            None,
+            vec![sandbox_create_operation()],
+        );
+        sandbox_snapshot.sandbox_version = MAX_SANDBOX_SESSION_VERSION + 1;
+
+        assert_eq!(
+            sandbox_snapshot.validate_sandbox_persisted_invariants(),
             Err(SandboxSessionRepositoryError::InvalidStoredData)
         );
     }

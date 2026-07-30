@@ -4,19 +4,23 @@ Status: draft
 
 Owner: SDKWork Runtime Platform
 
-Updated: 2026-07-29
+Updated: 2026-07-30
 
 Parent: [SDKWork Sandbox PRD](PRD.md)
 
 ## Phase 0: Foundation
 
-交付物：独立仓库、SDKWork L1/L2 基线、完整目录字典、文档 Canon，以及当前七个分层 Rust 组件边界。Provider SPI、Sandbox Service、Memory Repository 与 PostgreSQL Repository 已进入候选实现；Local Provider、Service Host 与 CLI 仍未激活运行行为。Sandbox Observability/Event/Audit/Outbox、Host Isolation Broker、Firecracker Artifact Compatibility、Workspace Block Device/Sanitization、Firecracker Network Isolation、Firecracker Resource Isolation/Usage、Multi-tenant Admission/Scheduling/Capacity、Node Trust/Verified Inventory 与 PostgreSQL Quota/Capacity Persistence 仅形成 `draft` 机器契约与静态 Contract Test，不代表运行时、存储迁移、KMS、网络、配额计量、调度或发布能力。
+交付物：独立仓库、SDKWork L1/L2 基线、完整目录字典、文档 Canon，以及当前七个分层 Rust 组件边界。Provider SPI、Sandbox Service、Memory Repository 与 PostgreSQL Repository 已进入候选实现；Local Provider、Service Host 与 CLI 仍未激活运行行为。Local Host、Observability/Event/Audit/Outbox、Host Broker、Firecracker Artifact、Workspace Block Device、Network/Resource Isolation、Scheduling/Capacity、Node Trust、Quota Persistence、Runtime Pool、Lifecycle Hot State/Idempotency、Workspace Runtime Transaction 与 Standalone Data Residency/Recovery 仅形成 `draft` 机器契约与静态 Contract Test，不代表 Host execution、Checkpoint、存储迁移、KMS、网络、调度、数据驻留或发布能力。
 
 退出门禁：Cargo Workspace Check/Test 通过；文档、Workspace Layout、Component Contract、Naming 与 Repository Baseline 检查通过；代码不声称已经具备可用 Sandbox 执行能力。
 
 ## V1: Local Runtime
 
-当前进度：`REQ-2026-0002` 已实现 Provider-neutral `SandboxSession` Lifecycle 候选契约和 Memory Repository Adapter；`REQ-2026-0004` 已固定 `sdkwork-agents -> sdkwork-kernel -> sdkwork-sandbox`、Agents Workspace 权威与 `sandbox_*` ID 映射规则，并验证 Opaque Workspace Context 在 Allocate/Start Provider Request 中原样传递以及未附着 Readiness 关闭失败；`REQ-2026-0005` 已物化 PostgreSQL Repository、加密 `SandboxRuntimeBinding` 恢复元数据、Lease/Fencing、Provider 调用前续租、有界 Timeout 与瞬态 `SandboxSession` Reconciler，并固定 Start 恢复顺序为“稳定状态下清理旧 Allocation -> 原子保存 `Starting`/In-progress Start/无 Allocation Binding Intent -> Allocate”。故障注入已证明 Allocation 保存失败后 Reconciler 会以更高 Fencing Token 重新 Allocate 且只启动新 Allocation；Reconciler 抢 Lease 后会重读权威 Session，Renew/Save/Release 控制权故障统一为 `LeaseLost`，Memory/PostgreSQL 对 Fencing Token 上限耗尽一致关闭失败；`REQ-2026-0006` 的版本化 Key Source、Tenant-scoped Re-encryption、页目标 Protection Version 稳定性与 Tenant+Binding+Session+旧密文元数据 CAS 已通过真实 PostgreSQL 候选验证，并形成旧密钥撤销 Runbook Candidate；`REQ-2026-0007` 已形成 Provider-neutral Command/Terminal 候选契约。生产 Physical Workspace Attachment、真实 Provider Fencing、Secret/KMS/Operator Composition、Command Executor 公共命名、跨平台 Process Supervision、多副本长稳/PITR/SLO、撤销演练与安全边界人工评审仍是门禁，真实 Local Host Execution 尚未激活。
+当前进度：`REQ-2026-0002` 已实现 Provider-neutral `SandboxSession` Lifecycle 候选契约和 Memory Repository Adapter；`REQ-2026-0004` 已固定 `sdkwork-agents -> sdkwork-kernel -> sdkwork-sandbox`、Agents Workspace 权威与 `sandbox_*` ID 映射规则，并验证 Opaque Workspace Context 在 Allocate/Start Provider Request 中原样传递以及未附着 Readiness 关闭失败；`REQ-2026-0005` 已物化 PostgreSQL Repository、加密 `SandboxRuntimeBinding` 恢复元数据、Lease/Fencing、Provider 调用前续租、有界 Timeout 与瞬态 `SandboxSession` Reconciler，并固定 Start 恢复顺序为“稳定状态下清理旧 Allocation -> 原子保存 `Starting`/In-progress Start/无 Allocation Binding Intent -> Allocate”。故障注入已证明 Allocation 保存失败后 Reconciler 会以更高 Fencing Token 重新 Allocate 且只启动新 Allocation；Reconciler 抢 Lease 后会重读权威 Session，Renew/Save/Release 控制权故障统一为 `LeaseLost`，Memory/PostgreSQL 对 Fencing Token 上限耗尽一致关闭失败；`REQ-2026-0006` 的版本化 Key Source、Tenant-scoped Re-encryption、页目标 Protection Version 稳定性与 Tenant+Binding+Session+旧密文元数据 CAS 已通过真实 PostgreSQL 候选验证，并形成旧密钥撤销 Runbook Candidate；`REQ-2026-0007` 已形成 Provider-neutral Command/Terminal 候选契约。Local Host Boundary 已把 opened Capability、Filesystem Race、Windows Job Object、Linux delegated cgroup v2、macOS Terminal denial、空环境 allowlist、Cleanup/Quarantine 与 Supply-chain Gate 物化为静态机器权威；生产 Physical Workspace Attachment、真实 Provider Fencing、Secret/KMS/Operator Composition、Command Executor 公共命名、真实平台 Conformance、多副本长稳/PITR/SLO、撤销演练与安全边界人工评审仍是门禁，真实 Local Host Execution 尚未激活。
+
+当前 Lifecycle Repository 仍在普通 hydrate、Operation lookup 和 Reconciliation 候选读取中加载完整有序 Operation 历史，且没有批准的最大 Operation 数、最大 Session 生命周期或终态幂等保留策略。`REQ-2026-0020`、对应 ADR/Review 与机器契约已将 bounded Hot State、point-lookup Idempotency Ledger、Late Retry、Retention Worker 和 expand/backfill/cutover Migration 建立为独立 Gate 0；精确值及行为仍待人审，当前不改变 REQ-2026-0005 的已验收候选实现。
+
+`REQ-2026-0022` 已将 Local 商业数据承诺建立为独立 Gate 0：`standalone` 或 Local Provider 不能推导设备本地性，BirdCoder 不拥有业务表，Agents 与 Sandbox 服务权威仍使用物理位于本机的 PostgreSQL，嵌入式 SQLite 只允许声明为 `client-local` 的有界状态。完整数据清单、独立 Capability、无隐式远程副本/遥测、角色正确的备份恢复、导出清除、故障关闭和 Windows/macOS/Linux 真实证据均未实现，因此当前不能发布全部数据本地、严格本地处理或本地恢复声明。
 
 交付顺序固定为 Local Provider -> 共享 Command/Terminal Conformance -> Firecracker Provider。Docker Provider 本阶段不实施、不作为测试替代、不作为 Capability 或 Assurance 回退。
 
@@ -27,12 +31,18 @@ Parent: [SDKWork Sandbox PRD](PRD.md)
 1. Runtime Request/Response 与 Capability Negotiation 契约；实现对象固定为 `CreateSandboxSessionCommand`、`SandboxSessionLifecycleCommand`、`SandboxSession` 与 `SandboxRuntimeBinding`，不引入替代产品术语。
 2. Agents-owned Workspace Identity 与 Sandbox-owned Containment/Attachment/Git Runtime Capability。
 3. `SandboxSession`/`SandboxSessionState` 状态机与带 `sandbox_*` 字段的幂等生命周期 Command；共享 `OperationId` 在该边界使用 `sandbox_operation_id`。
-4. Windows、macOS、Linux 的 Local Provider 与公开保证限制。
+4. Windows suspended Job Object、Linux race-free delegated cgroup v2 与 macOS Terminal denial 的 Local Provider 平台切片及公开保证限制；Process Group-only、spawn 后 attach 与字符串 Path containment 不作为保证。
 5. Provider-neutral Command/Terminal、Process、Filesystem、Environment 与 Build 能力；Port、Network 与 Browser 在专项 Requirement 前不声明。
 6. Resource Limit、Log/Event Streaming、本地恢复与 Operator CLI。
 7. PostgreSQL `SandboxSession`/Operation/`SandboxRuntimeBinding` Authority、Tenant-scoped Lease/Fencing 与 Crash Reconciliation；Memory Repository 不作为 Server Authority。
+8. 经 REQ-2026-0020 人审批准后，将 Session hydrate 收敛为 bounded Hot State + current Operation，并以独立 durable Idempotency Ledger 保留点查重放/冲突语义；禁止静默截断或猜测 TTL。
+9. 经 REQ-2026-0022 人审批准后，按数据角色组合本地 PostgreSQL/`client-local` Store、Workspace/Runtime/Cache/Log/Secret/Temp Capability、无隐式传输、Backup/Restore、Export/Purge 与 Uninstall Preservation；任何缺失证据使 Local 驻留声明 Not Ready。
 
-退出门禁：Windows、macOS、Linux 上受支持的 Local Provider Conformance 通过；Kernel 只使用经过评审的 Provider-neutral Port 且无 Sandbox Provider 分支；安全测试覆盖 Path Escape、Process Cleanup、Environment/Secret Redaction、Quota 与破坏性操作。未交付 Network Policy 前 Descriptor 不声明 Network/Browser/Port Capability。
+退出门禁：Windows/Linux 上声称的 Local Terminal/Filesystem Conformance 通过，macOS Terminal Denial/无回退 Conformance 通过；Kernel 只使用经过评审的 Provider-neutral Port 且无 Sandbox Provider 分支；安全测试覆盖 Path/Link/Mount/Identity Race、Process Cleanup、Ambient Credential Denial、Environment/Secret Redaction、Quota 与破坏性操作。未交付 Network Policy 前 Descriptor 不声明 Network/Browser/Port Capability。
+
+## V1 Data Governance Slice: Standalone Local Residency
+
+`REQ-2026-0022`、对应 ADR/Review 与机器契约当前分别为 `draft`/`proposed`/`pending-human-review`。该切片仅为 `sandbox_standalone_local` 增加四仓 Data Inventory、两种候选 Claim、Database Role、Runtime Directory Separation、Transfer/Sync、Backup/Restore、Export/Purge、Failure 和真实 OS Evidence Gate；它不创建 BirdCoder 业务数据库，不把 Agents/Sandbox Server Authority 改为 SQLite，也不授权 Runtime Path、Database/Migration、Backup、Telemetry、Sync、API/SDK、Installer 或跨仓库源代码变更。
 
 ## V1 Composition Governance Slice: Service Host
 
@@ -44,7 +54,7 @@ Parent: [SDKWork Sandbox PRD](PRD.md)
 
 ## V2: Isolated Cloud Runtime
 
-当前候选入口：`REQ-2026-0008` 与对应 Firecracker ADR 已定义 Linux KVM、Jailer、Artifact Integrity、cgroup v2、Network Namespace、Workspace Block Device、Vsock、Fencing、Cleanup 与 Tenant Sanitization 门禁。`REQ-2026-0016` 已固定 Admission、Node Inventory、Scheduler、Placement 与 Capacity Reservation，`REQ-2026-0017` 已固定 Node Trust、Enrollment、Attestation 与 Verified Inventory，`REQ-2026-0018` 已固定 PostgreSQL Quota/Capacity State、Reservation、Transaction/Lock/CAS/Fencing、Expiry/Quarantine、RLS/Role 与 Recovery 的 Gate 0 边界；后续独立切片包括这些边界获批后的实现 Requirement、Warm Pool、Portable Checkpoint、Provider Snapshot、Recovery、Internal API/SDK、Cluster Service Host 与 Application Ingress。
+当前候选入口：`REQ-2026-0008` 与对应 Firecracker ADR 已定义 Linux KVM、Jailer、Artifact Integrity、cgroup v2、Network Namespace、Workspace Block Device、Vsock、Fencing、Cleanup 与 Tenant Sanitization 门禁。`REQ-2026-0016` 已固定 Admission/Scheduler/Capacity，`REQ-2026-0017` 已固定 Node Trust/Verified Inventory，`REQ-2026-0018` 已固定 PostgreSQL Quota/Capacity Gate，`REQ-2026-0019` 已拆分 tenant-neutral `PreparedSlot` 与另行取证的 `WarmMicroVmSlot`。`REQ-2026-0021` 进一步固定 Workspace Revision -> Allocation -> Attachment -> Command -> Durable Checkpoint/Handoff -> Detach/Sanitization -> Release 的组合事务，但不批准任何 Runtime 实现。后续独立切片包括这些边界获批后的实现 Requirement、Provider Snapshot、Recovery、Internal API/SDK、Cluster Service Host 与 Application Ingress。
 
 `REQ-2026-0011`、对应 ADR 和 Review 已把 Firecracker 的 Host Privilege 前置项收敛为 draft `SandboxHostIsolationBroker` 候选边界：固定八类 typed operation、Linux Unix Domain Socket、peer identity、短期签名 Grant、执行点 Fencing/Idempotency、最小 Privilege Profile、durable Audit 和 bounded Cleanup。当前仅有机器契约与静态测试，不创建 Broker crate/daemon/socket/service unit；Grant/KMS、Privilege、Journal、Protocol、Package/Upgrade/Rollback 和真实 KVM 证据完成人审前不得进入实现。
 

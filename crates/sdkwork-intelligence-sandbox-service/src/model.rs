@@ -7,6 +7,8 @@ use sdkwork_sandbox_provider_spi::{
 
 use crate::{SandboxLifecycleError, SandboxLifecycleResult};
 
+pub(crate) const MAX_SANDBOX_SESSION_VERSION: u64 = i64::MAX as u64;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SandboxSessionState {
     Created,
@@ -374,9 +376,52 @@ impl SandboxSession {
 
     pub(crate) fn next_sandbox_version(&mut self) -> SandboxLifecycleResult<u64> {
         let current_sandbox_version = self.sandbox_version;
-        self.sandbox_version = self.sandbox_version.checked_add(1).ok_or(
-            SandboxLifecycleError::InvariantViolation("sandbox session version overflow"),
-        )?;
+        self.sandbox_version = self
+            .sandbox_version
+            .checked_add(1)
+            .filter(|sandbox_version| *sandbox_version <= MAX_SANDBOX_SESSION_VERSION)
+            .ok_or(SandboxLifecycleError::InvariantViolation(
+                "sandbox session version exceeds the persistence maximum",
+            ))?;
         Ok(current_sandbox_version)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sandbox_session_version_fails_closed_at_the_persistence_maximum() {
+        let mut sandbox_session = SandboxSession::restore(
+            TenantId::parse("tenant-test")
+                .unwrap_or_else(|error| panic!("invalid test tenant id: {error}")),
+            SandboxWorkspaceId::parse("workspace-test")
+                .unwrap_or_else(|error| panic!("invalid test workspace id: {error}")),
+            SandboxSessionId::parse("session-test")
+                .unwrap_or_else(|error| panic!("invalid test session id: {error}")),
+            SandboxSessionState::Created,
+            BTreeSet::new(),
+            IsolationAssurance::HostUser,
+            None,
+            None,
+            vec![SandboxSessionOperation::restore(
+                OperationId::generate(),
+                SandboxSessionOperationKind::Create,
+                SandboxOperationOutcome::Succeeded,
+            )],
+            MAX_SANDBOX_SESSION_VERSION,
+        );
+
+        assert!(matches!(
+            sandbox_session.next_sandbox_version(),
+            Err(SandboxLifecycleError::InvariantViolation(
+                "sandbox session version exceeds the persistence maximum"
+            ))
+        ));
+        assert_eq!(
+            sandbox_session.sandbox_version(),
+            MAX_SANDBOX_SESSION_VERSION
+        );
     }
 }

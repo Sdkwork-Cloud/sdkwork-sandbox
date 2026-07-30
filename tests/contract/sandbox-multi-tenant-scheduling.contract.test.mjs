@@ -37,6 +37,10 @@ test("admission, scheduling, inventory, and capacity authorities are separated",
   assert.equal(contract.ports.sandbox_node_inventory_port.type, "SandboxNodeInventoryPort");
   assert.equal(contract.ports.sandbox_scheduler_port.type, "SandboxSchedulerPort");
   assert.equal(
+    contract.ports.sandbox_scheduler_port.semanticScope,
+    "sandbox-capacity-placement-only",
+  );
+  assert.equal(
     contract.ports.sandbox_capacity_reservation_port.type,
     "SandboxCapacityReservationPort",
   );
@@ -47,6 +51,32 @@ test("admission, scheduling, inventory, and capacity authorities are separated",
   assert.equal(contract.ownership.sandbox_scheduler_may_author_identity_or_entitlement, false);
   assert.equal(contract.ownership.sandbox_provider_may_author_admission_or_placement, false);
   assert.equal(contract.ownership.sandbox_capacity_adapter_may_expand_requested_resources, false);
+});
+
+test("Sandbox scheduling is capacity placement, not Kernel execution placement", () => {
+  const separation = contract.placementAuthoritySeparation;
+  assert.equal(separation.sandbox_scheduler_semantic_scope, "sandbox-capacity-placement-only");
+  assert.equal(separation.sandbox_kernel_execution_placement_owner, "sdkwork-kernel");
+  assert.equal(separation.sandbox_capacity_placement_owner, "SandboxSchedulerPort");
+  assert.equal(separation.sandbox_runtime_allocation_binding_owner, "Sandbox lifecycle service");
+  assert.equal(separation.sandbox_kernel_and_sandbox_placement_records_have_distinct_ids, true);
+  assert.equal(
+    separation.sandbox_kernel_and_sandbox_placement_records_have_distinct_lease_and_fencing_domains,
+    true,
+  );
+  assert.equal(
+    separation.sandbox_kernel_and_sandbox_placement_records_have_distinct_idempotency_scopes,
+    true,
+  );
+  assert.equal(separation.sandbox_capacity_placement_may_replace_kernel_execution_placement, false);
+  assert.equal(
+    separation.sandbox_capacity_placement_may_advance_kernel_execution_placement_state,
+    false,
+  );
+  assert.equal(
+    separation.sandbox_kernel_may_select_provider_node_pool_slot_or_capacity_reservation,
+    false,
+  );
 });
 
 test("scheduling operations and contract fields are closed and Sandbox-prefixed", () => {

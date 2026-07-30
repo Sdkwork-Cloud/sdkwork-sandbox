@@ -88,7 +88,7 @@ See `../../DOCUMENTATION_SPEC.md` section 2.
 
 | 变量名 | 默认 | 用途 | 敏感 |
 | --- | --- | --- | --- |
-| `SDKWORK_SANDBOX_DATABASE_URL` | N/A | PostgreSQL 连接字符串 | Yes |
+| `SDKWORK_DATABASE_URL` | N/A | PostgreSQL 连接字符串 | Yes |
 | `SDKWORK_SANDBOX_HTTP_PORT` | 8080 | API Server 监听端口 | No |
 | `SDKWORK_SANDBOX_HTTP_BIND` | 127.0.0.1 | API 监听地址 | No |
 | `SDKWORK_SANDBOX_LOG_LEVEL` | info | 日志级别 (debug/info/warn/error) | No |

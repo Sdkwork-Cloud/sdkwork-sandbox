@@ -46,6 +46,31 @@
       "purpose": "Least privilege, input safety, and secret redaction."
     },
     {
+      "file": "RUNTIME_DIRECTORY_SPEC.md",
+      "path": "../../../sdkwork-specs/RUNTIME_DIRECTORY_SPEC.md",
+      "purpose": "Composition-owned runtime roots and source-checkout separation."
+    },
+    {
+      "file": "CONFIG_SPEC.md",
+      "path": "../../../sdkwork-specs/CONFIG_SPEC.md",
+      "purpose": "Typed bootstrap configuration and ambient environment prohibition."
+    },
+    {
+      "file": "OBSERVABILITY_SPEC.md",
+      "path": "../../../sdkwork-specs/OBSERVABILITY_SPEC.md",
+      "purpose": "Redacted logs, bounded metrics, traces, and cleanup facts."
+    },
+    {
+      "file": "PERFORMANCE_SPEC.md",
+      "path": "../../../sdkwork-specs/PERFORMANCE_SPEC.md",
+      "purpose": "Hard bounds for process, output, timeout, and filesystem work."
+    },
+    {
+      "file": "SUPPLY_CHAIN_SECURITY_SPEC.md",
+      "path": "../../../sdkwork-specs/SUPPLY_CHAIN_SECURITY_SPEC.md",
+      "purpose": "Platform dependency and release evidence gates."
+    },
+    {
       "file": "TEST_SPEC.md",
       "path": "../../../sdkwork-specs/TEST_SPEC.md",
       "purpose": "Provider conformance and security verification."
@@ -67,6 +92,9 @@
     "configKeys": []
   },
   "verification": {
-    "commands": ["cargo test -p sdkwork-sandbox-provider-local"]
+    "commands": [
+      "cargo test -p sdkwork-sandbox-provider-local",
+      "node --test tests/contract/sandbox-local-provider-host-boundary.contract.test.mjs"
+    ]
   }
 }

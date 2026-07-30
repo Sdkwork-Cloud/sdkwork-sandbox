@@ -6,7 +6,7 @@ Owner: SDKWork Runtime Platform
 
 Application: sandbox
 
-Updated: 2026-07-29
+Updated: 2026-07-30
 
 Specs: `REQUIREMENTS_SPEC.md`, `DOCUMENTATION_SPEC.md`, `SECURITY_SPEC.md`, `DEPLOYMENT_SPEC.md`, `PERFORMANCE_SPEC.md`
 
@@ -32,6 +32,10 @@ Specs: `REQUIREMENTS_SPEC.md`, `DOCUMENTATION_SPEC.md`, `SECURITY_SPEC.md`, `DEP
 - [REQ-2026-0016: Sandbox Multi-tenant Admission, Scheduling And Capacity](../requirements/REQ-2026-0016-sandbox-multi-tenant-admission-scheduling-and-capacity.md)
 - [REQ-2026-0017: Sandbox Node Trust, Enrollment, Attestation And Verified Inventory](../requirements/REQ-2026-0017-sandbox-node-trust-enrollment-attestation-and-inventory.md)
 - [REQ-2026-0018: Sandbox PostgreSQL Quota And Capacity Reservation Persistence](../requirements/REQ-2026-0018-sandbox-postgresql-quota-and-capacity-reservation-persistence.md)
+- [REQ-2026-0019: Sandbox Runtime Pool And Fast Allocation](../requirements/REQ-2026-0019-sandbox-runtime-pool-and-fast-allocation.md)
+- [REQ-2026-0020: Sandbox Lifecycle Hot State And Idempotency Retention](../requirements/REQ-2026-0020-sandbox-lifecycle-hot-state-and-idempotency-retention.md)
+- [REQ-2026-0021: Sandbox Workspace Runtime Transaction And Checkpoint](../requirements/REQ-2026-0021-sandbox-workspace-runtime-transaction-and-checkpoint.md)
+- [REQ-2026-0022: Sandbox Standalone Data Residency And Recovery](../requirements/REQ-2026-0022-sandbox-standalone-data-residency-and-recovery.md)
 - [技术架构](../../architecture/tech/TECH_ARCHITECTURE.md)
 
 ## 1. 背景与问题 (Background And Problem)
@@ -59,9 +63,10 @@ SDKWork Sandbox 是面向 SDKWork Agent 的 Provider 无关执行环境。它将
 
 - 为本地、私有化与 SaaS 组合提供一套经过评审的 Runtime 契约。
 - 将 Agents-owned 持久 Workspace 与可销毁 Sandbox 分离。
+- 让 BirdCoder Local 与 Cloud 复用同一 Workspace Revision、运行分配、Command、耐久 Checkpoint 和补偿语义；Local Workspace 默认不隐式上传，全部数据留在设备上的声明必须通过独立驻留/恢复 Gate，Cloud 通过隔离 Attachment 挂载持久数据。
 - 为每个 `SandboxSession` 提供独立运行生命周期、`SandboxRuntimeBinding`、Quota、日志/事件流与恢复状态，同时不复制 `AgentSession` 业务聚合。
 - 通过 SPI 与一致性测试扩展 Provider，不修改 Kernel。
-- 先覆盖 Windows、macOS、Linux 的 Local Provider，再以同一 Provider-neutral Command Contract 跑通 Linux KVM Firecracker Provider；Docker 明确延期到 Local 与 Firecracker 验证完成之后，后续再分阶段评审 gVisor、Kubernetes 与 Remote VM。
+- 先覆盖 Windows、macOS、Linux 的 Local Provider 平台发现与精确 Capability Matrix：Windows/Linux 只有真实 containment 通过后声明 Terminal，macOS 在 detached-descendant containment 获批前明确拒绝 Terminal；再以同一 Provider-neutral Command Contract 跑通 Linux KVM Firecracker Provider。Docker 明确延期到 Local 与 Firecracker 验证完成之后，后续再分阶段评审 gVisor、Kubernetes 与 Remote VM。
 - 按 Provider 声明的隔离等级执行默认拒绝的文件系统、进程、网络、Capability、Secret 与资源策略。
 - 让启动时延、容量、失败、配额、安全事件和 Provider 健康状态可观测。
 
@@ -75,7 +80,7 @@ SDKWork Sandbox 是面向 SDKWork Agent 的 Provider 无关执行环境。它将
 
 ## 4. 范围 (Scope)
 
-产品范围包括 Runtime、Session、Workspace、Sandbox Provider SPI、资源与配额执行、Scheduler、Pool、面向执行的 Filesystem/Terminal/Browser/Port 能力、Snapshot、Cache 集成、Network Policy、Secret 注入、日志、指标、Trace、审计事件与恢复编排。
+产品范围包括 Runtime、Session、Workspace Runtime Transaction、Sandbox Provider SPI、资源与配额执行、Scheduler、Pool、面向执行的 Filesystem/Terminal/Browser/Port 能力、Checkpoint/Snapshot、Cache 集成、Network Policy、Secret 注入、日志、指标、Trace、审计事件与恢复编排。
 
 ### 术语与所有权
 
@@ -105,9 +110,9 @@ SDKWork 共享类型 `TenantId`、`OperationId`、`RuntimeCapability` 与 `Isola
 
 ## 5. 用户场景 (User Scenarios)
 
-1. 开发者通过 Agents 创建 `AgentSession`，Kernel 将已授权的 `AgentWorkspace`/`AgentSession` Identity 映射为 `SandboxWorkspaceId`/`SandboxSessionId`，再创建本地 `SandboxSession`；停止运行投影后 Workspace 仍由 Agents 保留，并可在后续 Session 中恢复。
+1. BirdCoder Desktop 通过本地 Agents 组合创建 Session，Kernel 把已授权的 Workspace/Revision 映射到 Local Sandbox 已打开的 Workspace Capability；当 REQ-2026-0022 的 Local-only 驻留/恢复证据通过后，Workspace、业务状态、Runtime State 和派生副本才能声明留在本机，停止运行环境、默认重置或卸载均不删除 Workspace。
 2. SaaS 运维人员将同一 Runtime 请求提交到 Firecracker Provider，并附带由 `SandboxNetworkPolicyPort` 授权的显式 DNS/Egress Policy 请求、Secret 引用、CPU/Memory/Disk 限制和可审计策略；不存在有效 `SandboxNetworkPolicyGrant` 或合规 MicroVm Provider 时关闭失败，不回退 Local 或延期的 Docker Provider。
-3. SaaS 控制面从兼容租户策略的 Pool 分配热 Sandbox，挂载或恢复 Workspace，流式输出状态与终端事件，记录用量，生成 Snapshot，并回收空闲资源。
+3. BirdCoder Cloud 通过 Agents/Kernel 请求 Firecracker Runtime；Sandbox 在 Capacity Reservation 后选择 Cold 或干净 Pool Slot，挂载不可变 Workspace Revision，执行命令，生成耐久 Checkpoint Candidate 并交由 Agents CAS 晋级 Revision，然后完成 Detach、Sanitization、Residue Scan 和资源归还。
 4. Provider 开发者增加 Firecracker 适配器，通过生命周期、文件系统约束、网络、资源、事件与清理一致性测试，不改变 Kernel-facing 契约。
 5. Kernel 仅请求 Capability 与隔离等级，不选择具体 Provider；不存在合规 Provider 时返回类型化错误，而不是降低隔离等级。
 
@@ -123,6 +128,8 @@ SDKWork 共享类型 `TenantId`、`OperationId`、`RuntimeCapability` 与 `Isola
 | 恢复能力 | 可恢复 Session 能重新绑定 Workspace 与最后有效 Snapshot，且不会产生双重活动所有权。 |
 | 可观测性 | 每个命令与生命周期操作携带 `traceId`，并在对应身份存在时关联 `sandboxSessionId`、`sandboxWorkspaceId`、`sandboxId` 与 `sandboxRuntimeBindingId`；Agents 关联另行使用 `agentSessionId`/`agentWorkspaceId`。 |
 | 容量安全 | 并发 Session 准入不超过租户与节点配额；拒绝结果包含安全的重试信息。 |
+| Workspace 持久性 | ReadWrite Runtime 释放前有耐久 Checkpoint/Handoff；并发 Writer 不覆盖新 Revision，断连恢复测试不存在静默丢写。 |
+| 数据驻留与恢复 | Local 的 `device-local-persistence`/`strict-device-local-processing` 声明分别通过完整数据清单、无隐式远程持久化/内容外传、角色正确的本地数据库、备份恢复、导出清除和真实 OS/网络证据；Cloud Workspace 只通过 Drive 或批准的 Block-volume Authority 投影。 |
 
 性能目标只有在参考硬件、工作负载、Provider 和统计方法被记录后才能作为发布门禁；它们不是对 Phase 0 空骨架的性能声明。
 
@@ -156,6 +163,10 @@ SDKWork 共享类型 `TenantId`、`OperationId`、`RuntimeCapability` 与 `Isola
 - [REQ-2026-0016: Sandbox Multi-tenant Admission, Scheduling And Capacity](../requirements/REQ-2026-0016-sandbox-multi-tenant-admission-scheduling-and-capacity.md) - provider-neutral Admission/Node Inventory/Scheduler/Capacity Reservation、Hard Placement Filter、Tenant-aware Fairness、PostgreSQL Atomic Reservation、Fencing/Recovery 与 Resource Grant Binding 边界；保持 `draft`，不批准 Scheduler/Database/Node Agent/Pool Runtime。
 - [REQ-2026-0017: Sandbox Node Trust, Enrollment, Attestation And Verified Inventory](../requirements/REQ-2026-0017-sandbox-node-trust-enrollment-attestation-and-inventory.md) - provider-neutral Enrollment/Attestation Verification/Inventory Publication/Lifecycle Control、短期 Machine Identity、Verified Inventory、Rotation/Revocation、Drain/Quarantine 与 Scheduler Binding 边界；保持 `draft`，不批准 Node Agent/PKI/Verifier/Database/Deployment Runtime。
 - [REQ-2026-0018: Sandbox PostgreSQL Quota And Capacity Reservation Persistence](../requirements/REQ-2026-0018-sandbox-postgresql-quota-and-capacity-reservation-persistence.md) - `SandboxTenantQuotaState`、`SandboxAdmissionReservation`、`SandboxNodeCapacityState` 与 `SandboxCapacityReservation` 候选 PostgreSQL Authority、全局 Lock Order、CAS/Fencing、TTL/Quarantine、RLS/Role、PITR/RPO/RTO 及现有 `tenant_id TEXT` 到标准 `BIGINT` 的预发布迁移门禁；保持 `draft`，不批准 Table/Migration/Repository/Scheduler Runtime。
+- [REQ-2026-0019: Sandbox Runtime Pool And Fast Allocation](../requirements/REQ-2026-0019-sandbox-runtime-pool-and-fast-allocation.md) - tenant-neutral `PreparedSlot`/`WarmMicroVmSlot`、fenced Claim、Sanitization/Residue/Quarantine、bounded scaling 与 fast-allocation evidence；保持 `draft`，不批准 Pool、Snapshot、Table、Worker、API、SDK 或 Deployment。
+- [REQ-2026-0020: Sandbox Lifecycle Hot State And Idempotency Retention](../requirements/REQ-2026-0020-sandbox-lifecycle-hot-state-and-idempotency-retention.md) - bounded current-state projection、Tenant-scoped point-lookup idempotency ledger、current-operation-only hydration、Session limits、terminal retention、late retry 与 expand/backfill/cutover migration gate；保持 `draft`，不批准 Rust/Database/API/SDK/Kernel 实现。
+- [REQ-2026-0021: Sandbox Workspace Runtime Transaction And Checkpoint](../requirements/REQ-2026-0021-sandbox-workspace-runtime-transaction-and-checkpoint.md) - Local/Firecracker lane parity、Workspace Revision Writer Lease、allocation/attachment/command/checkpoint/cleanup 顺序、耐久 Handoff、失败补偿与 bounded SaaS backpressure；保持 `draft`，不批准 Runtime/Storage/API/SDK/Kernel/BirdCoder 实现。
+- [REQ-2026-0022: Sandbox Standalone Data Residency And Recovery](../requirements/REQ-2026-0022-sandbox-standalone-data-residency-and-recovery.md) - Local-only 四仓数据清单、设备本地持久化/严格本地处理声明、数据库角色、独立 Runtime Capability、无隐式传输、备份恢复、导出清除和真实 OS 证据；保持 `draft`，不批准数据库、配置、打包、遥测、同步或跨仓库实现。
 
 后续 Runtime API、生命周期、Provider、Scheduler、安全、Snapshot、Cache 与 SaaS 工作必须在实施前拆分为可评审的需求记录。
 
@@ -167,3 +178,5 @@ SDKWork 共享类型 `TenantId`、`OperationId`、`RuntimeCapability` 与 `Isola
 - Quota 策略、用量聚合和向 Commerce Billing 交接分别由哪个团队拥有？
 - 哪一套参考机器与工作负载定义 500 ms 热分配目标？
 - 哪些 Provider 能提供 Snapshot/Restore，跨 Provider 的最小可移植 Snapshot 契约是什么？
+- 最大 Lifecycle Operation 数、最大活动 Session 生命周期、终态幂等保留窗口及窗口结束后的安全 Late Retry Outcome 分别是什么？
+- 首个 Local 商业版本采用哪一种公开驻留声明，哪些数据类进入本地备份，以及其 RPO/RTO、保留和验证恢复预算分别是多少？

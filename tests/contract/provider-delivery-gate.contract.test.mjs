@@ -161,6 +161,7 @@ test("Gate 0 review packet remains pending human ownership decisions", () => {
     "docs/engineering/reviews/REVIEW-20260729-sandbox-command-execution-architecture-security.md",
     "docs/engineering/reviews/REVIEW-20260729-local-provider-architecture-security.md",
     "docs/engineering/reviews/REVIEW-20260729-firecracker-provider-architecture-security.md",
+    "docs/engineering/reviews/REVIEW-20260729-sandbox-host-isolation-broker.md",
     "docs/engineering/reviews/REVIEW-20260729-sandbox-firecracker-artifact-compatibility-and-supply-chain.md",
     "docs/engineering/reviews/REVIEW-20260729-sandbox-workspace-block-device-attachment-and-sanitization.md",
     "docs/engineering/reviews/REVIEW-20260729-sandbox-service-host-composition-and-readiness.md",
@@ -183,6 +184,17 @@ test("Provider delivery gate contract keeps Local and Firecracker provider-neutr
   assert.equal(contract.sharedConformance.shellFallbackAllowed, false);
   assert.equal(contract.humanReview.required, true);
   assert.equal(contract.humanReview.approvedOutcomeRequiredBeforeImplementation, true);
+  assert.ok(contract.requirementIds.includes("REQ-2026-0011"));
+  assert.ok(
+    contract.decisionIds.includes(
+      "ADR-20260729-sandbox-host-isolation-broker-boundary",
+    ),
+  );
+  assert.ok(
+    contract.humanReview.reviewPackets.includes(
+      "REVIEW-20260729-sandbox-host-isolation-broker",
+    ),
+  );
   assert.deepEqual(
     contract.providers.map((sandbox_provider) => sandbox_provider.sandbox_provider_name),
     ["sandbox_local_provider", "sandbox_firecracker_provider"],
@@ -205,8 +217,34 @@ test("Local provider gate is honest HostUser assurance with fail-closed capabili
   assert.equal(localProvider.capabilityPolicy.sandbox_browser, "denied");
   assert.equal(localProvider.capabilityPolicy.sandbox_port_forward, "denied");
   assert.equal(localProvider.capabilityPolicy.sandbox_network, "denied-until-egress-enforcement-evidence");
+  assert.equal(
+    localProvider.hostBoundary.sandbox_contract,
+    "sandbox-local-provider-host-boundary.contract.json",
+  );
+  assert.equal(localProvider.hostBoundary.sandbox_status, "draft");
+  assert.equal(localProvider.hostBoundary.sandbox_implementation_authorized, false);
+  assert.equal(localProvider.hostBoundary.sandbox_opened_capability_handle_required, true);
+  assert.equal(localProvider.hostBoundary.sandbox_platform_specific_supervision_required, true);
+  assert.equal(localProvider.hostBoundary.sandbox_real_runner_evidence_required, true);
+  assert.equal(localProvider.hostBoundary.sandbox_preflight_dependency_required, true);
   assert.equal(localProvider.gate0Evidence.sandbox_host_io, false);
   assert.equal(localProvider.gate0Evidence.sandbox_process_spawn, false);
+  assert.ok(localProvider.requiredEvidence.includes("sandbox_local_provider_host_boundary_contract"));
+  assert.ok(localProvider.requiredEvidence.includes("sandbox_local_execution_policy_snapshot"));
+  assert.ok(
+    localProvider.requiredEvidence.includes(
+      "sandbox_provider_owned_executable_registry_without_path_search",
+    ),
+  );
+  assert.ok(
+    localProvider.requiredEvidence.includes("sandbox_protected_environment_override_denial"),
+  );
+  assert.ok(localProvider.requiredEvidence.includes("sandbox_linux_cgroup_v2_descendant_cleanup"));
+  assert.ok(
+    !localProvider.requiredEvidence.includes(
+      "sandbox_linux_process_group_or_cgroup_descendant_cleanup",
+    ),
+  );
   assert.ok(localProvider.requiredEvidence.includes("sandbox_real_host_runner_matrix"));
   assert.ok(localProvider.forbiddenAssuranceClaims.includes("MicroVm"));
 });

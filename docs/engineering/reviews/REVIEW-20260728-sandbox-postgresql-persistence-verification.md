@@ -26,7 +26,7 @@ Updated: 2026-07-29
 | Command / Check | Result |
 | --- | --- |
 | `cargo fmt --all -- --check` | PASS. |
-| `cargo test --workspace --offline` | PASS: 41 Rust unit/behavior tests; the explicit live PostgreSQL test remains ignored unless `SDKWORK_SANDBOX_TEST_DATABASE_URL` is provided. |
+| `cargo test --workspace --offline` | PASS: 41 Rust unit/behavior tests; the explicit live PostgreSQL test remains ignored unless `SDKWORK_DATABASE_TEST_POSTGRES_URL` is provided. |
 | `cargo clippy --workspace --all-targets -- -D warnings` | PASS. |
 | `node --test tests/contract/database-framework.contract.test.mjs` | PASS: 4 database contract tests, including stable Tenant+Session Operation Sequence constraints. |
 | `sdkwork-database-cli -- --app-root . init` against an empty database | PASS: 1 migration applied. Immediate second init applied 0 migrations. |

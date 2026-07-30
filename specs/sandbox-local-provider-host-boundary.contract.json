@@ -1,0 +1,301 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.sandbox.local-provider-host-boundary",
+  "status": "draft",
+  "implementationAuthorized": false,
+  "requirementIds": ["REQ-2026-0003", "REQ-2026-0007"],
+  "decisionIds": [
+    "ADR-20260728-local-provider-assurance-and-host-boundaries",
+    "ADR-20260729-sandbox-command-execution-and-terminal-boundary",
+    "ADR-20260728-agents-workspace-and-sandbox-attachment-ownership"
+  ],
+  "identity": {
+    "sandbox_kind": "local",
+    "sandbox_assurance": "HostUser",
+    "sandbox_deployment_profiles": ["standalone"],
+    "sandbox_multi_tenant_isolation_claim_allowed": false,
+    "sandbox_assurance_upgrade_by_config_allowed": false,
+    "sandbox_weaker_provider_fallback_allowed": false
+  },
+  "authorityBoundary": {
+    "sandbox_workspace_authority_owner": "sdkwork-agents",
+    "sandbox_attachment_authority": "reviewed-sandbox-workspace-attachment-port",
+    "sandbox_workspace_input": "already-opened-capability-handle",
+    "sandbox_runtime_root_input": "composition-opened-capability-handle",
+    "sandbox_host_root_string_input_allowed": false,
+    "sandbox_id_to_host_path_derivation_allowed": false,
+    "sandbox_request_time_ambient_authority_allowed": false,
+    "sandbox_source_checkout_runtime_root_allowed": false,
+    "sandbox_provider_private_reference_publication_allowed": false,
+    "sandbox_request_binding_fields": [
+      "tenantId",
+      "sandboxProviderId",
+      "sandboxWorkspaceId",
+      "sandboxSessionId",
+      "sandboxId",
+      "sandboxRuntimeBindingId",
+      "sandboxFencingToken"
+    ],
+    "sandbox_request_identity_must_match_opened_capabilities_and_binding": true,
+    "sandbox_identity_or_capability_mismatch_action": "fail-closed-before-side-effect"
+  },
+  "executionPolicyBoundary": {
+    "type": "SandboxLocalExecutionPolicySnapshot",
+    "sandbox_policy_owner": "approved-standalone-local-composition",
+    "sandbox_policy_bound_to_runtime_binding": true,
+    "sandbox_policy_immutable_for_binding_lifetime": true,
+    "sandbox_caller_can_supply_or_extend_policy": false,
+    "sandbox_executable_registry_provider_owned": true,
+    "sandbox_executable_registry_uses_logical_identifiers": true,
+    "sandbox_os_path_search_allowed": false,
+    "sandbox_working_directory_executable_lookup_allowed": false,
+    "sandbox_resolved_executable_identity_is_private": true,
+    "sandbox_resolved_executable_identity_must_be_stable_for_replay": true,
+    "sandbox_environment_name_and_value_policy_required": true,
+    "sandbox_provider_fixed_environment_values_are_not_request_inputs": true,
+    "sandbox_request_can_override_provider_fixed_environment": false,
+    "sandbox_policy_snapshot_identity_must_match_provider_and_capabilities": true
+  },
+  "filesystemBoundary": {
+    "sandbox_request_path_type": "portable-logical-relative-path",
+    "sandbox_workspace_root_token": ".",
+    "sandbox_path_separator": "/",
+    "sandbox_access_model": "handle-relative-no-follow-and-file-identity-verification",
+    "sandbox_string_canonicalization_is_security_boundary": false,
+    "sandbox_check_then_open_allowed": false,
+    "sandbox_open_then_unverified_use_allowed": false,
+    "sandbox_unsupported_file_type_action": "deny",
+    "sandbox_windows": {
+      "sandbox_drive_unc_device_prefix_denied": true,
+      "sandbox_reserved_device_name_denied": true,
+      "sandbox_alternate_data_stream_denied": true,
+      "sandbox_reparse_traversal_denied": true,
+      "sandbox_hardlink_escape_denied": true,
+      "sandbox_final_path_and_file_identity_verification_required": true,
+      "sandbox_reparse_file_identity_swap_tests_required": true
+    },
+    "sandbox_unix": {
+      "sandbox_symlink_traversal_denied": true,
+      "sandbox_mount_traversal_denied": true,
+      "sandbox_rename_race_denied": true,
+      "sandbox_linux_preferred_primitive": "openat2-resolve-beneath-no-magiclinks-no-symlinks-no-xdev",
+      "sandbox_fallback_primitive": "per-segment-openat-no-follow-with-identity-verification",
+      "sandbox_equivalent_race_resistance_required": true
+    },
+    "sandbox_capability_claim_requires_real_runner_evidence": true
+  },
+  "commandBoundary": {
+    "sandbox_executor_port_type": "SandboxCommandExecutor",
+    "sandbox_shared_contract": "../apis/commands/sandbox-command-contract.json",
+    "sandbox_provider_private_command_dto_allowed": false,
+    "sandbox_executable_and_argv_only": true,
+    "sandbox_shell_string_allowed": false,
+    "sandbox_implicit_shell_allowed": false,
+    "sandbox_pty_allowed": false,
+    "sandbox_timeout_hard_bound_required": true,
+    "sandbox_output_hard_bound_required": true,
+    "sandbox_process_count_hard_bound_required": true,
+    "sandbox_executor_recomputes_request_fingerprint": true,
+    "sandbox_durable_idempotency_and_first_terminal_arbitration_required": true,
+    "sandbox_executable_resolution_uses_execution_policy_snapshot": true,
+    "sandbox_os_path_or_working_directory_resolution_allowed": false,
+    "sandbox_fencing_before_spawn_required": true,
+    "sandbox_cleanup_result_required": true,
+    "sandbox_cleanup_uncertainty_action": "quarantine-binding-and-provider-unavailable"
+  },
+  "environmentBoundary": {
+    "sandbox_construction_mode": "empty-then-explicit-allowlist",
+    "sandbox_ambient_environment_inheritance_allowed": false,
+    "sandbox_allowed_name_and_value_bounds_required": true,
+    "sandbox_forbidden_inherited_categories": [
+      "ssh-agent",
+      "cloud-credentials",
+      "proxy-credentials",
+      "docker-socket",
+      "secret-bearing-environment",
+      "host-runtime-control"
+    ],
+    "sandbox_protected_request_names": [
+      "PATH",
+      "PATHEXT",
+      "COMSPEC",
+      "SYSTEMROOT",
+      "WINDIR",
+      "HOME",
+      "USERPROFILE",
+      "TMP",
+      "TEMP"
+    ],
+    "sandbox_request_may_override_protected_names": false,
+    "sandbox_request_values_require_per_name_policy_validation": true,
+    "sandbox_secret_value_request_input_allowed": false,
+    "sandbox_secret_reference_resolution_authorized": false,
+    "sandbox_environment_dump_allowed": false
+  },
+  "platformSupervision": {
+    "sandbox_windows": {
+      "sandbox_terminal_claim": "blocked-until-real-runner-conformance",
+      "sandbox_spawn_state": "suspended",
+      "sandbox_job_object_required": true,
+      "sandbox_job_kill_on_close_required": true,
+      "sandbox_job_completion_port_required": true,
+      "sandbox_assign_before_resume_required": true,
+      "sandbox_breakaway_allowed": false,
+      "sandbox_nested_job_preflight_required": true,
+      "sandbox_preflight_or_bind_failure_action": "terminate-and-quarantine",
+      "sandbox_process_group_is_sufficient": false
+    },
+    "sandbox_linux": {
+      "sandbox_terminal_claim": "blocked-until-real-runner-conformance",
+      "sandbox_unified_cgroup_v2_required": true,
+      "sandbox_delegated_subtree_required": true,
+      "sandbox_per_runtime_binding_scope_required": true,
+      "sandbox_membership_before_user_code_required": true,
+      "sandbox_race_free_launcher_or_broker_required": true,
+      "sandbox_spawn_then_write_cgroup_procs_is_sufficient": false,
+      "sandbox_process_group_is_sufficient": false,
+      "sandbox_cgroup_kill_required": true,
+      "sandbox_cgroup_events_required": true,
+      "sandbox_pid_controller_required": true,
+      "sandbox_cleanup_success_fact": "cgroup-populated-zero"
+    },
+    "sandbox_macos": {
+      "sandbox_terminal_claim": "denied",
+      "sandbox_process_group_is_sufficient": false,
+      "sandbox_session_is_sufficient": false,
+      "sandbox_detached_descendant_containment_proven": false,
+      "sandbox_unsupported_terminal_request_action": "fail-closed",
+      "sandbox_platform_fallback_allowed": false
+    }
+  },
+  "cleanupBoundary": {
+    "sandbox_stop_idempotent_required": true,
+    "sandbox_destroy_idempotent_required": true,
+    "sandbox_descendant_tree_cleanup_required": true,
+    "sandbox_temporary_handle_cleanup_required": true,
+    "sandbox_temporary_allocation_cleanup_required": true,
+    "sandbox_persistent_workspace_deletion_allowed": false,
+    "sandbox_success_active_process_count": 0,
+    "sandbox_success_temporary_handle_count": 0,
+    "sandbox_success_temporary_residue_count": 0,
+    "sandbox_cleanup_failure_visible": true,
+    "sandbox_cleanup_failure_quarantines_binding": true,
+    "sandbox_uncertain_capacity_reuse_allowed": false
+  },
+  "observabilityBoundary": {
+    "sandbox_server_owned_trace_required": true,
+    "sandbox_low_cardinality_metrics_required": true,
+    "sandbox_raw_command_logging_allowed": false,
+    "sandbox_argument_logging_allowed": false,
+    "sandbox_environment_logging_allowed": false,
+    "sandbox_output_logging_allowed": false,
+    "sandbox_physical_path_logging_allowed": false,
+    "sandbox_host_pid_logging_allowed": false,
+    "sandbox_provider_private_reference_logging_allowed": false,
+    "sandbox_cleanup_and_quarantine_facts_required": true
+  },
+  "supplyChain": {
+    "sandbox_runtime_dependency_changes_authorized": false,
+    "sandbox_candidates": [
+      {
+        "sandbox_package": "process-wrap",
+        "sandbox_version": "9.1.0",
+        "sandbox_disposition": "conditional-candidate",
+        "sandbox_security_boundary": "windows-suspended-job-object-only; unix-process-group-is-not-containment"
+      },
+      {
+        "sandbox_package": "cap-std",
+        "sandbox_version": "4.0.2",
+        "sandbox_disposition": "conditional-candidate",
+        "sandbox_ambient_authority_apis_allowed": false,
+        "sandbox_msrv_closed": false
+      },
+      {
+        "sandbox_package": "tokio",
+        "sandbox_version": "workspace-authority",
+        "sandbox_disposition": "existing-dependency-candidate",
+        "sandbox_process_feature_authorized": false
+      },
+      {
+        "sandbox_package": "cgroups-rs",
+        "sandbox_version": "0.5.1",
+        "sandbox_disposition": "not-selected",
+        "sandbox_reconsideration_requires_independent_security_review": true
+      }
+    ],
+    "sandbox_required_before_selection": [
+      "fresh-online-rustsec",
+      "license-allowlist",
+      "source-duplicate-ban-review",
+      "minimal-feature-review",
+      "declared-msrv",
+      "windows-and-linux-build",
+      "macos-build-for-any-claimed-capability",
+      "platform-security-conformance",
+      "human-dependency-security-approval"
+    ]
+  },
+  "readiness": {
+    "sandbox_missing_required_dependency_is_ready": false,
+    "sandbox_missing_workspace_capability_is_ready": false,
+    "sandbox_missing_or_mismatched_execution_policy_is_ready": false,
+    "sandbox_unstable_or_path_searched_executable_resolution_is_ready": false,
+    "sandbox_request_identity_or_capability_mismatch_is_ready": false,
+    "sandbox_missing_platform_supervisor_is_ready": false,
+    "sandbox_missing_real_runner_evidence_is_ready": false,
+    "sandbox_missing_cleanup_reconciliation_is_ready": false,
+    "sandbox_capability_descriptor_must_match_verified_platform": true,
+    "sandbox_unsupported_capability_fallback_allowed": false
+  },
+  "requiredRealEvidence": {
+    "sandbox_windows": [
+      "parent-child-grandchild-cleanup",
+      "detached-and-breakaway-attempt-denial",
+      "nested-job-fail-closed",
+      "timeout-cancel-output-limit-cleanup",
+      "provider-crash-and-handle-close-cleanup",
+      "reparse-device-ads-hardlink-file-identity-negative-tests",
+      "idempotent-stop-destroy-zero-residue"
+    ],
+    "sandbox_linux": [
+      "double-fork-setsid-process-group-escape-containment",
+      "race-free-cgroup-membership-before-user-code",
+      "fork-storm-pid-controller-enforcement",
+      "timeout-cancel-output-fencing-crash-cleanup",
+      "symlink-mount-rename-race-negative-tests",
+      "cgroup-populated-zero-and-zero-residue"
+    ],
+    "sandbox_macos": [
+      "terminal-capability-denial",
+      "unsupported-terminal-request-fail-closed",
+      "no-platform-or-provider-fallback"
+    ],
+    "sandbox_common": [
+      "provider-descriptor-known-limitations",
+      "runtime-binding-policy-snapshot-immutability",
+      "provider-owned-executable-resolution-without-path-search",
+      "protected-environment-override-denial",
+      "ambient-credential-denial",
+      "private-metadata-redaction",
+      "real-host-runner-owner-and-reproducible-bootstrap"
+    ]
+  },
+  "humanReview": {
+    "required": true,
+    "reviewPacket": "REVIEW-20260729-local-provider-architecture-security",
+    "requiredRoles": [
+      "product-architecture-owner",
+      "security-owner",
+      "workspace-kernel-owner",
+      "platform-operations-owner"
+    ],
+    "approvedOutcomeRequiredBeforeImplementation": true
+  },
+  "x-sdkwork-status": "draft",
+  "x-sdkwork-require-human-review": true,
+  "x-sdkwork-no-provider-runtime": true,
+  "x-sdkwork-no-host-io": true,
+  "x-sdkwork-no-process-spawn": true,
+  "x-sdkwork-no-secret-injection": true,
+  "x-sdkwork-no-runtime-dependency-change": true
+}

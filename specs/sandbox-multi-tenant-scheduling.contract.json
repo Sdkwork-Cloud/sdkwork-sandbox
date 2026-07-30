@@ -18,7 +18,7 @@
     "sandbox_entitlement_and_plan_authority": "SDKWork Commerce or approved tenant policy authority",
     "sandbox_admission_policy_owner": "SandboxAdmissionPolicyPort",
     "sandbox_candidate_inventory_owner": "SandboxNodeInventoryPort",
-    "sandbox_placement_policy_owner": "SandboxSchedulerPort",
+    "sandbox_capacity_placement_policy_owner": "SandboxSchedulerPort",
     "sandbox_capacity_reservation_owner": "SandboxCapacityReservationPort",
     "sandbox_lifecycle_orchestration_owner": "Sandbox service",
     "sandbox_provider_mechanism_owner": "SandboxProvider adapter",
@@ -26,6 +26,19 @@
     "sandbox_scheduler_may_author_identity_or_entitlement": false,
     "sandbox_provider_may_author_admission_or_placement": false,
     "sandbox_capacity_adapter_may_expand_requested_resources": false
+  },
+  "placementAuthoritySeparation": {
+    "sandbox_scheduler_semantic_scope": "sandbox-capacity-placement-only",
+    "sandbox_kernel_execution_placement_owner": "sdkwork-kernel",
+    "sandbox_capacity_placement_owner": "SandboxSchedulerPort",
+    "sandbox_runtime_allocation_binding_owner": "Sandbox lifecycle service",
+    "sandbox_kernel_execution_placement_ref_is_opaque": true,
+    "sandbox_kernel_and_sandbox_placement_records_have_distinct_ids": true,
+    "sandbox_kernel_and_sandbox_placement_records_have_distinct_lease_and_fencing_domains": true,
+    "sandbox_kernel_and_sandbox_placement_records_have_distinct_idempotency_scopes": true,
+    "sandbox_capacity_placement_may_replace_kernel_execution_placement": false,
+    "sandbox_capacity_placement_may_advance_kernel_execution_placement_state": false,
+    "sandbox_kernel_may_select_provider_node_pool_slot_or_capacity_reservation": false
   },
   "ports": {
     "sandbox_admission_policy_port": {
@@ -51,7 +64,8 @@
       "candidateSetType": "SandboxPlacementCandidateSet",
       "decisionType": "SandboxPlacementDecision",
       "errorType": "SandboxSchedulingError",
-      "providerNeutral": true
+      "providerNeutral": true,
+      "semanticScope": "sandbox-capacity-placement-only"
     },
     "sandbox_capacity_reservation_port": {
       "type": "SandboxCapacityReservationPort",

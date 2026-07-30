@@ -73,7 +73,9 @@
       "type": "string",
       "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]{0,127}$",
       "maxLength": 128,
-      "x-sdkwork-shell": false
+      "x-sdkwork-shell": false,
+      "x-sdkwork-identifier-kind": "provider-neutral-logical-executable",
+      "x-sdkwork-path-resolution": "provider-owned-binding-policy-only"
     },
     "sandboxArguments": {
       "type": "array",
@@ -111,9 +113,28 @@
       "maxProperties": 64,
       "propertyNames": {
         "pattern": "^[A-Z_][A-Z0-9_]{0,63}$",
-        "not": {
-          "pattern": "(^|_)(TOKEN|SECRET|PASSWORD|CREDENTIAL|PRIVATE|SSH|DOCKER|AWS|AZURE|GOOGLE|PROXY)(_|$)"
-        }
+        "allOf": [
+          {
+            "not": {
+              "pattern": "(^|_)(TOKEN|SECRET|PASSWORD|CREDENTIAL|PRIVATE|SSH|DOCKER|AWS|AZURE|GOOGLE|PROXY)(_|$)"
+            }
+          },
+          {
+            "not": {
+              "enum": [
+                "PATH",
+                "PATHEXT",
+                "COMSPEC",
+                "SYSTEMROOT",
+                "WINDIR",
+                "HOME",
+                "USERPROFILE",
+                "TMP",
+                "TEMP"
+              ]
+            }
+          }
+        ]
       },
       "additionalProperties": {
         "type": "string",
@@ -121,7 +142,9 @@
         "pattern": "^[^\\u0000\\r\\n]*$",
         "x-sdkwork-max-utf8-bytes": 1024
       },
-      "x-sdkwork-secret-policy": "deny-by-default"
+      "x-sdkwork-secret-policy": "deny-by-default",
+      "x-sdkwork-policy-authority": "provider-execution-policy-snapshot",
+      "x-sdkwork-protected-values": "provider-fixed-after-request-validation"
     },
     "sandboxCommandLimits": {
       "type": "object",

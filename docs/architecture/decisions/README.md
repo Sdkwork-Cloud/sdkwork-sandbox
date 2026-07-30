@@ -6,7 +6,7 @@ New ADRs use `ADR-YYYYMMDD-<short-title>.md` in this directory.
 
 - [ADR-20260728: Runtime Boundary And Rust Workspace](ADR-20260728-runtime-boundary-and-rust-workspace.md) - proposed.
 - [ADR-20260728: Sandbox Lifecycle, Provider SPI And In-memory Store](ADR-20260728-sandbox-lifecycle-provider-spi-and-memory-store.md) - proposed.
-- [ADR-20260728: Local Provider Assurance And Host Boundaries](ADR-20260728-local-provider-assurance-and-host-boundaries.md) - proposed.
+- [ADR-20260728: Local Provider Assurance And Host Boundaries](ADR-20260728-local-provider-assurance-and-host-boundaries.md) - proposed; Windows Job Object, Linux delegated cgroup v2, macOS Terminal denial, handle-relative filesystem, and fail-closed cleanup.
 - [ADR-20260728: Agents Workspace And Sandbox Attachment Ownership](ADR-20260728-agents-workspace-and-sandbox-attachment-ownership.md) - proposed.
 - [ADR-20260728: PostgreSQL Sandbox Lifecycle Persistence And Reconciliation](ADR-20260728-postgresql-sandbox-lifecycle-persistence-and-reconciliation.md) - proposed.
 - [ADR-20260728: Sandbox Provider Allocation Key Rotation And Re-encryption](ADR-20260728-sandbox-provider-allocation-key-rotation-and-reencryption.md) - proposed.
@@ -22,6 +22,10 @@ New ADRs use `ADR-YYYYMMDD-<short-title>.md` in this directory.
 - [ADR-20260729: Sandbox Multi-tenant Admission, Scheduling And Capacity Reservation](ADR-20260729-sandbox-multi-tenant-admission-scheduling-and-capacity-reservation.md) - proposed.
 - [ADR-20260729: Sandbox Node Trust, Enrollment, Attestation And Verified Inventory](ADR-20260729-sandbox-node-trust-enrollment-attestation-and-inventory.md) - proposed.
 - [ADR-20260729: Sandbox PostgreSQL Quota And Capacity Reservation Persistence](ADR-20260729-sandbox-postgresql-quota-and-capacity-reservation-persistence.md) - proposed.
+- [ADR-20260730: Sandbox Runtime Pool Claim And Sanitization](ADR-20260730-sandbox-runtime-pool-claim-and-sanitization.md) - proposed.
+- [ADR-20260730: Sandbox Lifecycle Hot State And Idempotency Ledger](ADR-20260730-sandbox-lifecycle-hot-state-and-idempotency-ledger.md) - proposed.
+- [ADR-20260730: Sandbox Workspace Runtime Transaction And Checkpoint](ADR-20260730-sandbox-workspace-runtime-transaction-and-checkpoint.md) - proposed.
+- [ADR-20260730: Sandbox Standalone Data Residency And Recovery](ADR-20260730-sandbox-standalone-data-residency-and-recovery.md) - proposed.
 
 Retired layout: `docs/adr/` must not be used for new ADRs.
 

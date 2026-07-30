@@ -37,7 +37,7 @@ node ../../sdkwork-specs/tools/check-database-framework-standard.mjs --root ../.
 Live PostgreSQL verification is explicit and remains ignored in the default suite:
 
 ```bash
-SDKWORK_SANDBOX_TEST_DATABASE_URL=<server-test-url> cargo test -p sdkwork-intelligence-sandbox-repository-sqlx --test postgres_repository -- --ignored
+SDKWORK_DATABASE_TEST_POSTGRES_URL=<server-test-url> cargo test -p sdkwork-intelligence-sandbox-repository-sqlx --test postgres_repository -- --ignored
 ```
 
 Initialize the empty test database first through `sdkwork-database-cli -- --app-root . init`; do not apply the SQL asset through a repository-local migration runner.

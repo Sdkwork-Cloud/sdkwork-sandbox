@@ -1,0 +1,197 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.sandbox.lifecycle-history-and-idempotency-contract",
+  "status": "draft",
+  "requirement": "REQ-2026-0020",
+  "decision": "ADR-20260730-sandbox-lifecycle-hot-state-and-idempotency-ledger",
+  "dependencies": [
+    "../docs/product/requirements/REQ-2026-0005-durable-sandbox-session-repository-and-reconciliation.md",
+    "../docs/product/requirements/REQ-2026-0010-sandbox-observability-event-audit-outbox.md",
+    "../database/database.manifest.json"
+  ],
+  "implementationAuthorized": false,
+  "currentDebtEvidence": {
+    "sandbox_session_hydration_reads_complete_operation_history": true,
+    "sandbox_operation_lookup_hydrates_complete_owning_aggregate": true,
+    "sandbox_reconciliation_candidate_page_performs_pre_lease_aggregate_hydration": true,
+    "sandbox_maximum_operations_per_session_approved": false,
+    "sandbox_maximum_active_session_lifetime_approved": false,
+    "sandbox_terminal_idempotency_retention_approved": false,
+    "sandbox_post_retention_retry_semantics_approved": false
+  },
+  "ownership": {
+    "sandbox_hot_state_owner": "Sandbox lifecycle service",
+    "sandbox_idempotency_ledger_owner": "Sandbox lifecycle persistence adapter",
+    "sandbox_audit_owner": "Sandbox audit authority",
+    "sandbox_event_owner": "Sandbox event/outbox authority",
+    "sandbox_api_retry_semantics_owner": "Sandbox internal API authority",
+    "sandbox_agent_orchestration_owner": "sdkwork-kernel",
+    "sandbox_price_invoice_payment_owner": "SDKWork Commerce",
+    "sandbox_idempotency_ledger_may_be_reconstructed_from_audit_event_log_or_metric": false
+  },
+  "hotStateProjection": {
+    "type": "SandboxSessionHotState",
+    "candidatePublicExportAuthorized": false,
+    "requiredFacts": [
+      "tenant_id",
+      "sandbox_session_id",
+      "sandbox_session_state",
+      "sandbox_runtime_binding",
+      "sandbox_last_failure",
+      "sandbox_current_operation",
+      "sandbox_lifecycle_policy_revision",
+      "sandbox_version"
+    ],
+    "sandbox_current_in_progress_operation_count_max": 1,
+    "sandbox_stable_state_has_in_progress_operation": false,
+    "sandbox_transient_state_requires_matching_current_operation": true,
+    "sandbox_complete_historical_operation_collection_allowed": false,
+    "sandbox_full_event_history_replay_required_for_restore": false,
+    "sandbox_query_and_memory_cost_independent_of_historical_operation_count": true
+  },
+  "idempotencyLedger": {
+    "type": "SandboxLifecycleIdempotencyRecord",
+    "candidatePublicExportAuthorized": false,
+    "primaryLookupKey": [
+      "tenant_id",
+      "sandbox_operation_id"
+    ],
+    "requiredFacts": [
+      "tenant_id",
+      "sandbox_operation_id",
+      "sandbox_session_id",
+      "sandbox_operation_kind",
+      "sandbox_request_fingerprint_version",
+      "sandbox_request_fingerprint",
+      "sandbox_operation_outcome",
+      "sandbox_replay_result_descriptor",
+      "sandbox_lifecycle_policy_revision",
+      "sandbox_created_at",
+      "sandbox_terminal_at",
+      "sandbox_version"
+    ],
+    "sandbox_point_lookup_required": true,
+    "sandbox_full_session_history_scan_allowed": false,
+    "sandbox_same_operation_same_fingerprint_replays_persisted_business_result": true,
+    "sandbox_same_operation_different_fingerprint_conflicts_before_side_effect": true,
+    "sandbox_same_operation_different_kind_or_owner_conflicts_before_side_effect": true,
+    "sandbox_fingerprint_is_versioned_and_canonical": true,
+    "sandbox_active_transient_recoverable_or_retry_eligible_record_may_expire": false,
+    "sandbox_record_absence_after_retention_may_silently_authorize_reexecution": false,
+    "sandbox_secret_workspace_content_raw_host_path_or_plain_provider_allocation_allowed": false
+  },
+  "boundedReadPaths": {
+    "sandbox_session_hydration_operation_rows_max": 1,
+    "sandbox_session_hydration_query_count_must_be_finite_and_declared": true,
+    "sandbox_operation_replay_lookup_uses_tenant_leading_unique_index": true,
+    "sandbox_operation_replay_lookup_hydrates_complete_session_history": false,
+    "sandbox_reconciliation_candidate_page_uses_tenant_keyset": true,
+    "sandbox_reconciliation_candidate_page_hydrates_aggregate_per_row": false,
+    "sandbox_post_lease_authoritative_read_required": true,
+    "sandbox_post_lease_authoritative_read_operation_rows_max": 1,
+    "sandbox_unbounded_scan_or_in_process_pagination_allowed": false,
+    "sandbox_hidden_pre_lease_n_plus_one_hydration_allowed": false
+  },
+  "lifecycleLimitsAndRetention": {
+    "sandbox_policy_revision_pinned_when_session_is_created": true,
+    "sandbox_limits_checked_before_provider_or_host_side_effect": true,
+    "sandbox_maximum_operations_per_session": null,
+    "sandbox_maximum_active_session_lifetime_seconds": null,
+    "sandbox_terminal_session_retention_seconds": null,
+    "sandbox_terminal_idempotency_retention_seconds": null,
+    "sandbox_replay_result_descriptor_bytes_max": null,
+    "sandbox_post_retention_late_retry_outcome": null,
+    "sandbox_exact_values_require_human_approval_before_ready": true,
+    "sandbox_terminal_cleanup_requires_approved_window_and_reference_checks": true,
+    "sandbox_ttl_alone_may_delete_idempotency_record": false,
+    "sandbox_uncertain_record_may_be_deleted": false
+  },
+  "retentionWorker": {
+    "sandbox_profile": "bounded-p3-maintenance",
+    "sandbox_tenant_or_partition_scoped": true,
+    "sandbox_keyset_pagination_required": true,
+    "sandbox_batch_size_max": 100,
+    "sandbox_database_clock_required": true,
+    "sandbox_worker_lease_and_fencing_required": true,
+    "sandbox_durable_checkpoint_or_watermark_required": true,
+    "sandbox_rate_limit_and_backpressure_required": true,
+    "sandbox_idempotent_restart_required": true,
+    "sandbox_failure_visible_and_alerted": true,
+    "sandbox_cross_tenant_bulk_delete_allowed": false
+  },
+  "migrationGate": {
+    "sandbox_dedicated_migration_record_required": true,
+    "sandbox_applied_baseline_migration_may_be_edited": false,
+    "sandbox_required_stages": [
+      "sandbox_expand",
+      "sandbox_backfill",
+      "sandbox_verify",
+      "sandbox_dual_read_write_or_shadow_compare",
+      "sandbox_cutover",
+      "sandbox_retire_old_shape"
+    ],
+    "sandbox_real_postgresql_16_and_17_required": true,
+    "sandbox_concurrency_cleanup_race_and_restart_evidence_required": true,
+    "sandbox_query_plan_and_buffers_evidence_required": true,
+    "sandbox_least_privilege_role_and_search_path_evidence_required": true,
+    "sandbox_pitr_and_forward_recovery_evidence_required": true,
+    "sandbox_sqlite_or_memory_only_evidence_sufficient": false
+  },
+  "candidateErrorSemantics": {
+    "sandbox_public_error_names_authorized": false,
+    "sandbox_required_outcomes": [
+      "sandbox_idempotency_conflict",
+      "sandbox_lifecycle_operation_limit_exceeded",
+      "sandbox_session_lifetime_exceeded",
+      "sandbox_idempotency_record_unavailable",
+      "sandbox_lifecycle_persistence_failure"
+    ],
+    "sandbox_retryability_must_be_explicit": true,
+    "sandbox_limit_or_lifetime_outcome_may_be_emitted_after_side_effect": false,
+    "sandbox_kernel_mapping_requires_cross_repository_human_review": true
+  },
+  "telemetry": {
+    "sandbox_required_signals": [
+      "sdkwork_sandbox_lifecycle_idempotency_lookup_duration_seconds",
+      "sdkwork_sandbox_lifecycle_idempotency_conflicts_total",
+      "sdkwork_sandbox_lifecycle_limit_rejections_total",
+      "sdkwork_sandbox_lifecycle_retention_cleanup_lag_seconds",
+      "sdkwork_sandbox_lifecycle_retention_cleanup_failures_total",
+      "sdkwork_sandbox_lifecycle_idempotency_rows",
+      "sdkwork_sandbox_lifecycle_idempotency_bytes"
+    ],
+    "sandbox_low_cardinality_labels_required": true,
+    "sandbox_tenant_session_operation_or_fingerprint_labels_allowed": false,
+    "sandbox_metric_log_trace_event_or_audit_is_idempotency_authority": false,
+    "sandbox_retention_and_cleanup_runbook_required": true
+  },
+  "humanReview": {
+    "required": true,
+    "reviewPacket": "REVIEW-20260730-sandbox-lifecycle-history-and-idempotency-retention",
+    "requiredReviewers": [
+      "product-api-owner",
+      "architecture-lifecycle-owner",
+      "security-privacy-owner",
+      "database-reliability-owner",
+      "performance-operations-owner",
+      "sdkwork-kernel-owner"
+    ],
+    "requiredDecisions": [
+      "sandbox_hot_state_and_ledger_boundary",
+      "sandbox_repository_port_and_physical_names",
+      "sandbox_maximum_operations_per_session",
+      "sandbox_maximum_active_session_lifetime",
+      "sandbox_terminal_session_retention",
+      "sandbox_terminal_idempotency_retention",
+      "sandbox_replay_result_descriptor_limit",
+      "sandbox_post_retention_late_retry_outcome",
+      "sandbox_migration_cutover_and_recovery",
+      "sandbox_public_error_and_kernel_mapping"
+    ]
+  },
+  "x-sdkwork-status": "draft",
+  "x-sdkwork-require-human-review": true,
+  "x-sdkwork-no-runtime-implementation": true,
+  "x-sdkwork-no-database-implementation": true,
+  "x-sdkwork-no-api-sdk-kernel-implementation": true
+}

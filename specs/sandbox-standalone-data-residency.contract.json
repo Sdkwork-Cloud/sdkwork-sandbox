@@ -1,0 +1,327 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.sandbox.standalone-data-residency",
+  "status": "draft",
+  "requirementId": "REQ-2026-0022",
+  "relatedRequirementIds": [
+    "REQ-2026-0003",
+    "REQ-2026-0005",
+    "REQ-2026-0009",
+    "REQ-2026-0010",
+    "REQ-2026-0020",
+    "REQ-2026-0021"
+  ],
+  "decisionId": "ADR-20260730-sandbox-standalone-data-residency-and-recovery",
+  "review": "../docs/engineering/reviews/REVIEW-20260730-sandbox-standalone-data-residency-and-recovery.md",
+  "implementationAuthorized": false,
+  "scope": {
+    "sandbox_execution_profile_id": "sandbox_standalone_local",
+    "sandbox_deployment_profile": "standalone",
+    "sandbox_provider_kind": "local",
+    "sandbox_isolation_assurance": "HostUser",
+    "sandbox_deployment_profile_alone_proves_device_locality": false,
+    "sandbox_provider_kind_alone_proves_device_locality": false,
+    "sandbox_cross_repository_evidence_required": true,
+    "sandbox_real_runtime_evidence_required": true
+  },
+  "claimModes": [
+    {
+      "sandbox_claim_mode": "device-local-persistence",
+      "sandbox_remote_durable_copy_allowed": false,
+      "sandbox_external_processing_requires_separate_user_authorized_grant": true,
+      "sandbox_external_processing_may_be_described_as_strict_device_local": false
+    },
+    {
+      "sandbox_claim_mode": "strict-device-local-processing",
+      "sandbox_remote_durable_copy_allowed": false,
+      "sandbox_content_egress_allowed": false,
+      "sandbox_external_model_tool_sync_telemetry_allowed": false,
+      "sandbox_unavailable_when_external_processing_is_required": true
+    }
+  ],
+  "authorityMatrix": [
+    {
+      "sandbox_data_class_id": "sandbox_workspace_source",
+      "sandbox_classification": ["tenant", "sensitive"],
+      "sandbox_owner": "user-authorized-local-folder-or-approved-drive-local-adapter",
+      "sandbox_authoritative": true,
+      "sandbox_persistence_role": "workspace-capability",
+      "sandbox_backup_policy": "separate-explicit-user-selection",
+      "sandbox_purge_policy": "preserve-unless-separately-authorized"
+    },
+    {
+      "sandbox_data_class_id": "sandbox_agents_business_state",
+      "sandbox_classification": ["tenant", "personal"],
+      "sandbox_owner": "sdkwork-agents",
+      "sandbox_authoritative": true,
+      "sandbox_persistence_role": "authoritative-server-postgresql",
+      "sandbox_backup_policy": "local-database-aware-encrypted-and-restore-verified",
+      "sandbox_purge_policy": "agents-owned-scoped-export-and-purge"
+    },
+    {
+      "sandbox_data_class_id": "sandbox_kernel_transient_execution_state",
+      "sandbox_classification": ["tenant", "sensitive"],
+      "sandbox_owner": "sdkwork-kernel",
+      "sandbox_authoritative": false,
+      "sandbox_persistence_role": "declared-client-local-sqlite-or-authoritative-server-postgresql",
+      "sandbox_backup_policy": "owner-declared-transient-or-local-recovery-policy",
+      "sandbox_purge_policy": "kernel-owned-bounded-retention-and-purge"
+    },
+    {
+      "sandbox_data_class_id": "sandbox_control_state",
+      "sandbox_classification": ["tenant", "sensitive"],
+      "sandbox_owner": "sdkwork-sandbox",
+      "sandbox_authoritative": true,
+      "sandbox_persistence_role": "authoritative-server-postgresql",
+      "sandbox_backup_policy": "local-database-aware-encrypted-and-restore-verified",
+      "sandbox_purge_policy": "sandbox-owned-fenced-lifecycle-purge"
+    },
+    {
+      "sandbox_data_class_id": "sandbox_runtime_root",
+      "sandbox_classification": ["tenant", "sensitive"],
+      "sandbox_owner": "sdkwork-sandbox-runtime-binding",
+      "sandbox_authoritative": false,
+      "sandbox_persistence_role": "ephemeral-runtime-capability",
+      "sandbox_backup_policy": "excluded",
+      "sandbox_purge_policy": "destroy-and-residue-verify-before-release"
+    },
+    {
+      "sandbox_data_class_id": "sandbox_build_cache",
+      "sandbox_classification": ["tenant"],
+      "sandbox_owner": "sdkwork-sandbox-runtime-composition",
+      "sandbox_authoritative": false,
+      "sandbox_persistence_role": "rebuildable-cache-capability",
+      "sandbox_backup_policy": "excluded",
+      "sandbox_purge_policy": "bounded-delete-on-reset-or-policy-expiry"
+    },
+    {
+      "sandbox_data_class_id": "sandbox_logs_and_audit",
+      "sandbox_classification": ["internal", "tenant"],
+      "sandbox_owner": "owning-service-and-approved-audit-authority",
+      "sandbox_authoritative": false,
+      "sandbox_persistence_role": "redacted-local-log-or-audit-store",
+      "sandbox_backup_policy": "owner-policy-without-source-or-secret-content",
+      "sandbox_purge_policy": "bounded-retention-and-privacy-deletion"
+    },
+    {
+      "sandbox_data_class_id": "sandbox_secrets_and_credentials",
+      "sandbox_classification": ["sensitive"],
+      "sandbox_owner": "os-secure-storage-or-approved-local-secret-adapter",
+      "sandbox_authoritative": true,
+      "sandbox_persistence_role": "separate-secret-capability",
+      "sandbox_backup_policy": "excluded-by-default",
+      "sandbox_purge_policy": "revoke-and-secure-delete-with-visible-failure"
+    },
+    {
+      "sandbox_data_class_id": "sandbox_temporary_and_output_data",
+      "sandbox_classification": ["tenant", "sensitive"],
+      "sandbox_owner": "sdkwork-sandbox-runtime-binding",
+      "sandbox_authoritative": false,
+      "sandbox_persistence_role": "ephemeral-temp-capability",
+      "sandbox_backup_policy": "excluded",
+      "sandbox_purge_policy": "destroy-and-residue-verify-before-release"
+    },
+    {
+      "sandbox_data_class_id": "sandbox_checkpoint_candidate",
+      "sandbox_classification": ["tenant", "sensitive"],
+      "sandbox_owner": "approved-local-workspace-or-checkpoint-authority",
+      "sandbox_authoritative": false,
+      "sandbox_persistence_role": "durable-local-candidate-before-agents-promotion",
+      "sandbox_backup_policy": "workspace-owner-policy",
+      "sandbox_purge_policy": "bounded-owner-governed-retention-after-handoff-or-conflict"
+    },
+    {
+      "sandbox_data_class_id": "sandbox_birdcoder_device_facts",
+      "sandbox_classification": ["internal", "personal"],
+      "sandbox_owner": "sdkwork-birdcoder",
+      "sandbox_authoritative": false,
+      "sandbox_persistence_role": "bounded-declared-client-local-device-facts",
+      "sandbox_backup_policy": "local-opt-in-without-secret-or-workspace-copy",
+      "sandbox_purge_policy": "birdcoder-profile-reset"
+    }
+  ],
+  "databaseRolePolicy": {
+    "sandbox_agents_business_state_role": "authoritative-server-postgresql",
+    "sandbox_sandbox_control_state_role": "authoritative-server-postgresql",
+    "sandbox_server_sqlite_fallback_allowed": false,
+    "sandbox_remote_postgresql_endpoint_allowed_for_device_local_claim": false,
+    "sandbox_kernel_embedded_sqlite_requires_database_role": "client-local",
+    "sandbox_kernel_service_database_role": "authoritative-server-postgresql",
+    "sandbox_birdcoder_sqlite_when_present_requires_database_role": "client-local",
+    "sandbox_client_local_store_requires_profile_environment_origin_account_isolation": true,
+    "sandbox_client_local_and_server_migration_histories_are_separate": true,
+    "sandbox_database_role_selected_from_connection_string": false
+  },
+  "runtimeDirectoryPolicy": {
+    "sandbox_application_code": "sandbox",
+    "sandbox_user_private_root": "~/.sdkwork/sandbox",
+    "sandbox_windows_user_private_root": "%USERPROFILE%\\.sdkwork\\sandbox",
+    "sandbox_required_distinct_capabilities": [
+      "sandbox_workspace_capability",
+      "sandbox_service_data_capability",
+      "sandbox_runtime_root_capability",
+      "sandbox_cache_capability",
+      "sandbox_log_capability",
+      "sandbox_secret_capability",
+      "sandbox_temp_capability"
+    ],
+    "sandbox_source_repository_sdkwork_directory_is_runtime_root": false,
+    "sandbox_ids_may_be_converted_to_host_paths": false,
+    "sandbox_raw_host_root_input_allowed": false,
+    "sandbox_non_transferable_capabilities_reauthorized_after_restart_or_restore": true
+  },
+  "separationAndCleanup": {
+    "sandbox_workspace_and_runtime_share_writable_root": false,
+    "sandbox_workspace_and_service_database_share_write_authority": false,
+    "sandbox_workspace_deleted_by_runtime_cleanup": false,
+    "sandbox_workspace_deleted_by_default_reset": false,
+    "sandbox_workspace_deleted_by_uninstall": false,
+    "sandbox_runtime_release_requires_temp_cache_runtime_cleanup_evidence": true,
+    "sandbox_cleanup_uncertainty_reports_failure_and_quarantines_binding": true,
+    "sandbox_checkpoint_handoff_precedes_runtime_release": true
+  },
+  "transferAndSync": {
+    "sandbox_default_remote_storage_sync_backup_telemetry_action": "deny",
+    "sandbox_local_mode_implies_external_processing_consent": false,
+    "sandbox_optional_transfer_requires": [
+      "sandbox_user_or_operator_authorization",
+      "sandbox_data_category_disclosure",
+      "sandbox_destination_and_region_disclosure",
+      "sandbox_purpose_and_retention_disclosure",
+      "sandbox_revocation_and_deletion_path",
+      "sandbox_agents_or_drive_owned_sync_conflict_contract"
+    ],
+    "sandbox_optional_sync_is_owned_by_sandbox": false,
+    "sandbox_cloud_fallback_on_local_failure_allowed": false,
+    "sandbox_strict_mode_source_prompt_transcript_artifact_secret_diagnostic_egress_allowed": false
+  },
+  "backupAndRecovery": {
+    "sandbox_backup_default": "local-opt-in",
+    "sandbox_tenant_personal_backup_encryption_required": true,
+    "sandbox_integrity_manifest_required": true,
+    "sandbox_postgresql_live_file_copy_allowed": false,
+    "sandbox_postgresql_database_aware_backup_required": true,
+    "sandbox_sqlite_supported_online_backup_or_snapshot_required": true,
+    "sandbox_workspace_included_by_default": false,
+    "sandbox_secrets_included_by_default": false,
+    "sandbox_cache_runtime_temp_included": false,
+    "sandbox_restore_test_required": true,
+    "sandbox_successful_backup_job_is_restore_evidence": false,
+    "sandbox_restore_requires_capability_reauthorization": true,
+    "sandbox_rpo_rto_and_restore_exercise_require_owner_approval": true
+  },
+  "retentionExportDeletion": {
+    "sandbox_owner_approved_bounded_retention_required_for_every_persisted_class": true,
+    "sandbox_export_inventory_includes_primary_checkpoint_log_and_derived_data": true,
+    "sandbox_purge_inventory_includes_primary_checkpoint_log_cache_temp_derived_and_backup_data": true,
+    "sandbox_purge_requires_scope_confirmation_idempotency_progress_and_audit": true,
+    "sandbox_partial_or_uncertain_purge_may_report_complete": false,
+    "sandbox_uninstall_is_privacy_purge": false,
+    "sandbox_default_uninstall_preserves_workspace": true,
+    "sandbox_hard_delete_or_anonymization_owner_required": true
+  },
+  "failureHandling": {
+    "sandbox_missing_or_ambiguous_locality_action": "not-ready",
+    "sandbox_missing_capability_action": "not-ready",
+    "sandbox_local_database_unavailable_action": "not-ready",
+    "sandbox_disk_full_action": "stop-new-writes-drain-and-report-safe-error",
+    "sandbox_corruption_action": "isolate-store-stop-mutations-and-require-recovery",
+    "sandbox_restore_failure_action": "keep-original-and-report-not-ready",
+    "sandbox_purge_uncertainty_action": "retain-incomplete-status-and-block-completion-claim",
+    "sandbox_failure_may_trigger_implicit_cloud_fallback": false,
+    "sandbox_failure_may_silently_discard_authoritative_data": false
+  },
+  "telemetryAndSupport": {
+    "sandbox_standalone_telemetry_default": "disabled-or-explicit-privacy-safe-opt-in",
+    "sandbox_source_prompt_transcript_artifact_content_allowed": false,
+    "sandbox_raw_path_mount_handle_database_url_credential_provider_metadata_allowed": false,
+    "sandbox_support_bundle_requires_inventory_redaction_and_user_confirmation": true,
+    "sandbox_metrics_may_prove_data_residency": false
+  },
+  "readiness": {
+    "sandbox_gate_scope": "local-only",
+    "sandbox_required_for_execution_profile_ids": ["sandbox_standalone_local"],
+    "sandbox_forbidden_for_execution_profile_ids": [
+      "sandbox_standalone_firecracker",
+      "sandbox_cloud_firecracker"
+    ],
+    "sandbox_all_data_classes_require_evidence": true,
+    "sandbox_all_repository_owner_evidence_requires_human_acceptance": true,
+    "sandbox_static_contract_is_runtime_evidence": false,
+    "sandbox_unknown_or_missing_evidence_is_ready": false,
+    "sandbox_safe_reason_categories": [
+      "sandbox_local_residency_contract_unapproved",
+      "sandbox_local_store_not_local",
+      "sandbox_local_data_inventory_incomplete",
+      "sandbox_local_capability_unavailable",
+      "sandbox_local_recovery_evidence_missing",
+      "sandbox_local_purge_evidence_missing",
+      "sandbox_local_processing_egress_not_allowed"
+    ]
+  },
+  "crossRepositoryEvidence": {
+    "sandbox_dependency_direction": "sdkwork-birdcoder -> sdkwork-agents -> sdkwork-kernel -> sdkwork-sandbox",
+    "sandbox_required_repositories": [
+      "sdkwork-birdcoder",
+      "sdkwork-agents",
+      "sdkwork-kernel",
+      "sdkwork-sandbox"
+    ],
+    "sandbox_required_evidence": [
+      "sandbox_birdcoder_zero_business_table_and_device_fact_inventory",
+      "sandbox_birdcoder_local_mount_identity_restart_profile_and_purge_evidence",
+      "sandbox_agents_local_postgresql_business_persistence_export_purge_and_restore_evidence",
+      "sandbox_kernel_declared_runtime_database_role_retention_purge_and_recovery_evidence",
+      "sandbox_sandbox_local_postgresql_runtime_directory_checkpoint_cleanup_and_restore_evidence",
+      "sandbox_workspace_local_folder_or_drive_authorization_and_no_implicit_sync_evidence",
+      "sandbox_windows_macos_linux_user_profile_account_isolation_evidence",
+      "sandbox_network_capture_no_implicit_storage_sync_telemetry_or_strict_content_egress_evidence",
+      "sandbox_backup_restore_corruption_disk_full_uninstall_purge_and_residue_evidence"
+    ],
+    "sandbox_cross_repository_source_change_requires_human_review": true
+  },
+  "forbiddenOwnership": [
+    "sandbox_birdcoder_business_database",
+    "sandbox_sandbox_agents_business_state",
+    "sandbox_kernel_agents_business_state",
+    "sandbox_sandbox_workspace_bytes",
+    "sandbox_local_mode_external_processing_consent",
+    "sandbox_deployment_profile_residency_inference"
+  ],
+  "humanReview": {
+    "required": true,
+    "sandbox_required_roles": [
+      "sandbox_product_privacy_claim_owner",
+      "sandbox_security_privacy_owner",
+      "sandbox_birdcoder_owner",
+      "sandbox_agents_database_owner",
+      "sandbox_kernel_owner",
+      "sandbox_sandbox_owner",
+      "sandbox_workspace_drive_owner",
+      "sandbox_local_operations_reliability_owner"
+    ],
+    "sandbox_approved_outcome_required_before_implementation": true
+  },
+  "verificationScenarios": [
+    "sandbox_standalone_does_not_imply_device_locality",
+    "sandbox_complete_data_class_and_single_owner_inventory",
+    "sandbox_server_postgresql_and_client_local_sqlite_role_separation",
+    "sandbox_distinct_workspace_data_runtime_cache_log_secret_temp_capabilities",
+    "sandbox_workspace_preserved_on_cleanup_reset_and_uninstall",
+    "sandbox_no_id_to_path_or_repository_sdkwork_runtime_state",
+    "sandbox_no_implicit_remote_storage_sync_backup_or_telemetry",
+    "sandbox_strict_device_local_content_egress_denial",
+    "sandbox_local_encrypted_backup_integrity_and_verified_restore",
+    "sandbox_scoped_export_purge_and_partial_failure_visibility",
+    "sandbox_disk_full_corruption_restore_and_purge_fail_closed",
+    "sandbox_four_repository_real_os_network_and_residue_evidence"
+  ],
+  "x-sdkwork-status": "draft",
+  "x-sdkwork-require-human-review": true,
+  "x-sdkwork-no-runtime-wiring": true,
+  "x-sdkwork-no-database-or-migration": true,
+  "x-sdkwork-no-api-sdk-or-config": true,
+  "x-sdkwork-no-cross-repository-source-change": true,
+  "x-sdkwork-no-production-claim": true
+}
+

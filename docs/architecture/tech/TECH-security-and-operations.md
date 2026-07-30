@@ -4,7 +4,7 @@ Status: draft
 
 Owner: SDKWork Runtime Platform
 
-Updated: 2026-07-29
+Updated: 2026-07-30
 
 Parent: [Technical Architecture](TECH_ARCHITECTURE.md)
 
@@ -16,7 +16,7 @@ Local Provider 无法建立强于当前 OS User 与已开放 Host Capability 的
 
 ## 2. Deny-by-default Control
 
-- 禁止不受限 Host Filesystem；Workspace/Cache Root 使用 Capability Handle 与 Canonical Containment。
+- 禁止不受限 Host Filesystem；Workspace/Cache Root 只使用 Composition 已打开的 Capability Handle 与 handle-relative no-follow/file-identity verification。String canonicalization 和 check-then-open 不是安全边界。
 - 默认禁止 Docker/Container Socket、Cloud Metadata Endpoint、Host Network、Host SSH Agent、Privileged Mode、Host PID Namespace。
 - 禁止 Ambient Credential；Secret 通过 Reference 解析，在最小 Scope/Time 内注入，并在 Stop/Reassignment 后撤销。
 - 未经评审的 Profile 禁止 Elevated Linux Capability、Device、Kernel Module 与 Unsafe Host Mount。
@@ -32,17 +32,25 @@ Physical Workspace Root 与 Provider Host Path 是 Private Metadata。Public Err
 
 REQ-2026-0013 进一步固定 provider-neutral `SandboxWorkspaceAttachmentPort` 与其后的 L4 `SandboxWorkspaceBlockDevicePort` Gate：Agents 拥有 Workspace Identity/Authorization/Revision/Retention，Drive 拥有适用的 SDKWork 文件/对象存储生命周期，Sandbox 只拥有一次 Session/Binding 的 encrypted Runtime Projection。Firecracker 不直接挂载 Host Directory；Detach/Sanitize 不删除 Persistent Workspace，Ephemeral Projection 执行 Cryptographic Erase 和 Residue Scan，失败或未知进入 Quarantine 并阻止跨 Tenant 重用。当前只有 draft 机器契约，不存在 Storage/KMS/Device Runtime 或真实隔离证据。
 
+REQ-2026-0022 将 Local 数据安全扩展为四仓 Release Gate。`standalone`/Local Provider 不证明设备本地性；BirdCoder 只拥有有界设备事实，Agents/Sandbox Server Authority 保持本机 PostgreSQL，SQLite 只服务独立声明的 `client-local` Kernel/BirdCoder 状态。Workspace、Service Data、Runtime Root、Cache、Log、Secret 与 Temp 使用不同 Capability，Sandbox Cleanup/Reset/Uninstall 默认保留 Workspace。`device-local-persistence` 禁止远程持久副本；`strict-device-local-processing` 还禁止源码、Prompt、Transcript、Artifact、Secret 和诊断内容外传。Sync、External Model/Tool 和 Telemetry 必须独立授权，不能由 Local Mode 推导同意。
+
+Local Backup 默认本地 Opt-in，按 PostgreSQL/SQLite 正确机制执行，敏感内容加密并附 Integrity Manifest；Workspace 与 Secret 默认排除，且只有通过 Restore Test 才构成证据。Export/Purge 必须覆盖 Primary、Checkpoint、Log、Cache、Temp、Derived Index 和 Backup；Uninstall 不等同 Privacy Purge。Missing/Ambiguous Locality、Capability、Database、Disk Full、Corruption、Restore Failure 或 Purge Uncertainty 均关闭失败，不允许 Cloud Fallback、静默丢数据或虚假完成声明。当前仅有 draft 合同，没有真实路径、数据库、备份、清除或 OS/Network Evidence。
+
 REQ-2026-0014 固定 provider-neutral `SandboxNetworkPolicyPort` 与其后的 L4 `SandboxNetworkIsolationPort` Gate：Policy 默认 `DenyAll`，只有显式 DNS/Egress Grant 可进入机制层，Cloud Metadata、Host Control Plane 与 Tenant Lateral Traffic 永久拒绝且不能被 Grant 覆盖。每个 Runtime Binding 独立 netns/Tap；Policy Revision/Fencing、Atomic Apply/Readback/Probe、Teardown/Residue/Quarantine 与 Durable Denial Audit 关闭失败。当前只有 draft 机器契约，不存在 Network Port/Adapter、netns、Tap、Firewall/DNS/Route Runtime 或真实 KVM 网络隔离证据。
 
 ## 4. Process、Terminal 与 Network Safety
 
-Process Creation 执行 Executable Policy、Working-directory Containment、Environment Allow/Deny、CPU/Memory/IO/PID Limit、Wall Timeout、Output Limit、Cancellation 与 Child Cleanup。Stop/Destroy 必须在有界策略下等待或强制结束 Descendant。
+Process Creation 执行 Runtime-Binding-scoped immutable Execution Policy、Working-directory Containment、Environment Allow/Deny、CPU/Memory/IO/PID Limit、Wall Timeout、Output Limit、Cancellation 与 Child Cleanup。`sandboxExecutable` 是逻辑标识，只能由 Provider-owned Registry Snapshot 解析；禁止 Caller Path、OS PATH Search 与 CWD Lookup，重放不得改用不同 Binary。Stop/Destroy 必须在有界策略下等待或强制结束 Descendant。
+
+Local 平台边界由 `specs/sandbox-local-provider-host-boundary.contract.json` 固定：Windows suspended spawn 后必须先绑定 Kill-on-close Job Object 与 Completion Port 再 Resume；Linux 必须在用户代码执行前 race-free 加入每 Binding 独立的 delegated unified cgroup v2 Scope，并以 `cgroup.kill`、`cgroup.events`、PID Controller 和 `populated=0` 收敛；Process Group 或 spawn 后写 `cgroup.procs` 不足以构成保证。macOS 在 detached descendant containment 获批前不声明 Terminal，相关请求关闭失败且不回退。Environment 从空集合构造，请求不能扩展 Policy 或覆盖 PATH/PATHEXT/COMSPEC/SYSTEMROOT/WINDIR/HOME/USERPROFILE/TMP/TEMP 等 Provider 固定值，不继承 SSH Agent、Cloud/Proxy Credential、Docker Socket、Host Runtime Control 或 Secret-bearing Variable。
 
 Terminal IO 可能包含敏感数据，必须 Bounded、Access-controlled，并与 Structured Operational Log 使用不同 Retention。Port Forward 需要显式 Lease，至少记录 Owner、Direction、Target、Expiry、Exposure Class 与 Revoke Operation。
 
 Sandbox Lifecycle Provider Side Effect 使用 `SandboxSessionLease` 建立唯一控制权。内部身份/变量固定为 `SandboxLeaseOwnerId`/`sandbox_lease_owner_id` 与 `SandboxFencingToken`/`sandbox_fencing_token`；每次 Allocate/Start/Stop/Destroy 前必须 Renew，Provider Request 必须携带当前 Token。Acquire 发现其他控制器仍持有 Lease 时返回 `SandboxLifecycleError::LeaseUnavailable`；Acquire 成功后 Renew、Token Identity Check、Repository Save 的 `LeaseConflict` 或成功业务后的 Release 失败时返回 `SandboxLifecycleError::LeaseLost`，已有 Provider/Readiness 错误优先于并发 Release 错误。Reconciler 在 Acquire 成功后必须重新读取权威 `SandboxSession`，仅对当前仍为瞬态状态的 Session 发出 Provider Side Effect。`SandboxFencingToken` 达到 PostgreSQL `BIGINT` 上限后关闭失败为 `LeaseConflict`，不得回绕。Provider Operation Timeout 必须非零且不超过 Lease Duration 的一半，以便 Timeout/返回后仍保留提交失败状态或清理的时间预算；`LeaseLost` 后不得继续 Provider 调用或 Repository Save。真实 Provider 必须按 `SandboxRuntimeBindingId` 拒绝低于已观察值的 Token。
 
 PostgreSQL Operation 历史使用稳定 `sandbox_operation_sequence`，避免同一事务时间戳和随机 ID 造成状态机反序。Repository Restore 必须在解密 `SandboxProviderAllocationRef` 前按该顺序重放并验证持久化组合不变量；`Running`/`Stopping`/`Stopped` 缺少受保护 Allocation、`Created`/`Destroyed` 保留 Binding、Transient State 缺少匹配 InProgress Operation、Failure 不匹配等情况统一关闭失败，且不得触发 Provider Side Effect。
+
+上述完整历史 replay 是当前 REQ-2026-0005 候选行为，也是一项未关闭的商业化 P1 风险。REQ-2026-0020 与候选 ADR-20260730 将目标边界固定为 bounded `SandboxSessionHotState` + separate durable `SandboxLifecycleIdempotencyRecord`：普通 hydrate 和 post-Lease reread 至多读取当前 In-progress Operation，Operation 重放/冲突通过 Tenant-scoped point lookup 处理，Audit/Event/Log 不充当幂等权威。最大 Operation 数、最大活动 Session 生命周期、终态保留和 Late Retry Outcome 未获人审前保持未定义，当前 Schema/Repository 不得擅自截断或迁移。
 
 ## 5. Secret Handling
 
@@ -55,6 +63,8 @@ Workspace Projection 的 At-rest Key 只以外部 `sandbox_*` Key Reference 表�
 `SandboxProviderAllocationRef` 的 Versioned Protection、Tenant-scoped Re-encryption、页目标 Protection Version 稳定性、Tenant+Binding+Session+完整旧密文元数据 CAS 与旧密钥撤销遵循 [Allocation Key Rotation ADR](../decisions/ADR-20260728-sandbox-provider-allocation-key-rotation-and-reencryption.md)。真实 PostgreSQL 候选证据见 [Allocation Key Rotation Verification](../../engineering/reviews/REVIEW-20260729-sandbox-provider-allocation-key-rotation-verification.md)，受控操作顺序见 [Allocation Key Rotation And Old-key Revocation Runbook](../../runbooks/RUNBOOK-sandbox-provider-allocation-key-rotation.md)。Runbook 当前为 `candidate`，不得替代尚未交付的 Secret/KMS Adapter、Operator Entry Point、Audit/Metric 或人工撤销审批。
 
 `SandboxProviderAllocationKey` Key Material 使用 `Zeroizing<Vec<u8>>`，包括构造校验失败路径；派生 AES Key 使用 `Zeroizing<[u8; 32]>`，Provider-private 明文由 `SandboxProviderAllocationRef` Drop 清零。Key ID 限定为 `1..=128` bytes printable ASCII，并由 Key Carrier、Service Domain Constructor 与 PostgreSQL `CHECK` Constraint 分层拒绝不安全值；同一 Key ID/Version 在保留期内不得原地更换 Key Material。当前 Key Source 是同步 Trait，生产 Adapter 不得在 Tokio Worker 上直接进行远程 KMS 阻塞调用；必须使用经评审的短生命周期本地 Key Handle/异步刷新边界，或先批准 Async Port 演进。
+
+Service Host Bootstrap 只消费归一化安全配置和预打开、最小权限、身份绑定的 `SandboxRuntimeDirectoryCapabilities`，不消费物理路径、Database URL/Pool、Raw Key 或 Exporter Client。外部 Database Composition 在连接预算和 Readiness 通过后只注入 `SandboxSessionRepository`；Redis 当前禁用。Secret/KMS 调用必须异步、有界、可取消并在失败/Rotation 后清零；Telemetry Adapter 只有保持有界接收、Redaction 和 Drop Accounting 时才 Ready，外部 Exporter Outage 只进入独立运维健康降级，不能替代 Audit/Outbox Authority。Bootstrap 失败按固定顺序逆向清理，任一必需依赖 `degraded`/`unknown` 都不能授权新副作用。当前这些均是 `implementationAuthorized: false` 的候选边界，不存在 `etc/`、KMS、Pool、Exporter 或 Outbox Runtime。
 
 ## 6. Resource And Quota Enforcement
 
@@ -95,6 +105,6 @@ Security Audit 覆盖 Sandbox Provider Selection/Assurance、Admission Decision�
 
 ## 10. Provider Conformance
 
-每个 Sandbox Provider 最终都必须通过共同 Lifecycle/Capability Test 和 Sandbox Provider-specific Security Test。Local 与 Firecracker 使用同一候选 `SandboxCommandExecutor` Contract；Common Conformance 包括 Idempotent Lifecycle、Invalid Transition、Workspace Containment、No-shell Argv、Descendant Cleanup、Network Denial、Resource Enforcement、Terminal Cancellation、Output Bound、Stale Fencing、Secret Redaction、Event Ordering、Failure Cleanup 与 Unsupported Capability Reporting。
+每个 Sandbox Provider 最终都必须通过共同 Lifecycle/Capability Test 和 Sandbox Provider-specific Security Test。Local 与 Firecracker 使用同一候选 `SandboxCommandExecutor` Contract；Common Conformance 包括 Idempotent Lifecycle、Invalid Transition、Workspace Containment、No-shell Argv、Provider-owned Executable Resolution、无 PATH/CWD Search、Binding Policy Snapshot 不可变、Protected Environment Override Denial、Descendant Cleanup、Network Denial、Resource Enforcement、Terminal Cancellation、Output Bound、Stale Fencing、Secret Redaction、Event Ordering、Failure Cleanup 与 Unsupported Capability Reporting。
 
 功能测试通过不足以声明 Assurance Level。每次 Release 都要记录 Provider/Runtime Version、Host Prerequisite、Kernel/RuntimeClass Config、Known Limitation，以及该 Profile 能/不能缓解的 Threat Scenario。

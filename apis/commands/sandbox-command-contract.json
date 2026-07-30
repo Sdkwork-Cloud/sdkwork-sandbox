@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "kind": "sdkwork.sandbox.command-contract",
   "status": "draft",
+  "implementationAuthorized": false,
   "requirementId": "REQ-2026-0007",
   "adr": "../../docs/architecture/decisions/ADR-20260729-sandbox-command-execution-and-terminal-boundary.md",
   "review": "../../docs/engineering/reviews/REVIEW-20260729-sandbox-command-execution-architecture-security.md",
@@ -19,6 +20,55 @@
     "port-forward",
     "secret-injection"
   ],
+  "executableResolution": {
+    "type": "SandboxExecutableResolutionPolicy",
+    "logicalIdentifierField": "sandboxExecutable",
+    "callerSuppliedPathAllowed": false,
+    "operatingSystemPathSearchAllowed": false,
+    "workingDirectoryLookupAllowed": false,
+    "providerOwnedRegistryRequired": true,
+    "registrySnapshotBoundToRuntimeBinding": true,
+    "registrySnapshotImmutableForBindingLifetime": true,
+    "resolvedExecutableIdentityIsProviderPrivate": true,
+    "replayResolvedExecutableIdentityMustMatchOriginal": true,
+    "missingResolutionBeforeStartOutcome": "command-not-found",
+    "changedOrUnavailableReplayOutcome": "result-unavailable-no-reexecution"
+  },
+  "environmentPolicy": {
+    "type": "SandboxCommandEnvironmentPolicy",
+    "finalEnvironmentStartsEmpty": true,
+    "requestMayExtendNameAllowlist": false,
+    "requestValuesRequirePerNameValidation": true,
+    "protectedRequestNames": [
+      "PATH",
+      "PATHEXT",
+      "COMSPEC",
+      "SYSTEMROOT",
+      "WINDIR",
+      "HOME",
+      "USERPROFILE",
+      "TMP",
+      "TEMP"
+    ],
+    "sensitiveRequestNameSegments": [
+      "TOKEN",
+      "SECRET",
+      "PASSWORD",
+      "CREDENTIAL",
+      "PRIVATE",
+      "SSH",
+      "DOCKER",
+      "AWS",
+      "AZURE",
+      "GOOGLE",
+      "PROXY"
+    ],
+    "providerFixedValuesInjectedAfterRequestValidation": true,
+    "callerMayOverrideProviderFixedValues": false,
+    "policySnapshotBoundToRuntimeBinding": true,
+    "policySnapshotImmutableForBindingLifetime": true,
+    "ambientEnvironmentInheritanceAllowed": false
+  },
   "bounds": {
     "maxArgumentCount": 128,
     "maxExecutableBytes": 128,
@@ -141,7 +191,10 @@
     "accepted-execution-terminal-result-error-partition",
     "terminal-race-single-winner-and-replay",
     "cleanup-failure-visible-and-binding-quarantined",
-    "safe-error-and-private-metadata-redaction"
+    "safe-error-and-private-metadata-redaction",
+    "provider-owned-executable-resolution-without-path-search",
+    "protected-environment-override-rejection",
+    "runtime-binding-policy-snapshot-immutability"
   ],
   "x-sdkwork-status": "draft",
   "x-sdkwork-no-host-io": true,

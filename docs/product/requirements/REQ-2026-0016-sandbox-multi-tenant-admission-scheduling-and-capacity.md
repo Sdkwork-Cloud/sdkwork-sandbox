@@ -56,7 +56,7 @@ affected_surfaces:
 - Admission Denial 和 Scheduling Failure 使用关闭的安全 Taxonomy、显式 Retryability 和有界 Retry-after；错误不能泄露其他 Tenant、Raw Capacity、Node Identity、Topology 或 Entitlement Payload。
 - Priority 只能来自 Admission Grant；Scheduler 必须提供 Tenant-aware Fairness、Queue Deadline 和 Starvation Detection。Caller、Provider、Node Agent 或 Host Broker 不能提升 Priority、配额或 Assurance。
 - `sandbox.quota.admission.denied`、Placement Selected/Failed、Capacity Reserved/Released 必须进入现有 Event Catalog；Admission、Placement、Queue Wait、Reservation 和 Saturation Metric 只能使用低基数维度，Metric 不是 Quota/Capacity Authority。
-- Standalone 可在后续 Ready Requirement 下用同一 Contract 的 Single-node Adapter，但不能声明多租户隔离；Cloud 必须使用持久共享 Authority。Warm Pool 继续延期，不是本 Requirement 的实现范围。
+- Standalone 可在后续 Ready Requirement 下用同一 Contract 的 Single-node Adapter，但不能声明多租户隔离；Cloud 必须使用持久共享 Authority。Pool 已拆分到 REQ-2026-0019/ADR-20260730，仍不是本 Requirement 的实现范围。
 
 ## Candidate Non-functional Requirements
 

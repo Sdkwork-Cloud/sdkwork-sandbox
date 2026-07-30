@@ -61,6 +61,7 @@ function matchesWorkingDirectory(value) {
 test('Sandbox command contract is a draft, provider-neutral machine authority', () => {
   assert.equal(catalog.kind, 'sdkwork.sandbox.command-contract');
   assert.equal(catalog.status, 'draft');
+  assert.equal(catalog.implementationAuthorized, false);
   assert.equal(catalog.requirementId, 'REQ-2026-0007');
   assert.equal(request['x-sdkwork-requirement-id'], 'REQ-2026-0007');
   assert.equal(cancellationRequest['x-sdkwork-requirement-id'], 'REQ-2026-0007');
@@ -91,9 +92,25 @@ test('Sandbox command request preserves identity, fencing, idempotency, and boun
     'sandboxCommandLimits'
   ]);
   assert.equal(request.properties.sandboxExecutable['x-sdkwork-shell'], false);
+  assert.equal(
+    request.properties.sandboxExecutable['x-sdkwork-identifier-kind'],
+    'provider-neutral-logical-executable'
+  );
+  assert.equal(
+    request.properties.sandboxExecutable['x-sdkwork-path-resolution'],
+    'provider-owned-binding-policy-only'
+  );
   assert.equal(request.properties.sandboxArguments.maxItems, 128);
   assert.equal(request.properties.sandboxWorkingDirectory['x-sdkwork-path-kind'], 'workspace-logical-relative');
   assert.equal(request.properties.sandboxEnvironment['x-sdkwork-secret-policy'], 'deny-by-default');
+  assert.equal(
+    request.properties.sandboxEnvironment['x-sdkwork-policy-authority'],
+    'provider-execution-policy-snapshot'
+  );
+  assert.equal(
+    request.properties.sandboxEnvironment['x-sdkwork-protected-values'],
+    'provider-fixed-after-request-validation'
+  );
   assert.equal(request.properties.sandboxEnvironment.additionalProperties['x-sdkwork-max-utf8-bytes'], 1024);
   assert.equal(request.properties.sandboxCommandLimits.additionalProperties, false);
   assert.equal(request.properties.sandboxFencingToken.maximum, 9223372036854775807);
@@ -249,7 +266,7 @@ test('Sandbox command errors use a closed safe taxonomy with explicit retryabili
   }
 });
 
-test('Sandbox command fingerprint, idempotency, and completion rules prevent unsafe retry', () => {
+test('Sandbox command fingerprint, idempotency, binding policy, and completion prevent unsafe retry', () => {
   assert.equal(catalog.fingerprint.algorithm, 'sha256');
   assert.equal(catalog.fingerprint.authority, 'sandbox-service-derived');
   assert.equal(catalog.fingerprint.executorRecomputationRequired, true);
@@ -275,6 +292,60 @@ test('Sandbox command fingerprint, idempotency, and completion rules prevent uns
   assert.equal(catalog.terminalArbitration.cleanupFailureDoesNotHideOrRewritePrimaryOutcome, true);
   assert.equal(catalog.terminalArbitration.cleanupFailureRequiresBindingQuarantineAndProviderUnavailability, true);
   assert.deepEqual(catalog.terminalOutcomes, result.properties.sandboxOutcome.enum);
+
+  assert.equal(catalog.executableResolution.logicalIdentifierField, 'sandboxExecutable');
+  assert.equal(catalog.executableResolution.callerSuppliedPathAllowed, false);
+  assert.equal(catalog.executableResolution.operatingSystemPathSearchAllowed, false);
+  assert.equal(catalog.executableResolution.workingDirectoryLookupAllowed, false);
+  assert.equal(catalog.executableResolution.providerOwnedRegistryRequired, true);
+  assert.equal(catalog.executableResolution.registrySnapshotBoundToRuntimeBinding, true);
+  assert.equal(catalog.executableResolution.registrySnapshotImmutableForBindingLifetime, true);
+  assert.equal(catalog.executableResolution.replayResolvedExecutableIdentityMustMatchOriginal, true);
+  assert.equal(
+    catalog.executableResolution.changedOrUnavailableReplayOutcome,
+    'result-unavailable-no-reexecution'
+  );
+
+  assert.equal(catalog.environmentPolicy.finalEnvironmentStartsEmpty, true);
+  assert.equal(catalog.environmentPolicy.requestMayExtendNameAllowlist, false);
+  assert.equal(catalog.environmentPolicy.requestValuesRequirePerNameValidation, true);
+  assert.deepEqual(catalog.environmentPolicy.protectedRequestNames, [
+    'PATH',
+    'PATHEXT',
+    'COMSPEC',
+    'SYSTEMROOT',
+    'WINDIR',
+    'HOME',
+    'USERPROFILE',
+    'TMP',
+    'TEMP'
+  ]);
+  assert.deepEqual(
+    request.properties.sandboxEnvironment.propertyNames.allOf[1].not.enum,
+    catalog.environmentPolicy.protectedRequestNames
+  );
+  assert.deepEqual(catalog.environmentPolicy.sensitiveRequestNameSegments, [
+    'TOKEN',
+    'SECRET',
+    'PASSWORD',
+    'CREDENTIAL',
+    'PRIVATE',
+    'SSH',
+    'DOCKER',
+    'AWS',
+    'AZURE',
+    'GOOGLE',
+    'PROXY'
+  ]);
+  assert.equal(
+    request.properties.sandboxEnvironment.propertyNames.allOf[0].not.pattern,
+    `(^|_)(${catalog.environmentPolicy.sensitiveRequestNameSegments.join('|')})(_|$)`
+  );
+  assert.equal(catalog.environmentPolicy.providerFixedValuesInjectedAfterRequestValidation, true);
+  assert.equal(catalog.environmentPolicy.callerMayOverrideProviderFixedValues, false);
+  assert.equal(catalog.environmentPolicy.policySnapshotBoundToRuntimeBinding, true);
+  assert.equal(catalog.environmentPolicy.policySnapshotImmutableForBindingLifetime, true);
+  assert.equal(catalog.environmentPolicy.ambientEnvironmentInheritanceAllowed, false);
 });
 
 test('Sandbox command contract forbids shell, private metadata, and unbounded execution', () => {
@@ -311,7 +382,10 @@ test('Sandbox command catalog includes the required common conformance scenarios
     'accepted-execution-terminal-result-error-partition',
     'terminal-race-single-winner-and-replay',
     'cleanup-failure-visible-and-binding-quarantined',
-    'safe-error-and-private-metadata-redaction'
+    'safe-error-and-private-metadata-redaction',
+    'provider-owned-executable-resolution-without-path-search',
+    'protected-environment-override-rejection',
+    'runtime-binding-policy-snapshot-immutability'
   ]) {
     assert.ok(catalog.conformanceScenarios.includes(scenario), `missing scenario: ${scenario}`);
   }

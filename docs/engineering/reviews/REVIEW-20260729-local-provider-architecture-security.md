@@ -10,19 +10,22 @@ Owner: SDKWork Runtime Platform
 
 Date: 2026-07-29
 
+Updated: 2026-07-30
+
 Risk: critical - Host filesystem/process access, public Provider assurance, cross-platform cleanup, Workspace ownership, and credential exposure.
 
 ## Scope And Inputs
 
-本 Review 请求人工评审 Local Provider 的 `HostUser` Assurance、授权 Workspace Attachment、Capability-rooted Filesystem、跨平台 Process Supervision、Environment Deny、Capability Declaration 与 Cleanup Boundary。评审同时依赖 Lifecycle Provider SPI ADR、Agents Workspace Attachment ADR、Sandbox Command Execution Review、`SECURITY_SPEC.md`、`RUNTIME_DIRECTORY_SPEC.md`、`CONFIG_SPEC.md`、`RUST_CODE_SPEC.md` 与 `TEST_SPEC.md`。
+本 Review 请求人工评审 Local Provider 的 `HostUser` Assurance、授权 Workspace Attachment、Capability-rooted Filesystem、Runtime-Binding-scoped Execution Policy、Provider-owned Executable Resolution、跨平台 Process Supervision、Environment Deny、Capability Declaration 与 Cleanup Boundary。评审同时依赖 Lifecycle Provider SPI ADR、Agents Workspace Attachment ADR、Sandbox Command Execution Review、`SECURITY_SPEC.md`、`RUNTIME_DIRECTORY_SPEC.md`、`CONFIG_SPEC.md`、`RUST_CODE_SPEC.md` 与 `TEST_SPEC.md`。
 
 Local 只面向 Single-user Standalone Development，不承载不可信多租户 SaaS Workload。Docker Provider 不在范围内，也不能作为 Local 隔离或测试回退。
 
 ## Candidate Machine Contract Evidence
 
-- `specs/sandbox-provider-delivery-gates.contract.json` fixes Local Kind `local`, Assurance `HostUser`, standalone scope, fail-closed capability policy, platform-specific supervision evidence, forbidden assurance claims and forbidden weak fallbacks; `implementationAuthorized` remains `false`.
-- `node --test tests/contract/provider-delivery-gate.contract.test.mjs` passes 7/7 and proves the Local component still has no public ports, Host IO or process spawn while the review remains pending.
-- This evidence makes LOCAL-01..LOCAL-08 machine-reviewable but does not replace Windows/macOS/Linux real Host runner, filesystem race, descendant cleanup, credential isolation or supply-chain evidence.
+- `specs/sandbox-local-provider-host-boundary.contract.json` is now the focused machine authority for LOCAL-01..LOCAL-08: opened Capability ownership and request identity matching, Runtime-Binding-scoped immutable Execution Policy, Provider-owned logical executable resolution without PATH/CWD lookup, protected environment denial, handle-relative filesystem rules, Windows suspended Job Object, Linux race-free delegated cgroup v2, explicit macOS Terminal denial, bounded Cleanup/Quarantine, sensitive Observability, conditional dependencies and real evidence.
+- `specs/sandbox-provider-delivery-gates.contract.json` makes that contract an explicit Local Preflight dependency while retaining Kind `local`, Assurance `HostUser`, standalone-only scope, forbidden assurance claims and forbidden weak fallbacks.
+- `node --test tests/contract/sandbox-local-provider-host-boundary.contract.test.mjs tests/contract/provider-delivery-gate.contract.test.mjs` passes 20/20: 13 focused Host Boundary checks plus 7 Provider Delivery checks. The tests also prove the Local component still has no public ports, Host IO or process spawn while review remains pending.
+- This evidence makes the proposed decisions machine-reviewable but does not replace Windows/Linux real Host containment, macOS denial evidence, filesystem race, descendant cleanup, credential isolation or supply-chain evidence.
 
 ## Decision Matrix
 
@@ -32,8 +35,8 @@ Local 只面向 Single-user Standalone Development，不承载不可信多租户
 | LOCAL-02 | Adapter 只消费 Composition 打开的 Runtime/Workspace Capability Handle；不得从 `sandbox_workspace_id` 推导 Host Path，也不得按请求接受任意 Host Root。 | Workspace Authority 保持在 Agents/Attachment Boundary。 | 在替代授权模型获批前停止 Host Access。 |
 | LOCAL-03 | 第一版 Terminal 只在 Windows Job Object 与 Linux delegated cgroup v2 的真实 Descendant Cleanup Conformance 通过后声明；macOS 在获得能阻止/回收 detached descendant 的审计机制前不声明 Terminal。 | 先交付可证明的平台能力，不把 Process Group 当作完整 Tree Guarantee。 | Reviewer 必须指定并批准等价 macOS Supervisor，或明确要求三平台全部就绪后再开始 Local Terminal。 |
 | LOCAL-04 | Filesystem 采用 Handle-relative、逐级 No-follow/Reparse 检查；Linux 优先 `openat2` Resolve Policy，Unix Fallback 逐级 `openat`/`O_NOFOLLOW`，Windows 使用 Handle/Reparse/Final-path/File-identity 检查。无法证明的平台不声明 Filesystem。 | 避免 String Canonicalization 与 TOCTOU 被当作安全边界。 | 在替代 Capability Library/OS Primitive 及 Escape Test 获批前停止 Filesystem 实现。 |
-| LOCAL-05 | Command 只使用已批准的 `SandboxCommandExecutor`，Executable + Argv、Logical Relative Working Directory、Bounded Output/Timeout/Cancellation，不隐式使用 Shell。 | Local 与 Firecracker 共享语义。 | 不得增加 Local-private Command DTO 或 Shell Wrapper。 |
-| LOCAL-06 | Final Environment 从 Allowlist 构造，不继承 Ambient Credential、SSH Agent、Cloud Credential、Proxy Credential、Docker Socket 或 Secret-bearing Variable。 | 降低 Host Credential 暴露。 | 在等价 Secret Isolation 证明前不声明 Terminal。 |
+| LOCAL-05 | Command 只使用已批准的 `SandboxCommandExecutor`。`sandboxExecutable` 是 Logical Identifier，只能由绑定 Runtime Binding 的 Provider-owned immutable Registry Snapshot 解析；禁止 Caller Path、OS PATH Search、CWD Lookup 和重放改用不同 Binary。 | Local 与 Firecracker 共享语义，Executable Resolution 不受 Host Ambient State 或 Caller Path 控制。 | 不得增加 Local-private Command DTO、PATH/CWD Resolver 或 Shell Wrapper。 |
+| LOCAL-06 | Final Environment 从空集合按绑定期不可变 Policy 构造；请求不能扩展名称 Policy、必须按名称校验 Value，不能提交或覆盖 PATH/PATHEXT/COMSPEC/SYSTEMROOT/WINDIR/HOME/USERPROFILE/TMP/TEMP，也不继承 Ambient Credential、SSH Agent、Cloud Credential、Proxy Credential、Docker Socket 或 Secret-bearing Variable。 | 降低 Host Credential 与执行解析控制面暴露。 | 在等价 Secret/Environment Isolation 证明前不声明 Terminal。 |
 | LOCAL-07 | Network、Browser、Port Forward 与 Shell 默认不声明；不支持的 Minimum Assurance/Capability 请求失败关闭。 | 不产生静默弱化或不受限 Egress。 | 需要独立 Ready Requirement、Policy 与平台证据。 |
 | LOCAL-08 | Stop/Destroy 幂等回收 Process/Temporary Allocation/Attachment，但不删除 Agents-owned Persistent Workspace。 | 保持 Workspace 业务所有权与破坏性操作边界。 | 必须修改 Workspace Ownership ADR 并进行跨仓库人工评审。 |
 
@@ -71,7 +74,8 @@ Local 只面向 Single-user Standalone Development，不承载不可信多租户
 
 ## Required Evidence Before Ready
 
-- Gate 0 Fake Host Boundary 已有 5 个纯数据边界/负向测试，覆盖 Logical Relative Path、Windows 设备路径、Executable/Environment Allowlist、Typed Argv 与请求边界；Executable 语法先于 Allowlist，七项输入上限直接与共享 Command Contract 交叉校验。这些测试不访问 Host、不启动进程，不替代以下真实平台证据。
+- Gate 0 Fake Host Boundary 已有 5 个纯数据边界/负向测试，覆盖 Logical Relative Path、Windows 设备路径、Executable/Environment Allowlist、Typed Argv 与请求边界；Executable 语法先于 Allowlist，Command String/Path、Credential 类环境名、NUL/CR/LF 和全部受保护环境名不能被 Allowlist 绕过，七项输入上限与 Protected Name 分别直接和共享 Command Contract/Request Schema 交叉校验。这些测试不访问 Host、不启动进程，不替代以下真实平台证据。
+- Local Host Boundary 的 13 项 Contract Test 已固定所有平台与 Supply-chain 前置条件，并显式拒绝 canonicalize/check-then-open、Process Group-only、spawn 后写 `cgroup.procs` 和 macOS Terminal fallback；静态 JSON 仍不构成任何真实 Host 安全证据。
 - 接受 Lifecycle、Workspace Attachment、Command Execution 与本 ADR 的人工记录。
 - 人工接受最终 Dependency Set；关闭 `cap-std` MSRV、Linux race-free cgroup attach、Fresh RustSec、License Allowlist、Feature/Source/Ban 与 Linux Compile Gate。
 - 在真实 Runner 实施并通过上述 Windows Job Object、Linux cgroup v2 与 macOS Capability Denial Conformance；静态设计不能替代结果。

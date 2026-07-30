@@ -54,7 +54,7 @@ affected_surfaces:
 - Provider-private Allocation State 持久记录当前 `sandbox_runtime_binding_id` 与最高已观察 `sandbox_fencing_token`；所有 Mutating Operation 在副作用前拒绝较低 Token，并以原子写入/恢复测试证明 Node 进程重启后仍成立。
 - Stop 先执行 Guest 有界 Shutdown，再升级为 VMM Termination；Destroy 必须幂等清理 VMM/Jailer Process、cgroup、Network Namespace、Tap、API Socket、Ephemeral Disk、Secret/Control Channel 和临时 Metadata，但不得删除 Agents-owned Workspace。
 - Start Readiness 同时证明 VMM Running、Guest Agent Authenticated/Ready、Policy Enforced、Workspace Attached、Resource Limit Active 与 Fencing Current；缺一项不能返回 `sandbox_provider_ready=true`。
-- Snapshot/Restore/Warm Pool 在第一版 Descriptor 中保持未声明。未来启用前必须证明 Firecracker/Kernel/RootFS/CPU 兼容矩阵、Secret 排除、Tenant Sanitization、Integrity 与回滚策略。
+- Snapshot/Restore/Warm Pool 在第一版 Descriptor 中保持未声明。Pool 后续边界由 REQ-2026-0019、ADR-20260730 和 `specs/sandbox-runtime-pool.contract.json` 管理；启用前必须证明 Firecracker/Kernel/RootFS/CPU 兼容矩阵、Secret 排除、Tenant Sanitization、Integrity 与回滚策略。
 - 实际 Linux KVM Conformance 覆盖冷启动、Command Execution、Timeout/Cancel/Output Bound、Stale Fencing、Guest Escape Negative Cases、Metadata/Egress Denial、Resource Exhaustion、VMM Crash、Node Process Restart、Destroy Cleanup 与跨 Tenant Residue Scan。
 
 ## Candidate Non-functional Requirements

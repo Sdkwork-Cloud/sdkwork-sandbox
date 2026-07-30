@@ -26,7 +26,7 @@ Risk: critical - MicroVm release inputs, executable integrity, signature trust, 
 | `node --test tests/contract/sandbox-firecracker-artifact-compatibility.contract.test.mjs` | PASS (7/7); static candidate verification only, not release, signature, artifact, runtime or KVM evidence. |
 | `specs/sandbox-provider-delivery-gates.contract.json` | Firecracker Gate consumes this contract before Artifact Preflight may become Ready. |
 | `node --test tests/contract/*.test.mjs` | PASS (107/107) for the complete repository contract suite after Command Execution/Cancel, Workspace Block Device/Sanitization, Firecracker Network/Resource Isolation, Multi-tenant Scheduling/Capacity, Node Trust/Verified Inventory, and PostgreSQL Quota/Capacity Persistence integration. |
-| Cargo workspace gates | `fmt --check`, offline `check`, offline `test`, and offline all-target Clippy with `-D warnings` PASS; 41 Rust tests pass and the one explicitly external PostgreSQL fixture remains ignored without `SDKWORK_SANDBOX_TEST_DATABASE_URL`. |
+| Cargo workspace gates | `fmt --check`, offline `check`, offline `test`, and offline all-target Clippy with `-D warnings` PASS; 41 Rust tests pass and the one explicitly external PostgreSQL fixture remains ignored without `SDKWORK_DATABASE_TEST_POSTGRES_URL`. |
 | SDKWORK repository gates | Documentation, packages layout, strict component ports, application layering, Rust composition, identity naming, docs-debt, repository baseline, and `git diff --check` PASS. |
 | Real release and KVM evidence | Absent by design; no Manifest, Artifact bundle, release pipeline or Firecracker Runtime exists. |
 

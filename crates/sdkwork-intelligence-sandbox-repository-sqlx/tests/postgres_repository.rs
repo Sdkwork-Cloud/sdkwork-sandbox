@@ -28,6 +28,23 @@ use sdkwork_sandbox_provider_spi::{
 };
 
 const SANDBOX_POSTGRES_TEST_KEY_ID: &str = "sandbox-postgres-test-key";
+const SANDBOX_POSTGRES_TEST_DATABASE_URL: &str = "SDKWORK_DATABASE_TEST_POSTGRES_URL";
+
+fn sandbox_postgres_test_pool_builder() -> PoolBuilder {
+    let sandbox_test_database_url = std::env::var(SANDBOX_POSTGRES_TEST_DATABASE_URL)
+        .unwrap_or_else(|_| panic!("{SANDBOX_POSTGRES_TEST_DATABASE_URL} must be set"));
+    let sandbox_workspace_database_url = std::env::var_os("SDKWORK_DATABASE_URL");
+    std::env::set_var("SDKWORK_DATABASE_URL", &sandbox_test_database_url);
+    let sandbox_pool_builder = PoolBuilder::from_env("SANDBOX_TEST");
+    match sandbox_workspace_database_url {
+        Some(sandbox_workspace_database_url) => {
+            std::env::set_var("SDKWORK_DATABASE_URL", sandbox_workspace_database_url)
+        }
+        None => std::env::remove_var("SDKWORK_DATABASE_URL"),
+    }
+    sandbox_pool_builder
+        .unwrap_or_else(|error| panic!("sandbox test database config failed: {error}"))
+}
 
 struct SandboxHistoricalKeyPause {
     sandbox_entered: SyncSender<()>,
@@ -389,14 +406,9 @@ fn sandbox_bound_session(
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "requires SDKWORK_SANDBOX_TEST_DATABASE_URL and an initialized PostgreSQL database"]
+#[ignore = "requires SDKWORK_DATABASE_TEST_POSTGRES_URL and an initialized PostgreSQL database"]
 async fn sandbox_postgres_repository_enforces_durable_lifecycle_contract() {
-    assert!(
-        std::env::var_os("SDKWORK_SANDBOX_TEST_DATABASE_URL").is_some(),
-        "SDKWORK_SANDBOX_TEST_DATABASE_URL must be set for the live PostgreSQL test"
-    );
-    let sandbox_database_pool = PoolBuilder::from_env("SANDBOX_TEST")
-        .unwrap_or_else(|error| panic!("sandbox test database config failed: {error}"))
+    let sandbox_database_pool = sandbox_postgres_test_pool_builder()
         .max_connections(4)
         .min_connections(1)
         .acquire_timeout(Duration::from_secs(10))
@@ -1126,8 +1138,7 @@ async fn sandbox_postgres_repository_enforces_durable_lifecycle_contract() {
     .fetch_one(sandbox_postgres_pool)
     .await
     .unwrap_or_else(|error| panic!("session CAS ciphertext lookup failed: {error}"));
-    let sandbox_session_cas_database_pool = PoolBuilder::from_env("SANDBOX_TEST")
-        .unwrap_or_else(|error| panic!("session CAS database config failed: {error}"))
+    let sandbox_session_cas_database_pool = sandbox_postgres_test_pool_builder()
         .max_connections(1)
         .build()
         .await

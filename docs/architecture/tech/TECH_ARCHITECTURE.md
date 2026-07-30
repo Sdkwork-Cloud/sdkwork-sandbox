@@ -4,9 +4,9 @@ Status: active
 
 Owner: SDKWork Runtime Platform
 
-Updated: 2026-07-29
+Updated: 2026-07-30
 
-Specs: `ARCHITECTURE_DECISION_SPEC.md`, `DOCUMENTATION_SPEC.md`, `APPLICATION_LAYERED_ARCHITECTURE_SPEC.md`, `COMPONENT_SPEC.md`, `API_SPEC.md`, `INTERNAL_API_SPEC.md`, `SECURITY_SPEC.md`, `DEPLOYMENT_SPEC.md`, `SUPPLY_CHAIN_SECURITY_SPEC.md`, `OBSERVABILITY_SPEC.md`
+Specs: `ARCHITECTURE_DECISION_SPEC.md`, `DOCUMENTATION_SPEC.md`, `APPLICATION_LAYERED_ARCHITECTURE_SPEC.md`, `COMPONENT_SPEC.md`, `API_SPEC.md`, `INTERNAL_API_SPEC.md`, `SECURITY_SPEC.md`, `PRIVACY_SPEC.md`, `DATABASE_SPEC.md`, `DATABASE_FRAMEWORK_SPEC.md`, `RUNTIME_DIRECTORY_SPEC.md`, `DEPLOYMENT_SPEC.md`, `SUPPLY_CHAIN_SECURITY_SPEC.md`, `OBSERVABILITY_SPEC.md`
 
 ## 文档地图 (Document Map)
 
@@ -31,6 +31,8 @@ Specs: `ARCHITECTURE_DECISION_SPEC.md`, `DOCUMENTATION_SPEC.md`, `APPLICATION_LA
 - [Proposed Sandbox Multi-tenant Admission, Scheduling And Capacity Reservation ADR](../decisions/ADR-20260729-sandbox-multi-tenant-admission-scheduling-and-capacity-reservation.md)
 - [Proposed Sandbox Node Trust, Enrollment, Attestation And Verified Inventory ADR](../decisions/ADR-20260729-sandbox-node-trust-enrollment-attestation-and-inventory.md)
 - [Proposed Sandbox PostgreSQL Quota And Capacity Reservation Persistence ADR](../decisions/ADR-20260729-sandbox-postgresql-quota-and-capacity-reservation-persistence.md)
+- [Proposed Sandbox Workspace Runtime Transaction And Checkpoint ADR](../decisions/ADR-20260730-sandbox-workspace-runtime-transaction-and-checkpoint.md)
+- [Proposed Sandbox Standalone Data Residency And Recovery ADR](../decisions/ADR-20260730-sandbox-standalone-data-residency-and-recovery.md)
 
 ## 1. 架构总览 (Architecture Overview)
 
@@ -42,7 +44,7 @@ flowchart TB
     A["sdkwork-agents\nAgentWorkspace / AgentSession authority"]
     K["sdkwork-kernel\nID mapping and tool orchestration"]
     C["SandboxSessionLifecyclePort"]
-    S["Sandbox lifecycle service\nSandboxSession / attachment / quota / recovery"]
+    S["Sandbox lifecycle service\nSession / workspace runtime transaction / recovery"]
     H["Service host / scheduler / provider registry"]
     P["Sandbox Provider SPI"]
     L["Local"]
@@ -77,6 +79,7 @@ flowchart TB
 | Event | 版本化 Event Schema，尽可能对齐 CloudEvents Concept | `apis/async/` 已有 REQ-2026-0010 draft Event/Outbox/Audit/Observability 候选契约；Terminal Stream 不等同 Durable Domain Event。 |
 | Observability | Structured `tracing`、Metric、Trace Propagation 与 Append-oriented Audit | 已有 draft Envelope/Event/Outbox/Audit/Observability Catalog 与 Contract Test；运行时 Exporter、Audit Store 和 Outbox Worker 仍未获批。 |
 | Sandbox Provider Packaging | Native Host Process、OCI Container、microVM Image、Kubernetes Workload 或 Enrolled Remote Agent | 各 Sandbox Provider 明确 Capability 与 Assurance，不隐藏差异。 |
+| Local Host Boundary | opened Capability Handle + handle-relative Filesystem + platform-specific Process Supervisor | REQ-2026-0003 draft 机器契约固定 Windows suspended Job Object、Linux race-free delegated cgroup v2、macOS Terminal denial、空环境 allowlist 与 Cleanup/Quarantine；不创建 Port、Host I/O、Process Spawn、Secret Injection 或 Runtime Dependency。 |
 | Firecracker Artifact Integrity | Architecture-specific immutable Firecracker/Jailer/Guest Kernel/RootFS/Guest Agent Tuple | REQ-2026-0012 draft `SandboxFirecrackerArtifactManifest` 只固定 Compatibility/Evidence/Materialization/Revocation/Rollback Gate，不发布或下载 Artifact。 |
 | Workspace Guest Device | Agents/Drive-or-approved-storage owned data -> Sandbox Runtime Projection -> Firecracker Guest Block Device | REQ-2026-0013 draft `SandboxWorkspaceBlockDevicePort` 固定 Grant/Fencing/Encryption/Readiness/Sanitization/Residue/Quarantine；不创建 Storage/KMS/Device Runtime。 |
 | Firecracker Network Isolation | provider-neutral `SandboxNetworkPolicyPort` -> signed Grant -> L4 `SandboxNetworkIsolationPort` -> Host Broker | REQ-2026-0014 固定 `DenyAll`、显式 DNS/Egress、永久拒绝、per-binding netns/Tap、Atomic Apply/Verify、Cleanup/Quarantine 与 Durable Audit；不创建 Network Runtime。 |
@@ -84,12 +87,13 @@ flowchart TB
 | Multi-tenant Admission、Scheduler And Capacity | IAM/Commerce verified input -> `SandboxAdmissionPolicyPort` -> `SandboxNodeInventoryPort` -> `SandboxSchedulerPort` -> PostgreSQL `SandboxCapacityReservationPort` -> immutable Placement | REQ-2026-0016 固定 Atomic Tenant Admission、可信 Node Snapshot、Hard Placement Filter、Tenant-aware Fairness、Reservation-before-Allocate、Resource Grant Binding、Fencing 与 Orphan Recovery；不创建 Scheduler/Admission/Database/Node Agent/Pool/Commerce Runtime。 |
 | Cloud Node Trust And Verified Inventory | single-use Bootstrap Reference -> `SandboxNodeEnrollmentPort` -> key-bound short-lived Machine Identity -> TLS 1.3 mutual authentication -> `SandboxNodeAttestationVerificationPort` + `SandboxNodeInventoryPublicationPort` -> Control-plane `SandboxVerifiedNodeInventoryRecord` -> `SandboxNodeInventoryPort` | REQ-2026-0017 分离 Machine Authentication 与 Platform Attestation，并固定 Rotation/Revocation、Drain/Quarantine、Freshness、Revision/Sequence/CAS 和 Scheduler Verified Projection Gate；不创建 Node Agent、PKI/CA/HSM、Verifier、Database、Scheduler/Provider Runtime 或 Deployment Profile。 |
 | PostgreSQL Quota And Capacity Persistence | external verified Policy/Inventory -> `SandboxTenantQuotaState` + `SandboxAdmissionReservation` + `SandboxNodeCapacityState` + `SandboxCapacityReservation` -> Lifecycle/Provider | REQ-2026-0018 固定显式 Resource Vector、全局 Lock Order、CAS/Fencing、Database Clock、TTL/Quarantine、RLS/Role、PITR/RPO/RTO 及 `tenant_id TEXT` 到标准 `BIGINT` 的预发布迁移门禁；不创建 Table/Migration/Repository/Scheduler Runtime。 |
+| Standalone Local Data Residency And Recovery | four-repository data inventory -> role-correct local stores -> separate capabilities -> transfer/backup/purge evidence -> Local readiness | REQ-2026-0022 仅为 `sandbox_standalone_local` 固定 `device-local-persistence`/`strict-device-local-processing` 候选声明、PostgreSQL Server 与 `client-local` SQLite 角色分离、无隐式传输、恢复和真实 OS Evidence；不创建 Database、Runtime Path、Backup、Telemetry、Sync、API/SDK 或跨仓库实现。 |
 
 本表中的计划选择不会自动成为依赖。只有 Ready Requirement 与实际消费组件存在时，依赖才能进入 Build Authority。
 
 ## 3. 系统边界与模块 (System Boundaries And Modules)
 
-当前已物化七个 Rust Crate，其中 Sandbox Provider SPI、Sandbox Lifecycle Service、Memory Repository 与 PostgreSQL Repository 已提供候选契约；Local Sandbox Provider 仅包含 Gate 0 测试配置中的 Fake Host Boundary，Service Host 与 CLI 仍保持未激活；Provider-neutral Command Executor、Firecracker Provider、Host Isolation Broker、Firecracker Artifact Compatibility、Workspace Block Device/Sanitization、Firecracker Network Isolation、Firecracker Resource Isolation/Usage、Multi-tenant Admission/Scheduler/Capacity、Node Trust/Enrollment/Attestation/Verified Inventory 与 PostgreSQL Quota/Capacity Persistence 已形成独立候选 REQ/ADR 和机器契约，但尚未创建公共 Rust Contract/Component、Broker Runtime、Artifact Resolver/Builder/Release Artifact、Storage/KMS/Device Runtime、Network Runtime、Resource/Quota/Usage/Commerce Runtime、Scheduler/Admission Runtime、Node Agent、PKI/CA/HSM、Attestation Verifier 或对应新增 Database Schema；Observability/Event/Audit/Outbox 目前只有 `apis/async/` 候选机器契约和静态 Contract Test，详见 [TECH-modules-and-contracts.md](TECH-modules-and-contracts.md)。输入 PRD 的 `Runtime / Session / Workspace / Sandbox / Provider / Scheduler / Pool / Placement / Quota` 术语保持不变；实现标识使用以下唯一映射：
+当前已物化七个 Rust Crate，其中 Provider SPI、Lifecycle Service、Memory Repository 与 PostgreSQL Repository 已提供候选实现；Local 只有 Fake Host Boundary，Service Host 与 CLI 未激活。Command、Firecracker、Broker、Artifact、Workspace Device、Network/Resource、Scheduling/Capacity、Node Trust、Quota Persistence、Runtime Pool、Lifecycle Hot State、Workspace Runtime Transaction 与 Standalone Data Residency 均只有独立 REQ/ADR/机器契约，没有获批的公共 Port/Component、Storage/KMS、Node Agent、数据库 Schema 或 Runtime。REQ-2026-0021 只在服务层组合运行事务积木；REQ-2026-0022 只组合 Local Evidence，不成为新的数据权威。Agents 保留业务/Revision 权威，Workspace/Drive 保留 Bytes 权威，Sandbox 只拥有 Transaction、Lifecycle 与清理事实。详见 [TECH-modules-and-contracts.md](TECH-modules-and-contracts.md)。输入 PRD 的 `Runtime / Session / Workspace / Sandbox / Provider / Scheduler / Pool / Placement / Quota` 术语保持不变；实现标识使用以下唯一映射：
 
 | 架构关注点 | Canonical Type/Port | Canonical Rust 字段/变量 | 预留 Wire 映射 |
 | --- | --- | --- | --- |
@@ -106,6 +110,8 @@ flowchart TB
 | Admission / Scheduler / Placement / Capacity | `SandboxAdmissionPolicyPort`、`SandboxNodeInventoryPort`、`SandboxSchedulerPort`、`SandboxCapacityReservationPort`、`SandboxAdmissionGrant`、`SandboxPlacementDecision` | `sandbox_admission_grant`、`sandbox_node_candidate_snapshot`、`sandbox_capacity_reservation`、`sandbox_placement_decision` | Gate 0 机器契约；公共 Surface 不暴露 Raw Tenant、Node、Topology、Entitlement、Capacity 或 Reservation Identity |
 | Node Trust / Enrollment / Attestation / Verified Inventory | `SandboxNodeEnrollmentPort`、`SandboxNodeAttestationVerificationPort`、`SandboxNodeInventoryPublicationPort`、`SandboxNodeLifecycleControlPort`、`SandboxNodeIdentity`、`SandboxNodeAttestationVerification`、`SandboxVerifiedNodeInventoryRecord` | `sandbox_node_enrollment_request`、`sandbox_node_identity`、`sandbox_node_attestation_verification`、`sandbox_verified_node_inventory_record`、`sandbox_node_lifecycle_state` | Gate 0 内部安全契约；公共 Surface、Event 与 Metric 不暴露 Node Identity、Certificate、Raw Evidence、Host Address、Topology、Measurement 或 Capacity |
 | Quota / Capacity Persistence | `SandboxTenantQuotaState`、`SandboxAdmissionReservation`、`SandboxNodeCapacityState`、`SandboxCapacityReservation`、`SandboxResourceVector` | `sandbox_tenant_quota_state`、`sandbox_admission_reservation`、`sandbox_node_capacity_state`、`sandbox_capacity_reservation`、`sandbox_resource_vector` | Gate 0 数据契约；`tenant_id` 是 SDKWork SQL Subject，Sandbox-owned 字段/变量使用 `sandbox_`；公共 Surface 不暴露内部 Row/Node/Reservation Identity |
+| Service Host Profile/Capability Readiness | `SandboxServiceHostReadiness`、候选 `SandboxCommandExecutor` | `sandbox_profile_id`（source deployment profile）、`sandbox_execution_profile_id`（Provider/Profile dependency closure）、`sandbox_dependency_id`、`sandbox_required_dependency_ids` | L5 内部 Gate 0 契约；Local、Cold Firecracker、Cloud Firecracker 与可选 Pool 分开计算，Command/Terminal 不能只凭 Provider Descriptor 开启 |
+| Standalone Local Data Residency Readiness | 不创建运行时 Port；组合 `sandbox_standalone_data_residency` Evidence Gate | `sandbox_claim_mode`、`sandbox_data_class_id`、`sandbox_persistence_role`、`sandbox_local_residency_readiness` | 仅适用于 `sandbox_standalone_local`；拓扑/Provider 不证明本地性，未知 Store、Transfer、Backup、Restore 或 Purge Evidence 一律 Not Ready |
 
 `TenantId`、`OperationId`、`RuntimeCapability` 与 `IsolationAssurance` 是 SDKWork 共享类型，不创建重复的 `Sandbox*` 别名；它们在有领域歧义的 Sandbox 字段/变量中使用 `sandbox_` 限定。Sandbox-owned 上下文不得使用无前缀的 `workspace_id`、`session_id`、`runtime_binding_id`、`operation_id`、`provider_id`、`lease_owner_id` 或 `fencing_token`。`SandboxProviderAllocationRef`/`sandbox_allocation_reference` 只属于 Provider 与受控持久化边界，禁止进入普通 Projection、Debug、Log、Event 或 Wire。公共错误/Result 不保留无 `Sandbox` 限定的兼容别名。架构不建立泛化的 `sdkwork-sandbox-runtime`、`sdkwork-sandbox-core`、`sdkwork-sandbox-manager` 或 `sdkwork-sandbox-backend` Crate。
 
@@ -130,6 +136,8 @@ Lease 竞争和丢失分别使用 `SandboxLifecycleError::LeaseUnavailable` 与 
 - List/Search 必须在 Persistence/Index Boundary 分页，使用 `data.items` 与 `data.pageInfo`。
 - Agents-owned Workspace File/Business Metadata、Sandbox Lifecycle Metadata、Sandbox Provider-private Allocation/Attachment Metadata、Snapshot、Log、Terminal Stream、Audit Event 与 Metric 是独立数据类别，拥有独立 Retention 与 Access Policy；Sandbox 不持久化 `AgentWorkspace` 业务记录，且不公开 `SandboxProviderAllocationRef`。
 - Runtime Path 使用 Application Code `sandbox` 和 `RUNTIME_DIRECTORY_SPEC.md` 的 OS Matrix；Source Path 与 User-private Runtime Path 不能混用。
+- Local 数据角色不能由 Connection String 或 `standalone` 推断：Agents/Sandbox authoritative-server 状态保持 PostgreSQL；Kernel/BirdCoder 只有在独立声明 `client-local` 时才可使用 SQLite，且 BirdCoder 不拥有 Workspace/Project/Session/Revision/Binding/Pool Claim 业务表。
+- Workspace、Service Data、Runtime Root、Cache、Log、Secret 与 Temp 使用不同的预打开 Capability；Local Backup/Restore、Export/Purge、Reset 与 Uninstall 分别治理，Runtime Cleanup 和默认卸载不得删除 Workspace。
 
 ## 6. 安全、隐私与可观测性 (Security, Privacy, And Observability)
 
@@ -137,15 +145,19 @@ Security 由 Capability 和 Assurance 驱动。没有 Sandbox Provider 满足目
 
 Terminal Output、Operational Log、Audit Record 与 Metric 使用不同 Redaction 和 Retention。安全关联使用 Server-owned `traceId`，并关联 `sandboxSessionId`、`sandboxWorkspaceId`、`sandboxId` 与 `sandboxRuntimeBindingId`；跨域关联可额外携带授权后的 `agentSessionId`/`agentWorkspaceId`，不得用无前缀变量混淆所有权。详见 [TECH-security-and-operations.md](TECH-security-and-operations.md)。
 
+Local privacy claim is a separate evidence axis from Isolation Assurance. `device-local-persistence` denies remote durable copies while allowing only separately authorized and disclosed external processing; `strict-device-local-processing` also denies source, prompt, transcript, artifact, secret and diagnostic content egress. Missing local database/capability, corruption, disk full, failed restore or uncertain purge cannot trigger implicit Cloud fallback.
+
 Provider-private Allocation Protection 的 Key Material 与派生 Key 使用清零载体；`sandbox_allocation_key_id` 仅允许 `1..=128` bytes printable ASCII，并由 Key Carrier、Service Domain Constructor 与 PostgreSQL Constraint 分层验证。同一 Key ID/Version 的 Key Material 在保留期内不可变；重加密页冻结目标 Protection Version，输出漂移关闭失败，并以 Tenant+Binding+Session+完整旧密文元数据 CAS 阻止 Lifecycle Write 与 Session ABA 覆盖。同步 Key Source 不批准直接阻塞 Tokio 的远程 KMS 调用；生产 Composition 必须先完成人工评审的本地短生命周期 Key Handle/异步刷新边界或 Async Port 演进。
 
 ## 7. 部署与 Runtime Topology (Deployment And Runtime Topology)
 
-- **Standalone Local：** Kernel、Lifecycle Service、Service Host 与经过评审的 Local Provider 可运行在同一台机器；Local Mode 无需服务器。Docker Provider 当前延期且不进入 Composition。
+- **Standalone Local：** BirdCoder、Agents、Kernel、Lifecycle Service、Service Host、经过评审的 Local Provider 和角色正确的本地数据服务可运行在同一台设备；不依赖 Cloud Server，但 `standalone`/Local Provider 本身不构成数据驻留声明。Docker Provider 当前延期且不进入 Composition。
 - **Private Remote：** Application Ingress/Control Plane 将工作调度到 Enrolled Provider Node 或 Kubernetes Cluster。
 - **SaaS Cloud：** Stateless Control-plane Replica 使用 Durable Metadata、Distributed Coordination、Tenant Quota、Pool 与隔离 Data-plane Node。
 
 不同 Profile 共享 Lifecycle、API、SDK、Event 与 Error Contract；只允许 Infrastructure、Persistence、Cache 与 `SandboxRuntimeBinding` Mechanism 在 Composition 层变化。详见 [TECH-runtime-topology.md](TECH-runtime-topology.md)。
+
+Service Host 的 Config、Runtime Directory Capability、Store、Provider Registry、Workspace Attachment、Secret/KMS、Telemetry 与 Fencing 八项公共 Readiness 只是基础维度，不等于 Profile Ready。Workspace Runtime Transaction 是所有 Lane 的公共关闭失败 Gate；`standalone/local` 还需 Local Host Boundary 和 Standalone Data Residency/Recovery，`standalone/firecracker` 需冷 microVM Broker/Artifact/Workspace/Network/Resource，`cloud/firecracker` 还需 Node Trust、Admission/Scheduling 与 PostgreSQL Quota/Capacity。Runtime Pool 只是显式可选加速，不能绕过 Transaction 或阻塞 Cold Firecracker。全部 18 个依赖中任一必需项缺失、状态未知、`draft`、待评审或未授权都关闭失败；当前这些条件均未满足。
 
 ## 8. 架构决策索引 (Architecture Decision Index)
 
@@ -157,7 +169,7 @@ Provider-private Allocation Protection 的 Key Material 与派生 Key 使用清�
 | [ADR-20260728: Agents Workspace And Sandbox Attachment Ownership](../decisions/ADR-20260728-agents-workspace-and-sandbox-attachment-ownership.md) | proposed | Agents Workspace/Session 权威、Kernel ID 映射、Sandbox Attachment 与依赖方向。 |
 | [ADR-20260728: PostgreSQL Sandbox Lifecycle Persistence And Reconciliation](../decisions/ADR-20260728-postgresql-sandbox-lifecycle-persistence-and-reconciliation.md) | proposed | PostgreSQL `SandboxSession`/Operation/`SandboxRuntimeBinding` Authority、加密 Private Recovery Metadata、Lease/Fencing 与 Crash Reconciliation。 |
 | [ADR-20260728: Sandbox Provider Allocation Key Rotation And Re-encryption](../decisions/ADR-20260728-sandbox-provider-allocation-key-rotation-and-reencryption.md) | proposed | Versioned Key Source、Protector 内重保护、Tenant Cursor Page、页目标版本稳定、Session-bound Ciphertext CAS 与旧密钥撤销门禁。 |
-| [ADR-20260729: Sandbox Command Execution And Terminal Boundary](../decisions/ADR-20260729-sandbox-command-execution-and-terminal-boundary.md) | proposed | 独立 `SandboxCommandExecutor`、Typed Executable/Argv、Limit、Fencing、Result/Error 与共同 Conformance。 |
+| [ADR-20260729: Sandbox Command Execution And Terminal Boundary](../decisions/ADR-20260729-sandbox-command-execution-and-terminal-boundary.md) | proposed | 独立 `SandboxCommandExecutor`、Logical Executable/Argv、Provider-owned Resolution、Binding Policy Snapshot、Limit、Fencing、Result/Error 与共同 Conformance。 |
 | [ADR-20260729: Firecracker Provider Isolation And Node Boundaries](../decisions/ADR-20260729-firecracker-provider-isolation-and-node-boundaries.md) | proposed | Linux KVM、Jailer、Artifact Integrity、Workspace/Network/cgroup/Vsock、Fencing 与 MicroVm Assurance。 |
 | [ADR-20260729: Sandbox Service Host Composition And Readiness](../decisions/ADR-20260729-sandbox-service-host-composition-and-readiness.md) | proposed | L5 typed Composition、Dependency Injection、fail-closed Readiness、Safe Shutdown 与 Standalone/Cloud parity。 |
 | [ADR-20260729: Sandbox Observability, Event, Audit And Outbox Boundary](../decisions/ADR-20260729-sandbox-observability-event-audit-outbox-boundary.md) | proposed | Draft AsyncAPI、Envelope、Event Catalog、Outbox Contract、Audit Schema、Observability Catalog 与 telemetry/billing/audit-fact 分离。 |
@@ -169,8 +181,12 @@ Provider-private Allocation Protection 的 Key Material 与派生 Key 使用清�
 | [ADR-20260729: Sandbox Multi-tenant Admission, Scheduling And Capacity Reservation](../decisions/ADR-20260729-sandbox-multi-tenant-admission-scheduling-and-capacity-reservation.md) | proposed | Atomic Tenant Admission、Trusted Node Inventory、Hard Placement Filter、PostgreSQL Capacity Reservation、Fairness、Fencing、Recovery 与 Resource Grant Binding。 |
 | [ADR-20260729: Sandbox Node Trust, Enrollment, Attestation And Verified Inventory](../decisions/ADR-20260729-sandbox-node-trust-enrollment-attestation-and-inventory.md) | proposed | Single-use Bootstrap、Key-bound Machine Identity、TLS 1.3 Mutual Authentication、独立 Attestation、Verified Inventory、Rotation/Revocation 与 Drain/Quarantine Gate。 |
 | [ADR-20260729: Sandbox PostgreSQL Quota And Capacity Reservation Persistence](../decisions/ADR-20260729-sandbox-postgresql-quota-and-capacity-reservation-persistence.md) | proposed | 四个 State/Reservation Aggregate、SQL Subject Migration Gate、Lock/CAS/Fencing、TTL/Quarantine、RLS/Role 与 PITR/RPO/RTO。 |
+| [ADR-20260730: Sandbox Runtime Pool Claim And Sanitization](../decisions/ADR-20260730-sandbox-runtime-pool-claim-and-sanitization.md) | proposed | Tenant-neutral Prepared/Warm Slot、Claim、Fresh Grants、Sanitization、Residue、Quarantine 与 Bounded Scaling。 |
+| [ADR-20260730: Sandbox Lifecycle Hot State And Idempotency Ledger](../decisions/ADR-20260730-sandbox-lifecycle-hot-state-and-idempotency-ledger.md) | proposed | Bounded Hot State、Point-lookup Idempotency、Retention、Late Retry 与 Expand/Backfill/Cutover Gate。 |
+| [ADR-20260730: Sandbox Workspace Runtime Transaction And Checkpoint](../decisions/ADR-20260730-sandbox-workspace-runtime-transaction-and-checkpoint.md) | proposed | Local/Firecracker Lane Parity、Workspace Revision Writer Fencing、Durable Checkpoint Handoff、Compensation 与 Release Ordering。 |
+| [ADR-20260730: Sandbox Standalone Data Residency And Recovery](../decisions/ADR-20260730-sandbox-standalone-data-residency-and-recovery.md) | proposed | Local-only 四仓数据清单、声明模式、数据库角色、Capability 分离、无隐式传输、Backup/Restore、Export/Purge 与失败关闭。 |
 
-Kernel Runtime Contract Authority 已固定为 Sandbox-owned `SandboxSessionLifecyclePort`，依赖方向固定为 `sdkwork-agents -> sdkwork-kernel -> sdkwork-sandbox`。PostgreSQL Lifecycle Persistence、Session Lease/Fencing、调用前 Renew、有界 Provider Timeout 与瞬态 Reconciler 已由专用 ADR 物化并通过临时 PostgreSQL 候选验证；Start 的恢复顺序固定为“稳定状态下持 Lease 幂等清理旧 Allocation -> 原子保存 `Starting`、In-progress Start Operation 和无 Allocation Reference 的稳定 Binding Intent -> Allocate”，Snapshot Capture/Restore 均关闭失败地拒绝缺失 Binding Intent 的 `Starting`。Allocate 成功但 Allocation Save 失败的故障注入证明 Reconciler 会以更高 Fencing Token 重新 Allocate 且只启动新 Allocation。Provider-neutral Command Execution、Firecracker MicroVm Boundary、Host Isolation Broker、Firecracker Artifact Compatibility/Supply Chain、Workspace Block Device/Sanitization、Firecracker Network Isolation、Firecracker Resource Isolation/Usage、Multi-tenant Admission/Scheduler/Capacity、Node Trust/Enrollment/Attestation/Verified Inventory、PostgreSQL Quota/Capacity Persistence 与 Service Host Composition/Readiness 已形成 proposed 决策。REQ-2026-0018 只完成 Quota/Capacity Persistence Gate 0 候选边界：现有 `TenantId`/`tenant_id TEXT` 尚未迁移到标准 SQL Subject `BIGINT`，四张候选 State/Reservation Table 尚未注册或实现，真实 Node Agent、Machine Identity/PKI/CA/HSM、Attestation Verifier/Baseline、Verified Inventory Store/Projection、Scheduler/Provider Integration、IAM/Commerce Admission 输入、Fairness/HA/Recovery、Local/Firecracker Provider Fencing、Broker Runtime/Privilege、真实 Artifact Tuple/Release Authority、Workspace Storage/KMS/Device Backend、Network/Resource/Usage Runtime、Service Host、多副本/PITR/SLO 与人工架构/安全/PKI/Attestation/数据库/容量/商业/运维评审仍未完成。以下工作实施前仍必须新增决策：具体 Sandbox Attachment Storage Backend、Remote Transport Authority、Snapshot Portability、Internal API/SDK Authority、Warm Pool 与 Commercial Operations Ownership。
+Kernel Runtime Contract Authority 已固定为 Sandbox-owned `SandboxSessionLifecyclePort`，依赖方向固定为 `sdkwork-agents -> sdkwork-kernel -> sdkwork-sandbox`；BirdCoder 通过 Agents App SDK 消费业务能力，不越过 Agents/Kernel 直连 Sandbox。PostgreSQL Lifecycle Persistence、Session Lease/Fencing、调用前 Renew、有界 Provider Timeout 与瞬态 Reconciler 已由专用 ADR 物化并通过临时 PostgreSQL 候选验证；Start 恢复顺序和 Allocation Save 失败恢复已有候选故障证据。Command、Firecracker、Broker、Artifact、Workspace/Network/Resource、Scheduling/Capacity、Node Trust、Quota Persistence、Pool、Lifecycle Hot State、Workspace Runtime Transaction 与 Standalone Data Residency 均已有 proposed 决策，但所有真实 Provider、Checkpoint、Storage/KMS、Local Data/Recovery、Node/PKI/Attestation、Scheduler/Pool、Service Host、多副本/PITR/SLO 和跨仓集成仍未完成。以下工作实施前仍必须新增或批准决策：具体 Attachment Storage/Block-volume Authority、Remote Transport、Internal API/SDK、Provider Snapshot Portability、Commercial Operations Ownership，以及 REQ-2026-0021/0022 涉及的 BirdCoder/Agents/Kernel 合同变化。
 
 ## 9. 验证 (Verification)
 

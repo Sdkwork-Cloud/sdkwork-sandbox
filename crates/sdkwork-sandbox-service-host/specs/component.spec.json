@@ -46,6 +46,51 @@
       "purpose": "Typed configuration and secret injection boundaries."
     },
     {
+      "file": "SOURCE_CONFIG_SPEC.md",
+      "path": "../../../sdkwork-specs/SOURCE_CONFIG_SPEC.md",
+      "purpose": "Deployable-root source profile ownership and runtime materialization boundaries."
+    },
+    {
+      "file": "ENVIRONMENT_SPEC.md",
+      "path": "../../../sdkwork-specs/ENVIRONMENT_SPEC.md",
+      "purpose": "Canonical profile identity, environment matrix, and server runtime target rules."
+    },
+    {
+      "file": "RUNTIME_DIRECTORY_SPEC.md",
+      "path": "../../../sdkwork-specs/RUNTIME_DIRECTORY_SPEC.md",
+      "purpose": "User-private runtime directory and capability ownership."
+    },
+    {
+      "file": "SECURITY_SPEC.md",
+      "path": "../../../sdkwork-specs/SECURITY_SPEC.md",
+      "purpose": "Secret, credential, least-privilege, and redaction boundaries."
+    },
+    {
+      "file": "PRIVACY_SPEC.md",
+      "path": "../../../sdkwork-specs/PRIVACY_SPEC.md",
+      "purpose": "Standalone data classification, retention, deletion, transfer, and residency boundaries."
+    },
+    {
+      "file": "DATABASE_SPEC.md",
+      "path": "../../../sdkwork-specs/DATABASE_SPEC.md",
+      "purpose": "PostgreSQL server authority and separately declared client-local SQLite roles."
+    },
+    {
+      "file": "DATABASE_FRAMEWORK_SPEC.md",
+      "path": "../../../sdkwork-specs/DATABASE_FRAMEWORK_SPEC.md",
+      "purpose": "Role-specific database lifecycle, backup, restore, purge, and evidence contracts."
+    },
+    {
+      "file": "OBSERVABILITY_SPEC.md",
+      "path": "../../../sdkwork-specs/OBSERVABILITY_SPEC.md",
+      "purpose": "Structured telemetry, bounded labels, and health semantics."
+    },
+    {
+      "file": "PERFORMANCE_SPEC.md",
+      "path": "../../../sdkwork-specs/PERFORMANCE_SPEC.md",
+      "purpose": "Bootstrap, connection, buffer, and shutdown bounds."
+    },
+    {
       "file": "DEPLOYMENT_SPEC.md",
       "path": "../../../sdkwork-specs/DEPLOYMENT_SPEC.md",
       "purpose": "Standalone and cloud runtime composition parity."
@@ -72,6 +117,10 @@
     "configKeys": []
   },
   "verification": {
-    "commands": ["cargo check -p sdkwork-sandbox-service-host"]
+    "commands": [
+      "cargo check -p sdkwork-sandbox-service-host",
+      "node --test tests/contract/sandbox-service-host-composition.contract.test.mjs",
+      "node --test tests/contract/sandbox-service-host-bootstrap.contract.test.mjs"
+    ]
   }
 }

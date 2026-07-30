@@ -1,0 +1,349 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.sandbox.runtime-pool-contract",
+  "status": "draft",
+  "requirementId": "REQ-2026-0019",
+  "decisionId": "ADR-20260730-sandbox-runtime-pool-claim-and-sanitization",
+  "relatedRequirementIds": [
+    "REQ-2026-0005",
+    "REQ-2026-0007",
+    "REQ-2026-0008",
+    "REQ-2026-0009",
+    "REQ-2026-0010",
+    "REQ-2026-0011",
+    "REQ-2026-0012",
+    "REQ-2026-0013",
+    "REQ-2026-0014",
+    "REQ-2026-0015",
+    "REQ-2026-0016",
+    "REQ-2026-0017",
+    "REQ-2026-0018"
+  ],
+  "relatedContracts": [
+    "sandbox-provider-delivery-gates.contract.json",
+    "sandbox-host-isolation-broker.contract.json",
+    "sandbox-firecracker-artifact-compatibility.contract.json",
+    "sandbox-workspace-block-device-attachment.contract.json",
+    "sandbox-firecracker-network-isolation.contract.json",
+    "sandbox-firecracker-resource-isolation.contract.json",
+    "sandbox-multi-tenant-scheduling.contract.json",
+    "sandbox-node-trust-and-inventory.contract.json",
+    "sandbox-quota-and-capacity-persistence.contract.json",
+    "../apis/async/sandbox-event-catalog.json",
+    "../apis/async/sandbox-observability-catalog.json"
+  ],
+  "implementationAuthorized": false,
+  "ownership": {
+    "sandbox_pool_owner": "Sandbox runtime pool service",
+    "sandbox_admission_owner": "SandboxAdmissionPolicyPort",
+    "sandbox_capacity_placement_owner": "SandboxSchedulerPort",
+    "sandbox_capacity_owner": "SandboxCapacityReservationPort",
+    "sandbox_node_trust_owner": "Sandbox verified node inventory authority",
+    "sandbox_provider_owner": "SandboxProvider adapter",
+    "sandbox_agent_orchestration_owner": "sdkwork-kernel",
+    "sandbox_workspace_business_owner": "sdkwork-agents",
+    "sandbox_price_invoice_payment_owner": "SDKWork Commerce",
+    "sandbox_kernel_may_select_pool_node_or_provider": false,
+    "sandbox_pool_may_author_identity_entitlement_or_price": false,
+    "sandbox_node_local_journal_may_sell_or_release_cloud_capacity": false
+  },
+  "placementAuthoritySeparation": {
+    "sandbox_kernel_execution_placement_owner": "sdkwork-kernel",
+    "sandbox_capacity_placement_owner": "SandboxSchedulerPort",
+    "sandbox_runtime_allocation_binding_owner": "Sandbox lifecycle service",
+    "sandbox_kernel_execution_placement_ref_is_opaque": true,
+    "sandbox_kernel_and_sandbox_records_have_distinct_ids": true,
+    "sandbox_kernel_and_sandbox_records_have_distinct_lease_and_fencing_domains": true,
+    "sandbox_kernel_and_sandbox_records_have_distinct_idempotency_scopes": true,
+    "sandbox_capacity_placement_may_replace_kernel_execution_placement": false,
+    "sandbox_kernel_execution_placement_may_select_node_pool_slot_or_provider": false,
+    "sandbox_pool_claim_may_advance_kernel_execution_placement_state": false
+  },
+  "ports": {
+    "sandbox_runtime_pool_port": {
+      "type": "SandboxRuntimePoolPort",
+      "layer": "L3",
+      "slotType": "SandboxPoolSlot",
+      "claimType": "SandboxPoolClaim",
+      "errorType": "SandboxRuntimePoolError",
+      "providerNeutral": true,
+      "publicExportAuthorized": false
+    },
+    "sandbox_pool_host_preparation_port": {
+      "type": "SandboxPoolHostPreparationPort",
+      "layer": "L4",
+      "requestType": "SandboxPoolHostPreparationRequest",
+      "evidenceType": "SandboxPoolHostPreparationEvidence",
+      "fixedOperationsOnly": true,
+      "publicExportAuthorized": false
+    }
+  },
+  "operations": [
+    "sandbox_prepare_pool_slot",
+    "sandbox_claim_pool_slot",
+    "sandbox_mark_pool_slot_ready",
+    "sandbox_release_pool_claim",
+    "sandbox_quarantine_pool_slot",
+    "sandbox_retire_pool_slot",
+    "sandbox_reconcile_pool_slots",
+    "sandbox_reconcile_pool_targets"
+  ],
+  "poolClasses": {
+    "sandbox_prepared_slot": {
+      "type": "PreparedSlot",
+      "firstCommercialImplementationTarget": true,
+      "trustedNodeRequired": true,
+      "immutableArtifactsMaterialized": true,
+      "tenantStateAllowed": false,
+      "tenantVmmRunning": false,
+      "providerAllocateBeforeClaimAllowed": false
+    },
+    "sandbox_warm_microvm_slot": {
+      "type": "WarmMicroVmSlot",
+      "separateApprovalAndEvidenceRequired": true,
+      "cleanImmutableSnapshotRequired": true,
+      "exactArtifactTupleCompatibilityRequired": true,
+      "tenantStateAllowed": false,
+      "freshGuestIdentityOnClaimRequired": true,
+      "devicePolicyAndResourceRebindingRequired": true,
+      "realKvmResidueEvidenceRequired": true
+    },
+    "sandbox_cold_allocation": {
+      "type": "ColdAllocation",
+      "correctnessFallbackRequired": true,
+      "weakerAssuranceFallbackAllowed": false
+    }
+  },
+  "slot": {
+    "type": "SandboxPoolSlot",
+    "requiredFields": [
+      "sandbox_pool_slot_id",
+      "sandbox_pool_class",
+      "sandbox_resource_profile_id",
+      "sandbox_node_reference",
+      "sandbox_provider_id",
+      "sandbox_provider_kind",
+      "sandbox_isolation_assurance",
+      "sandbox_artifact_manifest_revision",
+      "sandbox_capacity_revision",
+      "sandbox_slot_state",
+      "sandbox_fencing_token",
+      "sandbox_version",
+      "sandbox_preparation_evidence_fingerprint",
+      "sandbox_created_at",
+      "sandbox_updated_at"
+    ],
+    "states": [
+      "preparing",
+      "ready",
+      "claiming",
+      "claimed",
+      "sanitizing",
+      "quarantined",
+      "retired"
+    ],
+    "readyRequiresTenantNeutralEvidence": true,
+    "unknownStateRejected": true,
+    "illegalTransitionRejected": true,
+    "providerPrivateMetadataAllowed": false,
+    "rawHostPathOrAddressAllowed": false
+  },
+  "claim": {
+    "type": "SandboxPoolClaim",
+    "requiredFields": [
+      "sandbox_pool_claim_id",
+      "sandbox_pool_slot_id",
+      "sandbox_admission_grant_id",
+      "sandbox_capacity_reservation_id",
+      "sandbox_capacity_revision",
+      "sandbox_session_id",
+      "sandbox_runtime_binding_id",
+      "sandbox_operation_id",
+      "sandbox_request_fingerprint",
+      "sandbox_fencing_token",
+      "sandbox_claim_state",
+      "sandbox_version",
+      "sandbox_claimed_at",
+      "sandbox_expires_at"
+    ],
+    "states": ["claiming", "bound", "releasing", "released", "quarantined"],
+    "singleActiveClaimPerSlot": true,
+    "singleActiveClaimPerRuntimeBinding": true,
+    "confirmedCapacityReservationRequired": true,
+    "atomicCompareAndSwapRequired": true,
+    "highestFencingTokenPersisted": true,
+    "sameOperationSameFingerprintReplays": true,
+    "sameOperationDifferentFingerprintConflicts": true,
+    "staleFencingRejectedBeforeSideEffect": true,
+    "callerSelectedSlotNodeOrProviderAllowed": false
+  },
+  "allocationOrdering": [
+    "sandbox_admission_reservation_confirmed",
+    "sandbox_verified_node_hard_filter_passed",
+    "sandbox_capacity_reservation_confirmed",
+    "sandbox_pool_slot_claimed",
+    "sandbox_fresh_guest_identity_issued",
+    "sandbox_workspace_grant_applied",
+    "sandbox_network_grant_applied",
+    "sandbox_resource_grant_applied",
+    "sandbox_provider_allocate_and_start",
+    "sandbox_effective_readiness_verified",
+    "sandbox_admission_bound"
+  ],
+  "tenantNeutrality": {
+    "sandbox_tenant_workspace_in_ready_slot_allowed": false,
+    "sandbox_secret_value_in_ready_slot_allowed": false,
+    "sandbox_tenant_network_grant_in_ready_slot_allowed": false,
+    "sandbox_guest_credential_reuse_across_claims_allowed": false,
+    "sandbox_command_output_in_ready_slot_allowed": false,
+    "sandbox_provider_allocation_reference_in_ready_slot_allowed": false,
+    "sandbox_shared_read_only_base_artifact_allowed": true,
+    "sandbox_shared_base_artifact_requires_current_signed_unrevoked_evidence": true
+  },
+  "claimReadiness": {
+    "sandbox_fresh_guest_identity_required": true,
+    "sandbox_workspace_revision_and_fencing_verified": true,
+    "sandbox_network_policy_revision_and_effective_state_verified": true,
+    "sandbox_resource_grant_and_effective_cgroup_verified": true,
+    "sandbox_artifact_manifest_and_node_attestation_current": true,
+    "sandbox_provider_and_guest_ready": true,
+    "sandbox_partial_readinessMayEnterRunning": false
+  },
+  "releaseAndSanitization": {
+    "orderedSteps": [
+      "sandbox_revoke_claim_grants_and_guest_identity",
+      "sandbox_stop_guest_and_descendants",
+      "sandbox_detach_workspace_device",
+      "sandbox_teardown_network",
+      "sandbox_release_resource_scope",
+      "sandbox_erase_ephemeral_layer",
+      "sandbox_scan_cross_tenant_residue",
+      "sandbox_record_durable_cleanup_evidence"
+    ],
+    "sandbox_release_idempotent": true,
+    "sandbox_cleanup_bounded": true,
+    "sandbox_cleanup_failure_visible": true,
+    "sandbox_uncertain_cleanup_quarantines_slot": true,
+    "sandbox_uncertain_cleanup_keeps_capacity_consumed": true,
+    "sandbox_ttl_aloneMayReturnSlotToReady": false,
+    "sandbox_quarantineMayBeBypassedForAvailability": false
+  },
+  "persistenceConcurrencyAndRecovery": {
+    "sandbox_cloud_authoritativeStore": "postgresql",
+    "sandbox_processLocalMemoryAuthorityAllowed": false,
+    "sandbox_databaseClockRequired": true,
+    "sandbox_globalLockOrderExtensionReviewRequired": true,
+    "sandbox_operationFingerprintAndVersionCasRequired": true,
+    "sandbox_fullTransactionRetryBounded": true,
+    "sandbox_multiControllerClaimRequired": true,
+    "sandbox_reconcilerLeaseAndFencingRequired": true,
+    "sandbox_reconciliationTenantAwareAndBounded": true,
+    "sandbox_unboundedScanAllowed": false,
+    "sandbox_controlPlaneRestartRecoveryRequired": true,
+    "sandbox_nodeDrainAndCrashRecoveryRequired": true,
+    "sandbox_capacityOvercommitAllowed": false
+  },
+  "scaling": {
+    "sandbox_targetScope": "resource-profile-and-failure-domain",
+    "sandbox_minTargetMaxFiniteRequired": true,
+    "sandbox_refillRateLimitRequired": true,
+    "sandbox_scaleDecisionInputBounded": true,
+    "sandbox_quarantinedCapacityExcludedFromReady": true,
+    "sandbox_quarantinedCapacityExcludedFromAvailableCapacity": true,
+    "sandbox_tenantPriorityMayBypassAdmission": false,
+    "sandbox_poolExhaustionHasTypedBoundedRetry": true
+  },
+  "kernelBoundary": {
+    "sandbox_kernelAdapter": "SandboxSessionLifecycleAdapter",
+    "sandbox_kernelInputs": [
+      "sandbox_opaque_kernel_execution_placement_reference_and_generation",
+      "sandbox_opaque_workspace_and_session_identity",
+      "sandbox_required_capabilities",
+      "sandbox_minimum_assurance"
+    ],
+    "sandbox_kernelExecutionPlacementLeaseOrFenceMayBeReusedAsPoolClaimLeaseOrFence": false,
+    "sandbox_poolClaimOperationIdMayBeReusedAsKernelPlacementOperationId": false,
+    "sandbox_kernelProviderBranchingAllowed": false,
+    "sandbox_kernelNodeOrPoolSelectionAllowed": false,
+    "sandbox_legacyOneShotProviderMayOwnLifecycleOrPool": false,
+    "sandbox_reverseDependencyToKernelOrAgentsAllowed": false,
+    "sandbox_crossRepositoryHumanReviewRequired": true
+  },
+  "errors": {
+    "sandbox_errorCodes": [
+      "sandbox_pool_not_ready",
+      "sandbox_pool_exhausted",
+      "sandbox_pool_claim_conflict",
+      "sandbox_pool_stale_fencing",
+      "sandbox_pool_dependency_unavailable",
+      "sandbox_pool_cleanup_failed",
+      "sandbox_pool_slot_quarantined",
+      "sandbox_pool_internal_failure"
+    ],
+    "sandbox_retryabilityExplicit": true,
+    "sandbox_retryAfterBounded": true,
+    "sandbox_hostNodeCapacityOrTenantDetailAllowed": false
+  },
+  "telemetryAndPerformance": {
+    "sandbox_coldPreparedWarmReportedSeparately": true,
+    "sandbox_claimToReadyP50P95P99Required": true,
+    "sandbox_poolHitRefillQuarantineAndSaturationRequired": true,
+    "sandbox_usageOrMetricIsBillingTruth": false,
+    "sandbox_lowCardinalityLabelsRequired": true,
+    "sandbox_tenantSessionNodeSlotClaimLabelsAllowed": false,
+    "sandbox_fastAllocationClaimAllowedWithoutReferenceEvidence": false,
+    "sandbox_candidatePreparedP95TargetMs": 500,
+    "sandbox_targetBecomesReleaseGateOnlyForPublishedMeasuredProfile": true,
+    "sandbox_eventCatalogRegistrationRequiredBeforeImplementation": true,
+    "sandbox_observabilityCatalogRegistrationRequiredBeforeImplementation": true
+  },
+  "forbiddenPublicMetadata": [
+    "sandbox_pool_slot_id",
+    "sandbox_pool_claim_id",
+    "sandbox_node_reference",
+    "sandbox_host_path",
+    "sandbox_snapshot_path",
+    "sandbox_api_socket",
+    "sandbox_tap_name",
+    "sandbox_cgroup_path",
+    "sandbox_guest_credential",
+    "sandbox_provider_allocation_reference"
+  ],
+  "bounds": {
+    "sandbox_claim_ttlSecondsMax": 60,
+    "sandbox_reconciliationBatchSizeMax": 100,
+    "sandbox_candidateSlotCountMax": 128,
+    "sandbox_claimAttemptCountMax": 8,
+    "sandbox_retryAfterSecondsMax": 300,
+    "sandbox_cleanupDeadlineSecondsMax": 120,
+    "sandbox_refillOperationsPerNodeMax": 16,
+    "sandbox_perProfileTargetMax": 1000
+  },
+  "deploymentScope": {
+    "sandbox_cloudFirecrackerPreparedPoolCandidate": true,
+    "sandbox_warmMicrovmRequiresSeparateEvidenceGate": true,
+    "sandbox_standaloneLocalMayClaimMultiTenantPool": false,
+    "sandbox_localDockerOrWeakAssuranceFallbackAllowed": false,
+    "sandbox_publicApiSdkOrDeploymentInScope": false
+  },
+  "humanReview": {
+    "required": true,
+    "reviewPacket": "REVIEW-20260730-sandbox-runtime-pool-architecture-security",
+    "requiredReviewers": [
+      "architecture-owner",
+      "security-privacy-owner",
+      "database-reliability-owner",
+      "capacity-scheduler-owner",
+      "firecracker-kvm-operations-owner",
+      "workspace-network-resource-owner",
+      "commerce-performance-owner",
+      "sdkwork-kernel-owner"
+    ]
+  },
+  "x-sdkwork-status": "draft",
+  "x-sdkwork-require-human-review": true,
+  "x-sdkwork-no-runtime-implementation": true,
+  "x-sdkwork-no-database-implementation": true,
+  "x-sdkwork-no-snapshot-implementation": true,
+  "x-sdkwork-no-api-sdk-deployment": true
+}

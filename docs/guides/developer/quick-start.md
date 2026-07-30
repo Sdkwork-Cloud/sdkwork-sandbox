@@ -80,7 +80,7 @@ SandboxFencingToken, SandboxProviderAllocationRef (zeroized, redacted)
 
 1. **Unit Tests**: 每个 crate 内部 `#[cfg(test)]` 模块
 2. **Contract Tests**: `tests/contract/*.test.mjs` (Node.js)
-3. **Integration Tests**: PostgreSQL 真实连接 (需 `SDKWORK_SANDBOX_TEST_DATABASE_URL`)
+3. **Integration Tests**: PostgreSQL 真实连接 (需 `SDKWORK_DATABASE_TEST_POSTGRES_URL`)
 
 ## Contribution Workflow
 

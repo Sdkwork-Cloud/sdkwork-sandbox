@@ -7,6 +7,7 @@
     "REQ-2026-0003",
     "REQ-2026-0007",
     "REQ-2026-0008",
+    "REQ-2026-0011",
     "REQ-2026-0012",
     "REQ-2026-0013",
     "REQ-2026-0014",
@@ -19,6 +20,7 @@
     "ADR-20260728-local-provider-assurance-and-host-boundaries",
     "ADR-20260729-sandbox-command-execution-and-terminal-boundary",
     "ADR-20260729-firecracker-provider-isolation-and-node-boundaries",
+    "ADR-20260729-sandbox-host-isolation-broker-boundary",
     "ADR-20260729-sandbox-firecracker-artifact-compatibility-and-supply-chain",
     "ADR-20260729-sandbox-workspace-block-device-attachment-and-sanitization",
     "ADR-20260729-sandbox-firecracker-network-isolation-and-egress-policy",
@@ -46,7 +48,10 @@
       "accepted-execution-terminal-result-error-partition",
       "terminal-race-single-winner-and-replay",
       "cleanup-failure-visible-and-binding-quarantined",
-      "safe-error-and-private-metadata-redaction"
+      "safe-error-and-private-metadata-redaction",
+      "provider-owned-executable-resolution-without-path-search",
+      "protected-environment-override-rejection",
+      "runtime-binding-policy-snapshot-immutability"
     ],
     "kernelBranchingAllowed": false,
     "providerPrivateCommandDtosAllowed": false,
@@ -74,12 +79,25 @@
         "sandbox_browser": "denied",
         "sandbox_port_forward": "denied"
       },
+      "hostBoundary": {
+        "sandbox_contract": "sandbox-local-provider-host-boundary.contract.json",
+        "sandbox_status": "draft",
+        "sandbox_implementation_authorized": false,
+        "sandbox_opened_capability_handle_required": true,
+        "sandbox_platform_specific_supervision_required": true,
+        "sandbox_real_runner_evidence_required": true,
+        "sandbox_preflight_dependency_required": true
+      },
       "requiredEvidence": [
+        "sandbox_local_provider_host_boundary_contract",
+        "sandbox_local_execution_policy_snapshot",
+        "sandbox_provider_owned_executable_registry_without_path_search",
+        "sandbox_protected_environment_override_denial",
         "sandbox_workspace_attachment_authority",
         "sandbox_windows_reparse_device_ads_negative_tests",
         "sandbox_unix_symlink_mount_negative_tests",
         "sandbox_windows_job_object_descendant_cleanup",
-        "sandbox_linux_process_group_or_cgroup_descendant_cleanup",
+        "sandbox_linux_cgroup_v2_descendant_cleanup",
         "sandbox_macos_supervision_scope_or_terminal_denial",
         "sandbox_real_host_runner_matrix",
         "sandbox_provider_descriptor_known_limitations"
@@ -249,6 +267,7 @@
       "REVIEW-20260729-sandbox-command-execution-architecture-security",
       "REVIEW-20260729-local-provider-architecture-security",
       "REVIEW-20260729-firecracker-provider-architecture-security",
+      "REVIEW-20260729-sandbox-host-isolation-broker",
       "REVIEW-20260729-sandbox-firecracker-artifact-compatibility-and-supply-chain",
       "REVIEW-20260729-sandbox-workspace-block-device-attachment-and-sanitization",
       "REVIEW-20260729-sandbox-firecracker-network-isolation",

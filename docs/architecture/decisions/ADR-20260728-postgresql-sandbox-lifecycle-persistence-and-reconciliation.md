@@ -24,7 +24,7 @@ Specs: `REQUIREMENTS_SPEC.md`, `ARCHITECTURE_DECISION_SPEC.md`, `DATABASE_SPEC.m
 4. `tenant_id` 是所有主键、唯一约束和在线索引的领先 Scope。`sandbox_session_id` 是 Agents-owned `AgentSession` 的 Opaque 映射，不是 Sandbox 创建的第二套 Session Registry；`sandbox_workspace_id` 不可用于推导 Host Path。
 5. Service 声明 `SandboxSessionRepositorySnapshot` 与 Restore Factory 作为唯一持久化映射边界。Restore 在调用 Allocation Protector 解密前按稳定 Operation 顺序重放状态机，并验证 Typed Failure、Transient/InProgress、Runtime Binding 与 Allocation 组合不变量；非法组合关闭失败为 `InvalidStoredData`。普通 `SandboxSession`/`SandboxRuntimeBinding` 不派生 Serde，也不暴露 Provider Allocation 明文 Getter。Adapter 只能通过明确的保护器端口将私有引用转换为受保护记录。
 6. Provider Allocation 明文使用 `sdkwork-utils-rust::crypto::derive_aes_256_key` 和 `aes_gcm_encrypt`/`aes_gcm_decrypt` 保护。每条 Binding 的派生上下文绑定 Tenant、Session、Binding 和 Crypto Version；数据库只保存 Ciphertext、Key ID、Key Version 与 Crypto Version。Keyring/Secret Material 由 Service Host Secret Port 注入，Repository 不从普通 Config 或 Environment 自行发现密钥。
-7. Session Insert/Save、带稳定 Sequence 的 Operation 写入和 Runtime Binding 同步在同一个 PostgreSQL Transaction 中完成。Save 先执行 Version CAS；Operation ID/Sequence 冲突、非法存储与 Version Conflict 映射到稳定 `SandboxSessionRepositoryError`，不依赖本地化错误文本。
+7. Session Insert/Save、带稳定 Sequence 的 Operation 写入和 Runtime Binding 同步在同一个 PostgreSQL Transaction 中完成。Save 先执行 Version CAS；Operation ID/Sequence 冲突、非法存储与 Version Conflict 映射到稳定 `SandboxSessionRepositoryError`，不依赖本地化错误文本。Session Version 的跨适配器逻辑上限固定为 PostgreSQL `BIGINT` 最大值，Domain 递增、Persistence Snapshot Restore、Memory CAS 与 PostgreSQL Conversion 都在该边界关闭失败，禁止 `u64` 回绕或让 Memory 接受 PostgreSQL 无法表示的版本。
 8. `SandboxRuntimeBinding` 允许表达尚未获得 Allocation Reference 的 Intent。首次 Start 在 Provider Allocate 前原子保存 `Starting`、In-progress Start Operation 以及包含 `SandboxId`、`SandboxRuntimeBindingId`、`SandboxProviderId` 且无 Allocation Reference 的 Binding Intent；任何持久化 `Starting` 都必须具有该可恢复 Binding。Failed/Stopped Retry Start 必须在原稳定状态下先持 Lease 幂等销毁旧 Allocation，清理成功后才保存本次新 Intent；清理失败保存 Typed `Failed(Cleanup)` 并保留旧 Binding，不得暴露可被 Reconciler 误启动的旧 Allocation。Allocate 以稳定 Identity 和 Fencing Token 幂等重放，成功后再加密并保存 Allocation Reference。
 9. Provider Side Effect 的控制权由 `sandbox_session_lease` 管理。Acquire 使用 PostgreSQL 数据库时钟，仅在 Lease 不存在或已过期时成功；每次新所有权 Acquisition 原子递增非零 `SandboxFencingToken`。Renew/Release 必须匹配 Tenant、Session、Owner 和 Token。Token 达到 PostgreSQL `BIGINT` 上限后 Memory/PostgreSQL Adapter 均关闭失败为 `LeaseConflict`，禁止回绕或误报临时竞争。
 10. Allocate/Start/Stop/Destroy Provider Request 都携带 `SandboxFencingToken`。Provider Conformance 要求同一 `SandboxRuntimeBindingId` 拒绝低于已观察值的 Token；Repository CAS 与 Provider Fencing 共同阻止旧控制器在 Lease 过期后继续提交。
@@ -59,6 +59,8 @@ Specs: `REQUIREMENTS_SPEC.md`, `ARCHITECTURE_DECISION_SPEC.md`, `DATABASE_SPEC.m
 收益：Sandbox 生命周期在进程重启和多控制器竞争下拥有 PostgreSQL 权威、可验证的 Tenant 隔离、Operation 幂等、Version CAS、加密 Private Metadata 和可恢复的 Provider Identity；Kernel/Agents 依赖方向不变。
 
 成本：Provider SPI 增加 Fencing Contract；Aggregate 需要显式 Persistence Snapshot/Restore Boundary；生命周期调用需要 Lease 管理和更细的故障注入测试。密钥轮换、Backup/Restore、Service Host Secret Wiring、跨 Tenant Operator 调度和真实 Provider Fencing 仍需后续 Requirement 提供上线证据。
+
+商业化后续边界：当前候选按完整 `sandbox_operation_sequence` hydrate/replay 一个 Session 的全部 Operation，成本随 Session 历史增长。该 P1 风险由 [REQ-2026-0020](../../product/requirements/REQ-2026-0020-sandbox-lifecycle-hot-state-and-idempotency-retention.md) 和候选 [ADR-20260730](ADR-20260730-sandbox-lifecycle-hot-state-and-idempotency-ledger.md) 管理；在其限制、保留、Late Retry 和 Migration 人审完成前，不得静默截断历史或宣称长生命周期成本已有生产上界。
 
 ## Verification
 

@@ -4,11 +4,11 @@ Status: draft
 
 Owner: SDKWork Runtime Platform
 
-Updated: 2026-07-29
+Updated: 2026-07-30
 
 Parent: [SDKWork Sandbox PRD](PRD.md)
 
-Specs: `REQUIREMENTS_SPEC.md`, `SECURITY_SPEC.md`, `EVENT_SPEC.md`, `OBSERVABILITY_SPEC.md`, `CACHE_SPEC.md`, `PAGINATION_SPEC.md`
+Specs: `REQUIREMENTS_SPEC.md`, `SECURITY_SPEC.md`, `PRIVACY_SPEC.md`, `DATABASE_SPEC.md`, `DATABASE_FRAMEWORK_SPEC.md`, `RUNTIME_DIRECTORY_SPEC.md`, `EVENT_SPEC.md`, `OBSERVABILITY_SPEC.md`, `CACHE_SPEC.md`, `PAGINATION_SPEC.md`
 
 ## 1. 职责边界
 
@@ -18,6 +18,8 @@ Specs: `REQUIREMENTS_SPEC.md`, `SECURITY_SPEC.md`, `EVENT_SPEC.md`, `OBSERVABILI
 | Runtime Capability 契约与执行位置 | 拥有 | Kernel 消费经过评审的 Port |
 | Agent Workspace Identity 与持久生命周期 | 不拥有；只消费经授权的 Opaque Context | `sdkwork-agents` 的 `AgentWorkspace` 拥有 |
 | Sandbox Workspace Attachment 与运行访问 | 拥有 Attachment Mechanism、Lease/Fencing 与 Provider-private `SandboxProviderAllocationRef` | Kernel 映射已授权的 Agents Workspace Identity；存储 Adapter 拥有物理机制 |
+| Workspace Revision 与 Checkpoint | 组合 Writer Fencing、Durable Candidate/Handoff、Detach/Sanitization；不晋级业务 Revision | Agents 拥有 Revision Authorization、Conflict、Promotion 与 Retention；Drive/批准的 Volume Authority 拥有字节生命周期 |
+| Standalone Local 数据驻留与恢复 | 只组合 Local Readiness Evidence，不复制任何数据权威 | BirdCoder 只拥有有界设备事实；Agents、Kernel、Workspace/Drive、Sandbox、Database、Secret 与 Backup Owner 分别拥有其数据生命周期 |
 | Agent Session 业务生命周期 | 不拥有 | `sdkwork-agents` 的 `AgentSession` 拥有 |
 | Sandbox Session 运行生命周期 | `SandboxSession` 与 `SandboxRuntimeBinding` 拥有 | Kernel 通过 `SandboxSessionLifecyclePort` 消费 |
 | Tool 执行环境 | 拥有 Filesystem/Process/Browser/Terminal 的能力执行 | Kernel 拥有工具选择与编排 |
@@ -91,6 +93,14 @@ Workspace 术语保持不变，但业务权威位于 `sdkwork-agents`。`AgentWo
 - 删除 Sandbox 或 `SandboxSession` 不得隐式删除 `AgentWorkspace`。
 - Restore 必须生成可审计 Revision，不得静默覆盖活动绑定。
 
+运行环境与 Workspace 数据必须分离。`standalone/local` 使用 Composition 已打开且绑定到 Runtime Binding 的 Device-local Workspace Capability，Runtime Root 与 Workspace Capability 不得相同；`standalone/firecracker`/`cloud/firecracker` 使用独立加密 Guest Block Device，RootFS、Workspace、Cache、Temp 与 Log 不得合并。Sandbox 不从 Workspace ID 推导 Path，也不把 Host/Device/Object Metadata 暴露给 Kernel 或 BirdCoder。
+
+ReadWrite Runtime 使用 REQ-2026-0021 的单 Writer Revision Target。Command Admission Freeze 并 Drain/Cancel 活动命令后，Attachment Adapter 才能 Flush 并产生耐久 `SandboxWorkspaceCheckpointCandidate`；Handoff 持久化后 Runtime 才能 Detach/Sanitize/Release。Agents 以 Source Revision 执行 CAS Promotion；Revision Conflict 不得覆盖更新版本，也不得伪装为保存成功。
+
+REQ-2026-0022 将 Local 数据承诺从 Workspace 扩展到 BirdCoder 设备事实、Agents 业务数据、Kernel 瞬态状态、Sandbox 控制状态、Runtime Root、Cache、Log/Audit、Secret、Temp/Output、Checkpoint Candidate 和 Backup。`standalone`/`local` 只是拓扑与 Provider 事实；只有 `sandbox_standalone_local` 完成全部证据后才能使用候选 `device-local-persistence` 声明，`strict-device-local-processing` 还必须拒绝源码、Prompt、Transcript、Artifact、Secret 和诊断内容外传。Agents/Sandbox 服务权威保持本机 PostgreSQL，嵌入式 SQLite 只允许用于声明为 `client-local` 的 BirdCoder/Kernel 有界状态，且不得作为 Server Fallback。
+
+Workspace、Service Data、Runtime Root、Cache、Log、Secret 与 Temp 必须是不同的预打开 Capability。Runtime Cleanup、默认 Reset 和 Uninstall 保留用户拥有的 Workspace；Remote Backup/Sync/Telemetry 默认拒绝，Backup 必须本地、按数据库角色执行、包含完整性清单并通过 Restore Test。Corruption、Disk Full、Local Database 或 Capability 不可用、Restore/Purge 不确定均关闭失败，不得自动回退 Cloud 或静默丢弃权威数据。
+
 ## 5. Runtime Capability Family
 
 | Capability | 最小产品行为 |
@@ -112,7 +122,7 @@ Capability 需要协商。Provider 必须明确报告不支持的操作；Runtim
 
 | Provider | 目标部署 | 当前顺序 | 基础保证说明 |
 | --- | --- | --- | --- |
-| Local | 开发者工作站 | 优先 1 | 只承诺宿主机用户边界；Capability 和 Path Containment 必须执行，不承诺强多租户隔离。 |
+| Local | 开发者工作站 | 优先 1 | 只承诺宿主机用户边界；Filesystem 必须使用 opened Capability Handle，Windows/Linux Terminal 分别依赖真实 Job Object/cgroup v2 证据，macOS 当前明确拒绝 Terminal；不承诺强多租户隔离。 |
 | Firecracker | Linux Cloud Node | 优先 2 | 面向不可信多租户工作负载的 KVM microVM 边界；必须通过 Jailer、镜像、cgroup、Network/Workspace、Fencing 与清理证据。 |
 | Docker | 本地/私有/服务器 | 延期 | Local 与 Firecracker 跑通并评审后再建立独立 Ready Requirement；当前不实施，也不作为回退。 |
 | gVisor | Linux Container Node | 后续 | 面向兼容工作负载的 User-space Kernel 隔离。 |
@@ -124,7 +134,7 @@ Capability 需要协商。Provider 必须明确报告不支持的操作；Runtim
 
 Scheduler 只能选择满足 Capability、Architecture、OS、Isolation Assurance、Locality、Capacity 和 Policy 的 Node/Provider。Placement 必须 Tenant-aware，不得超过 Tenant、Session、Node 或 Cluster Quota。
 
-Warm Pool 只能保存已清理的 Idle Sandbox Allocation。重新分配前必须证明不存在上一个租户的 Workspace Mount、Process、Port、Secret、Network Identity、Terminal Buffer 与 Sandbox Provider 私有残留。Pool Miss 只能回退到合规冷启动，不能回退到更弱 Provider。
+第一阶段 Pool 只保存 tenant-neutral `PreparedSlot`，不保存租户 Workspace、Process、Port、Secret、Network Grant、Guest Identity、Terminal Buffer、Command Output 或 Provider-private Allocation。`WarmMicroVmSlot` 只有在独立 Snapshot/Identity/Device/Policy/Residue 证据批准后才能启用。Pool Miss 只能回退到同等级合规冷启动，不能回退到更弱 Provider。
 
 资源控制包括 CPU、Memory、Disk、IO、PID、Wall Time、Workspace Size、Log Size、Network Egress、Port Count 与未来 GPU。Quota 决策和执行结果必须进入 Event 与 Metric。
 
@@ -132,6 +142,7 @@ Warm Pool 只能保存已清理的 Idle Sandbox Allocation。重新分配前必�
 
 - Workspace Snapshot、Provider Snapshot 与 Session Checkpoint 是不同 Artifact，拥有不同权威和兼容范围。
 - 可移植 Checkpoint 保存产品状态；Provider Snapshot 可加速恢复，但不能成为唯一持久事实。
+- Workspace Checkpoint Candidate 与 Agents Workspace Revision 是两个阶段：Sandbox/Storage 先保证 Candidate/Handoff 耐久，Agents 再原子晋级 Revision；任何阶段失败都必须是可恢复的显式状态。
 - Cargo、Rust Target、pnpm/npm、pip、Gradle/Maven、Go、NuGet 与 Composer Cache 是派生数据，必须声明 Namespace、Sensitivity、TTL/Retention、Size 和 Invalidation Policy。
 - Cache 不能成为持久 Workspace 或执行策略的唯一事实源。
 - 恢复前必须校验 Checkpoint Integrity、Provider Compatibility、Workspace Revision、Secret Freshness 与独占所有权。

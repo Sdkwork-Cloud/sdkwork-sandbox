@@ -1,0 +1,499 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.sandbox.workspace-runtime-transaction-contract",
+  "status": "draft",
+  "requirementId": "REQ-2026-0021",
+  "decisionId": "ADR-20260730-sandbox-workspace-runtime-transaction-and-checkpoint",
+  "relatedRequirementIds": [
+    "REQ-2026-0003",
+    "REQ-2026-0004",
+    "REQ-2026-0005",
+    "REQ-2026-0007",
+    "REQ-2026-0008",
+    "REQ-2026-0009",
+    "REQ-2026-0010",
+    "REQ-2026-0013",
+    "REQ-2026-0014",
+    "REQ-2026-0015",
+    "REQ-2026-0016",
+    "REQ-2026-0017",
+    "REQ-2026-0018",
+    "REQ-2026-0019",
+    "REQ-2026-0020"
+  ],
+  "relatedContracts": [
+    "sandbox-local-provider-host-boundary.contract.json",
+    "sandbox-workspace-block-device-attachment.contract.json",
+    "sandbox-firecracker-network-isolation.contract.json",
+    "sandbox-firecracker-resource-isolation.contract.json",
+    "sandbox-multi-tenant-scheduling.contract.json",
+    "sandbox-runtime-pool.contract.json",
+    "sandbox-lifecycle-history-and-idempotency.contract.json",
+    "../apis/commands/sandbox-command-contract.json",
+    "../apis/async/sandbox-outbox.contract.json"
+  ],
+  "implementationAuthorized": false,
+  "ownership": {
+    "sandbox_agents_owns_workspace_project_session_revision_authorization_conflict_and_retention": true,
+    "sandbox_kernel_owns_provider_neutral_agent_execution_orchestration": true,
+    "sandbox_kernel_owns_execution_placement_record_lease_fencing_and_recovery": true,
+    "sandbox_service_owns_capacity_placement_allocation_record_lease_and_fencing": true,
+    "sandbox_service_owns_runtime_transaction_fencing_compensation_and_handoff": true,
+    "sandbox_attachment_adapter_owns_only_authorized_runtime_projection": true,
+    "sandbox_provider_owns_only_selected_execution_mechanism": true,
+    "sandbox_drive_owns_sdkwork_file_object_lifecycle_when_applicable": true,
+    "sandbox_approved_block_volume_authority_requires_independent_ready_requirement": true,
+    "sandbox_commerce_owns_price_invoice_payment_and_billing_truth": true,
+    "sandbox_may_advance_agents_workspace_revision": false,
+    "sandbox_may_persist_agents_business_models": false,
+    "sandbox_may_delete_or_overwrite_source_workspace_on_release": false,
+    "sandbox_reverse_dependency_to_kernel_agents_or_birdcoder_allowed": false
+  },
+  "placementAuthoritySeparation": {
+    "sandbox_kernel_execution_placement_owner": "sdkwork-kernel",
+    "sandbox_capacity_placement_owner": "SandboxSchedulerPort",
+    "sandbox_runtime_allocation_binding_owner": "Sandbox lifecycle service",
+    "sandbox_kernel_execution_placement_ref_is_opaque": true,
+    "sandbox_kernel_and_sandbox_records_have_distinct_ids": true,
+    "sandbox_kernel_and_sandbox_records_have_distinct_lease_and_fencing_domains": true,
+    "sandbox_kernel_and_sandbox_records_have_distinct_idempotency_scopes": true,
+    "sandbox_kernel_execution_placement_may_select_provider_node_pool_slot_or_storage": false,
+    "sandbox_capacity_placement_may_replace_or_advance_kernel_execution_placement": false,
+    "sandbox_runtime_transaction_may_reuse_kernel_placement_operation_or_fencing_token": false,
+    "sandbox_kernel_placement_generation_must_be_verified_before_admission": true,
+    "sandbox_stale_or_revoked_kernel_placement_fails_closed": true
+  },
+  "executionLanes": {
+    "sandbox_standalone_local": {
+      "sandbox_deployment_profile": "standalone",
+      "sandbox_provider_kind": "local",
+      "sandbox_isolation_assurance": "HostUser",
+      "sandbox_multi_tenant_isolation_claim_allowed": false,
+      "sandbox_workspace_projection_kinds": [
+        "opened-user-local-capability",
+        "approved-local-drive-provider-capability"
+      ],
+      "sandbox_workspace_data_residency": "device-local",
+      "sandbox_business_state_authority": "sdkwork-agents-standalone",
+      "sandbox_physical_path_crosses_kernel_or_public_contract": false,
+      "sandbox_remote_workspace_transfer_enabled_by_default": false,
+      "sandbox_cloud_storage_grant_allowed": false,
+      "sandbox_cloud_scheduler_or_runtime_pool_allowed": false,
+      "sandbox_runtime_and_workspace_capabilities_must_be_distinct": true
+    },
+    "sandbox_standalone_firecracker": {
+      "sandbox_deployment_profile": "standalone",
+      "sandbox_provider_kind": "firecracker",
+      "sandbox_isolation_assurance": "MicroVm",
+      "sandbox_multi_tenant_isolation_claim_allowed": false,
+      "sandbox_workspace_projection_kinds": [
+        "encrypted-guest-block-device"
+      ],
+      "sandbox_workspace_data_residency": "standalone-owner-selected-local-authority",
+      "sandbox_cloud_scheduler_or_runtime_pool_allowed": false,
+      "sandbox_runtime_root_workspace_device_cache_and_temp_must_be_distinct": true,
+      "sandbox_workspace_block_device_contract_required": true
+    },
+    "sandbox_cloud_firecracker": {
+      "sandbox_deployment_profile": "cloud",
+      "sandbox_provider_kind": "firecracker",
+      "sandbox_isolation_assurance": "MicroVm",
+      "sandbox_multi_tenant_isolation_required": true,
+      "sandbox_workspace_projection_kinds": [
+        "encrypted-guest-block-device"
+      ],
+      "sandbox_workspace_byte_authority": "sdkwork-drive-or-approved-block-volume-authority",
+      "sandbox_workspace_revision_is_immutable_for_attachment": true,
+      "sandbox_runtime_pool_is_optional_acceleration": true,
+      "sandbox_cold_firecracker_is_correctness_fallback": true,
+      "sandbox_local_or_weaker_assurance_fallback_allowed": false,
+      "sandbox_runtime_root_workspace_device_cache_and_temp_must_be_distinct": true,
+      "sandbox_workspace_block_device_contract_required": true
+    }
+  },
+  "request": {
+    "type": "SandboxWorkspaceRuntimeTransactionRequest",
+    "requiredFields": [
+      "sandbox_workspace_runtime_transaction_id",
+      "sandbox_tenant_scope_hash",
+      "sandbox_workspace_id",
+      "sandbox_workspace_revision_ref",
+      "sandbox_workspace_authorization_grant_ref",
+      "sandbox_session_id",
+      "sandbox_kernel_execution_placement_ref",
+      "sandbox_kernel_execution_placement_generation",
+      "sandbox_operation_id",
+      "sandbox_execution_profile_id",
+      "sandbox_required_capabilities",
+      "sandbox_minimum_assurance",
+      "sandbox_workload_class_ref",
+      "sandbox_workspace_mount_mode",
+      "sandbox_checkpoint_policy",
+      "sandbox_request_fingerprint",
+      "sandbox_fencing_token",
+      "sandbox_deadline_at",
+      "sandbox_trace_id"
+    ],
+    "unknownFieldsRejected": true,
+    "allSandboxOwnedFieldsRequirePrefix": "sandbox_",
+    "sandbox_caller_selected_provider_node_pool_or_slot_allowed": false,
+    "sandbox_caller_supplied_cpu_memory_disk_or_priority_escalation_allowed": false,
+    "sandbox_workload_class_resolved_to_entitled_resource_ceiling_by_sandbox_policy": true,
+    "sandbox_raw_host_path_device_path_storage_key_or_credential_allowed": false,
+    "sandbox_authorization_grant_short_lived_revision_and_audience_bound": true
+  },
+  "transaction": {
+    "type": "SandboxWorkspaceRuntimeTransaction",
+    "states": [
+      "requested",
+      "admitted",
+      "capacity_reserved",
+      "runtime_bound",
+      "workspace_attaching",
+      "ready",
+      "executing",
+      "checkpointing",
+      "compensating",
+      "released",
+      "quarantined"
+    ],
+    "initialState": "requested",
+    "successfulTerminalState": "released",
+    "securityFailureTerminalState": "quarantined",
+    "unknownStateRejected": true,
+    "illegalTransitionRejected": true,
+    "singleActiveTransactionPerRuntimeBinding": true,
+    "stateAndSideEffectRecordCommitAtomicallyOrRecoverably": true,
+    "terminalOutcomeIndependentFromResourceReleaseOutcome": true,
+    "releasedNeverImpliesAgentsWorkspaceDeleted": true
+  },
+  "orchestrationOrder": [
+    "sandbox_workspace_authorization_and_revision_verified",
+    "sandbox_kernel_execution_placement_reference_and_generation_verified",
+    "sandbox_admission_reservation_confirmed_or_local_policy_admitted",
+    "sandbox_verified_node_and_capacity_reservation_confirmed_or_local_capacity_marked_not_applicable",
+    "sandbox_runtime_binding_persisted_and_fenced",
+    "sandbox_pool_claimed_or_cold_or_local_path_selected",
+    "sandbox_fresh_identity_workspace_network_and_resource_grants_verified",
+    "sandbox_provider_allocate_and_start",
+    "sandbox_workspace_projection_attached_and_guest_or_host_acknowledged",
+    "sandbox_effective_workspace_network_resource_and_command_policy_readiness_verified",
+    "sandbox_environment_ready",
+    "sandbox_command_admission_opened",
+    "sandbox_command_admission_frozen_and_active_commands_drained",
+    "sandbox_workspace_write_access_revoked_and_writes_flushed",
+    "sandbox_workspace_checkpoint_candidate_made_durable_or_read_only_noop_recorded",
+    "sandbox_checkpoint_handoff_made_durable_or_read_only_noop_recorded",
+    "sandbox_provider_and_descendants_stopped",
+    "sandbox_workspace_projection_detached",
+    "sandbox_network_resource_and_ephemeral_runtime_sanitized",
+    "sandbox_cross_tenant_residue_scan_passed_or_local_zero_residue_verified",
+    "sandbox_pool_capacity_and_admission_released_or_local_noop_recorded"
+  ],
+  "orderRules": {
+    "sandbox_no_stage_may_be_inferred_only_from_later_stage": true,
+    "sandbox_not_applicable_stage_requires_durable_typed_noop_evidence": true,
+    "sandbox_external_side_effect_requires_prior_state_and_fencing_record": true,
+    "sandbox_command_may_start_before_environment_ready": false,
+    "sandbox_release_may_start_before_command_admission_is_frozen": false,
+    "sandbox_slot_or_capacity_may_release_before_cleanup_evidence": false,
+    "sandbox_ttl_alone_may_skip_checkpoint_detach_or_sanitization": false
+  },
+  "workspaceConcurrency": {
+    "sandbox_workspace_revision_immutable_during_attachment": true,
+    "sandbox_read_only_mounts_may_share_only_under_agents_policy": true,
+    "sandbox_single_writer_lease_required_per_workspace_revision_target": true,
+    "sandbox_multiple_read_write_transactions_require_distinct_agents_revision_targets": true,
+    "sandbox_writer_lease_bound_to_session_runtime_binding_and_fencing": true,
+    "sandbox_stale_writer_fencing_rejected_before_write_or_checkpoint": true,
+    "sandbox_agents_compare_and_swap_required_to_advance_revision": true,
+    "sandbox_checkpoint_conflict_may_overwrite_newer_revision": false,
+    "sandbox_checkpoint_conflict_preserves_bounded_candidate_for_agents_resolution": true,
+    "sandbox_shared_writable_device_across_active_bindings_allowed": false
+  },
+  "checkpoint": {
+    "readOnlyPolicy": "ReadOnlyNoCheckpoint",
+    "readWritePolicy": "DurableCheckpointRequired",
+    "sandbox_read_write_release_without_durable_candidate_allowed": false,
+    "sandbox_silent_discard_of_workspace_writes_allowed": false,
+    "sandbox_candidateType": "SandboxWorkspaceCheckpointCandidate",
+    "sandbox_candidateRequiredFields": [
+      "sandbox_workspace_checkpoint_candidate_id",
+      "sandbox_workspace_id",
+      "sandbox_source_workspace_revision_ref",
+      "sandbox_candidate_workspace_revision_ref",
+      "sandbox_workspace_runtime_transaction_id",
+      "sandbox_session_id",
+      "sandbox_runtime_binding_id",
+      "sandbox_fencing_token",
+      "sandbox_content_digest",
+      "sandbox_content_size_bytes",
+      "sandbox_storage_authority_ref",
+      "sandbox_created_at",
+      "sandbox_trace_id"
+    ],
+    "sandbox_candidate_sealed_before_handoff": true,
+    "sandbox_storage_authority_ref_is_opaque": true,
+    "sandbox_provider_private_path_bucket_object_or_credential_allowed": false,
+    "sandbox_handoff_uses_durable_outbox_or_equivalent": true,
+    "sandbox_handoff_persisted_before_runtime_release": true,
+    "sandbox_agents_alone_promotes_candidate_to_workspace_revision": true,
+    "sandbox_same_candidate_promotion_is_idempotent": true,
+    "sandbox_promotion_conflict_is_explicit_and_non_destructive": true,
+    "sandbox_checkpoint_or_handoff_uncertainty_quarantines_binding_and_capacity": true,
+    "sandbox_checkpoint_candidate_retention_requires_agents_and_storage_owner_policy": true
+  },
+  "commandSession": {
+    "sandbox_executor": "SandboxCommandExecutor",
+    "sandbox_sharedContract": "../apis/commands/sandbox-command-contract.json",
+    "sandbox_command_request_uses_runtime_binding_and_transaction_fencing": true,
+    "sandbox_command_operation_idempotency_independent_from_transaction_idempotency": true,
+    "sandbox_concurrent_command_count_bounded_by_policy": true,
+    "sandbox_new_command_rejected_after_freeze": true,
+    "sandbox_active_commands_drained_or_cancelled_before_checkpoint": true,
+    "sandbox_client_disconnect_immediately_releases_runtime": false,
+    "sandbox_reconnect_lease_and_grace_policy_required": true,
+    "sandbox_expired_reconnect_grace_triggers_fenced_checkpoint_and_cleanup": true,
+    "sandbox_shell_string_or_caller_executable_path_allowed": false,
+    "sandbox_interactive_terminal_requires_separate_ready_contract": true
+  },
+  "fencingAndIdempotency": {
+    "sandbox_highest_fencing_token_persisted_per_transaction_and_writer_lease": true,
+    "sandbox_kernel_placement_and_runtime_transaction_fencing_tokens_are_distinct": true,
+    "sandbox_kernel_placement_and_runtime_transaction_operation_ids_are_distinct": true,
+    "sandbox_kernel_placement_lease_expiry_cancels_or_compensates_runtime_transaction": true,
+    "sandbox_stale_fencing_rejected_before_every_side_effect": true,
+    "sandbox_same_operation_same_fingerprint_replays": true,
+    "sandbox_same_operation_different_fingerprint_conflicts": true,
+    "sandbox_first_terminal_outcome_cas_required": true,
+    "sandbox_compensation_steps_individually_idempotent": true,
+    "sandbox_control_plane_restart_recovery_required": true,
+    "sandbox_node_local_journal_may_replace_cloud_authority": false
+  },
+  "failureCompensation": [
+    {
+      "sandbox_failure_window": "before-capacity-reservation",
+      "sandbox_required_actions": [
+        "sandbox_release_admission_reservation_if_present",
+        "sandbox_record_terminal_operation_outcome"
+      ]
+    },
+    {
+      "sandbox_failure_window": "after-capacity-before-workspace-attachment",
+      "sandbox_required_actions": [
+        "sandbox_release_or_sanitize_pool_claim_if_present",
+        "sandbox_release_capacity_reservation",
+        "sandbox_release_admission_reservation",
+        "sandbox_record_terminal_operation_outcome"
+      ]
+    },
+    {
+      "sandbox_failure_window": "after-attachment-before-command",
+      "sandbox_required_actions": [
+        "sandbox_revoke_claim_grants",
+        "sandbox_stop_provider_and_descendants",
+        "sandbox_detach_workspace_projection",
+        "sandbox_sanitize_runtime_network_and_resources",
+        "sandbox_scan_residue_before_release"
+      ]
+    },
+    {
+      "sandbox_failure_window": "during-or-after-write-execution",
+      "sandbox_required_actions": [
+        "sandbox_freeze_new_commands",
+        "sandbox_drain_or_cancel_active_commands",
+        "sandbox_revoke_workspace_write_access_and_flush",
+        "sandbox_make_checkpoint_candidate_and_handoff_durable",
+        "sandbox_stop_detach_sanitize_scan_and_release"
+      ]
+    },
+    {
+      "sandbox_failure_window": "after-durable-checkpoint-handoff",
+      "sandbox_required_actions": [
+        "sandbox_stop_detach_sanitize_scan_and_release",
+        "sandbox_retry_agents_revision_promotion_out_of_band_idempotently"
+      ]
+    },
+    {
+      "sandbox_failure_window": "uncertain-host-storage-or-cleanup-side-effect",
+      "sandbox_required_actions": [
+        "sandbox_quarantine_runtime_binding_slot_attachment_node_or_capacity_as_applicable",
+        "sandbox_keep_uncertain_capacity_consumed",
+        "sandbox_emit_durable_security_and_operator_evidence"
+      ]
+    }
+  ],
+  "backpressureAndFairness": {
+    "sandbox_cloud_queue_is_bounded": true,
+    "sandbox_queue_deadline_required": true,
+    "sandbox_tenant_aware_fairness_required": true,
+    "sandbox_per_tenant_active_and_queued_limits_required": true,
+    "sandbox_caller_priority_escalation_allowed": false,
+    "sandbox_pool_exhaustion_has_bounded_retry_and_optional_cold_path": true,
+    "sandbox_optional_cold_path_preserves_assurance_and_resource_ceiling": true,
+    "sandbox_unbounded_retry_spin_or_reconciliation_scan_allowed": false,
+    "sandbox_admission_saturation_must_precede_provider_side_effect": true,
+    "sandbox_disconnect_buffer_and_terminal_output_are_bounded": true
+  },
+  "readiness": {
+    "type": "SandboxWorkspaceRuntimeTransactionReadiness",
+    "failureMode": "fail-closed",
+    "requiredDimensions": [
+      "sandbox_workspace_authorization_and_revision",
+      "sandbox_kernel_execution_placement_reference_and_generation",
+      "sandbox_admission_and_capacity_or_typed_local_noop",
+      "sandbox_runtime_binding_and_fencing",
+      "sandbox_provider_and_guest_or_host",
+      "sandbox_workspace_projection",
+      "sandbox_network_and_resource_policy",
+      "sandbox_command_policy_snapshot",
+      "sandbox_checkpoint_and_compensation_capability",
+      "sandbox_telemetry_audit_and_outbox"
+    ],
+    "sandbox_partial_or_degraded_may_report_environment_ready": false,
+    "sandbox_runtime_location_id_may_be_published_before_ready": false,
+    "sandbox_provider_descriptor_alone_is_ready": false,
+    "sandbox_pool_hit_alone_is_ready": false
+  },
+  "kernelBoundary": {
+    "sandbox_kernelAdapter": "SandboxSessionLifecycleAdapter-and-approved-command-workspace-extension",
+    "sandbox_requiredProviderNeutralInputs": [
+      "sandbox_opaque_kernel_execution_placement_reference_and_generation",
+      "sandbox_opaque_workspace_project_and_session_identity",
+      "sandbox_workspace_revision_and_authorization_reference",
+      "sandbox_required_capabilities",
+      "sandbox_minimum_assurance",
+      "sandbox_workload_class_reference",
+      "sandbox_workspace_mount_mode",
+      "sandbox_operation_identity_deadline_and_cancellation"
+    ],
+    "sandbox_kernel_may_select_provider_node_pool_slot_or_physical_storage": false,
+    "sandbox_kernel_may_receive_provider_private_attachment_or_allocation_reference": false,
+    "sandbox_kernel_legacy_one_shot_provider_may_execute_production_command": false,
+    "sandbox_birdcoder_direct_kernel_or_sandbox_dependency_allowed": false,
+    "sandbox_cross_repository_human_review_required": true
+  },
+  "safeOutcome": {
+    "type": "SandboxWorkspaceRuntimeTransactionOutcome",
+    "safeFields": [
+      "sandbox_workspace_runtime_transaction_id",
+      "sandbox_kernel_execution_placement_ref",
+      "sandbox_workspace_id",
+      "sandbox_source_workspace_revision_ref",
+      "sandbox_candidate_workspace_revision_ref",
+      "sandbox_session_id",
+      "sandbox_runtime_binding_id",
+      "sandbox_transaction_state",
+      "sandbox_environment_ready",
+      "sandbox_checkpoint_status",
+      "sandbox_reason_code",
+      "sandbox_retryable",
+      "sandbox_retry_after_ms",
+      "sandbox_trace_id"
+    ],
+    "sandbox_runtime_location_id_is_opaque_runtime_binding_mapping": true,
+    "sandbox_physical_or_provider_private_metadata_allowed": false,
+    "sandbox_checkpoint_conflict_is_not_reported_as_successful_revision_promotion": true
+  },
+  "errors": [
+    { "code": "sandbox_workspace_runtime_invalid_request", "retryable": false },
+    { "code": "sandbox_workspace_runtime_authorization_denied", "retryable": false },
+    { "code": "sandbox_workspace_runtime_revision_conflict", "retryable": false },
+    { "code": "sandbox_workspace_runtime_execution_placement_stale", "retryable": true },
+    { "code": "sandbox_workspace_runtime_writer_conflict", "retryable": true },
+    { "code": "sandbox_workspace_runtime_admission_rejected", "retryable": true },
+    { "code": "sandbox_workspace_runtime_capacity_unavailable", "retryable": true },
+    { "code": "sandbox_workspace_runtime_stale_fencing", "retryable": true },
+    { "code": "sandbox_workspace_runtime_attachment_failed", "retryable": true },
+    { "code": "sandbox_workspace_runtime_command_unavailable", "retryable": true },
+    { "code": "sandbox_workspace_runtime_checkpoint_failed", "retryable": true },
+    { "code": "sandbox_workspace_runtime_cleanup_incomplete", "retryable": true },
+    { "code": "sandbox_workspace_runtime_quarantined", "retryable": false },
+    { "code": "sandbox_workspace_runtime_internal_failure", "retryable": false }
+  ],
+  "telemetryAndAudit": {
+    "sandbox_stage_latency_p50_p95_p99_required": true,
+    "sandbox_queue_environment_ready_command_checkpoint_and_release_latency_required": true,
+    "sandbox_checkpoint_conflict_disconnect_recovery_and_quarantine_metrics_required": true,
+    "sandbox_local_prepared_cold_and_warm_paths_reported_separately": true,
+    "sandbox_low_cardinality_labels_required": true,
+    "sandbox_tenant_workspace_session_binding_checkpoint_node_slot_labels_allowed": false,
+    "sandbox_raw_path_command_environment_output_or_content_allowed": false,
+    "sandbox_audit_critical_transition_requires_durable_handoff": true,
+    "sandbox_metrics_or_checkpoint_candidate_are_billing_truth": false
+  },
+  "bounds": {
+    "sandbox_request_max_bytes": 65536,
+    "sandbox_orchestration_stage_count_max": 32,
+    "sandbox_concurrent_commands_per_transaction_max": 16,
+    "sandbox_queue_wait_ms_max": 300000,
+    "sandbox_retry_after_ms_max": 300000,
+    "sandbox_reconciliation_batch_size_max": 100,
+    "sandbox_compensation_attempt_count_max": 16,
+    "sandbox_reference_max_length": 512,
+    "sandbox_reason_code_max_length": 128,
+    "sandbox_transaction_deadline_policy_hard_max_required": true,
+    "sandbox_idle_and_reconnect_grace_policy_hard_max_required": true,
+    "sandbox_exact_lifecycle_and_retention_values_require_owner_approval": true
+  },
+  "forbiddenInputsOutputsAndState": [
+    "sandbox_raw_host_path",
+    "sandbox_raw_device_path",
+    "sandbox_bucket_name",
+    "sandbox_object_key",
+    "sandbox_presigned_url",
+    "sandbox_storage_credential",
+    "sandbox_raw_encryption_key",
+    "sandbox_guest_credential",
+    "sandbox_node_reference",
+    "sandbox_pool_slot_id",
+    "sandbox_provider_allocation_reference",
+    "sandbox_provider_private_attachment_reference",
+    "sandbox_raw_command",
+    "sandbox_environment_value",
+    "sandbox_workspace_file_content"
+  ],
+  "requiredImplementationEvidence": [
+    "sandbox_agents_workspace_revision_authorization_writer_lease_and_conflict_conformance",
+    "sandbox_birdcoder_local_and_cloud_mode_sdk_only_integration_conformance",
+    "sandbox_kernel_provider_neutral_lifecycle_command_attachment_checkpoint_adapter_conformance",
+    "sandbox_local_device_residency_and_no_implicit_remote_transfer_evidence",
+    "sandbox_cloud_drive_or_approved_volume_authority_and_revision_evidence",
+    "sandbox_multi_controller_transaction_fencing_and_compensation_evidence",
+    "sandbox_disconnect_reconnect_cancel_timeout_and_checkpoint_fault_injection",
+    "sandbox_checkpoint_conflict_no_overwrite_and_no_lost_write_evidence",
+    "sandbox_pool_cold_path_ordering_and_capacity_release_evidence",
+    "sandbox_cross_tenant_workspace_memory_network_identity_and_output_residue_evidence",
+    "sandbox_bounded_queue_fairness_saturation_and_recovery_benchmark",
+    "sandbox_local_windows_linux_macos_and_cloud_kvm_matrix_as_claimed"
+  ],
+  "deploymentScope": {
+    "sandbox_standalone_local_contract_lane": true,
+    "sandbox_standalone_firecracker_contract_lane": true,
+    "sandbox_cloud_firecracker_contract_lane": true,
+    "sandbox_public_api_sdk_transport_or_deployment_materialization_in_scope": false,
+    "sandbox_provider_scheduler_storage_kms_or_database_implementation_in_scope": false
+  },
+  "humanReview": {
+    "required": true,
+    "reviewPacket": "REVIEW-20260730-sandbox-workspace-runtime-transaction-architecture-security",
+    "requiredReviewers": [
+      "product-architecture-owner",
+      "security-privacy-owner",
+      "workspace-drive-storage-owner",
+      "database-reliability-owner",
+      "capacity-scheduler-owner",
+      "local-platform-operations-owner",
+      "firecracker-kvm-operations-owner",
+      "sdkwork-birdcoder-owner",
+      "sdkwork-agents-owner",
+      "sdkwork-kernel-owner"
+    ]
+  },
+  "x-sdkwork-status": "draft",
+  "x-sdkwork-require-human-review": true,
+  "x-sdkwork-no-runtime-implementation": true,
+  "x-sdkwork-no-database-implementation": true,
+  "x-sdkwork-no-api-sdk-transport": true,
+  "x-sdkwork-no-provider-storage-kms-or-deployment": true
+}

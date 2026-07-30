@@ -4,7 +4,7 @@ Status: active
 
 Owner: SDKWork Runtime Platform
 
-Updated: 2026-07-29
+Updated: 2026-07-30
 
 ## 目的
 
@@ -14,9 +14,12 @@ Updated: 2026-07-29
 
 根据 `specs/sandbox-provider-delivery-gates.contract.json`：
 
-1. `implementationAuthorized` 保持 `false` 直到所有 Review Packet 完成人工评审
-2. 所有 Review Packet 状态为 `pending-human-review`
-3. 人工评审通过后，门禁契约需同步更新为 `implementationAuthorized: true`
+1. Provider Delivery Gate 的 11 个 Review Packet 全部完成人工评审前，`implementationAuthorized` 保持 `false`
+2. Service Host 与 Observability/Event/Outbox 是运行时激活和商业发布的补充门禁，不能因不在 Provider Delivery Gate 的 `humanReview.reviewPackets` 数组中而跳过
+3. 当前全部 17 个相关 Review Packet 状态均为 `pending-human-review`
+4. 人工评审通过后，REQ、ADR、门禁契约、Component Contract 与实现证据必须同步更新，不能只修改 `implementationAuthorized`
+
+当前商业发布判定为 **No-Go**。完整问题、交付顺序和发布证据见 [PLAN-2026-0002](plans/PLAN-2026-0002-commercial-cloud-agent-runtime-delivery.md)。
 
 ## 评审包总览
 
@@ -25,18 +28,24 @@ Updated: 2026-07-29
 | 1 | REVIEW-20260729-sandbox-command-execution-architecture-security | ADR-20260729-sandbox-command-execution-and-terminal-boundary | REQ-2026-0007 | critical | pending-human-review |
 | 2 | REVIEW-20260729-local-provider-architecture-security | ADR-20260728-local-provider-assurance-and-host-boundaries | REQ-2026-0003 | critical | pending-human-review |
 | 3 | REVIEW-20260729-firecracker-provider-architecture-security | ADR-20260729-firecracker-provider-isolation-and-node-boundaries | REQ-2026-0008 | critical | pending-human-review |
-| 4 | REVIEW-20260729-sandbox-firecracker-artifact-compatibility-and-supply-chain | ADR-20260729-sandbox-firecracker-artifact-compatibility-and-supply-chain | REQ-2026-0012 | high | pending-human-review |
-| 5 | REVIEW-20260729-sandbox-workspace-block-device-attachment-and-sanitization | ADR-20260729-sandbox-workspace-block-device-attachment-and-sanitization | REQ-2026-0013 | high | pending-human-review |
-| 6 | REVIEW-20260729-sandbox-firecracker-network-isolation | ADR-20260729-sandbox-firecracker-network-isolation-and-egress-policy | REQ-2026-0014 | critical | pending-human-review |
-| 7 | REVIEW-20260729-sandbox-firecracker-resource-isolation | ADR-20260729-sandbox-firecracker-resource-isolation-and-usage-facts | REQ-2026-0015 | high | pending-human-review |
-| 8 | REVIEW-20260729-sandbox-multi-tenant-admission-scheduling-and-capacity | ADR-20260729-sandbox-multi-tenant-admission-scheduling-and-capacity-reservation | REQ-2026-0016 | critical | pending-human-review |
-| 9 | REVIEW-20260729-sandbox-node-trust-enrollment-attestation-and-inventory | ADR-20260729-sandbox-node-trust-enrollment-attestation-and-inventory | REQ-2026-0017 | critical | pending-human-review |
-| 10 | REVIEW-20260729-sandbox-postgresql-quota-and-capacity-persistence | ADR-20260729-sandbox-postgresql-quota-and-capacity-reservation-persistence | REQ-2026-0018 | high | pending-human-review |
-| 11 | REVIEW-20260729-sandbox-service-host-composition-and-readiness | ADR-20260729-sandbox-service-host-composition-and-readiness | REQ-2026-0009 | high | pending-human-review |
+| 4 | REVIEW-20260729-sandbox-host-isolation-broker | ADR-20260729-sandbox-host-isolation-broker-boundary | REQ-2026-0011 | critical | pending-human-review |
+| 5 | REVIEW-20260729-sandbox-firecracker-artifact-compatibility-and-supply-chain | ADR-20260729-sandbox-firecracker-artifact-compatibility-and-supply-chain | REQ-2026-0012 | high | pending-human-review |
+| 6 | REVIEW-20260729-sandbox-workspace-block-device-attachment-and-sanitization | ADR-20260729-sandbox-workspace-block-device-attachment-and-sanitization | REQ-2026-0013 | high | pending-human-review |
+| 7 | REVIEW-20260729-sandbox-firecracker-network-isolation | ADR-20260729-sandbox-firecracker-network-isolation-and-egress-policy | REQ-2026-0014 | critical | pending-human-review |
+| 8 | REVIEW-20260729-sandbox-firecracker-resource-isolation | ADR-20260729-sandbox-firecracker-resource-isolation-and-usage-facts | REQ-2026-0015 | high | pending-human-review |
+| 9 | REVIEW-20260729-sandbox-multi-tenant-admission-scheduling-and-capacity | ADR-20260729-sandbox-multi-tenant-admission-scheduling-and-capacity-reservation | REQ-2026-0016 | critical | pending-human-review |
+| 10 | REVIEW-20260729-sandbox-node-trust-enrollment-attestation-and-inventory | ADR-20260729-sandbox-node-trust-enrollment-attestation-and-inventory | REQ-2026-0017 | critical | pending-human-review |
+| 11 | REVIEW-20260729-sandbox-postgresql-quota-and-capacity-persistence | ADR-20260729-sandbox-postgresql-quota-and-capacity-reservation-persistence | REQ-2026-0018 | high | pending-human-review |
+| 12 | REVIEW-20260729-sandbox-service-host-composition-and-readiness | ADR-20260729-sandbox-service-host-composition-and-readiness | REQ-2026-0009 | high | pending-human-review |
+| 13 | REVIEW-20260729-sandbox-observability-event-audit-outbox | ADR-20260729-sandbox-observability-event-audit-outbox-boundary | REQ-2026-0010 | high | pending-human-review |
+| 14 | REVIEW-20260730-sandbox-runtime-pool-architecture-security | ADR-20260730-sandbox-runtime-pool-claim-and-sanitization | REQ-2026-0019 | critical | pending-human-review |
+| 15 | REVIEW-20260730-sandbox-lifecycle-history-and-idempotency-retention | ADR-20260730-sandbox-lifecycle-hot-state-and-idempotency-ledger | REQ-2026-0020 | high | pending-human-review |
+| 16 | REVIEW-20260730-sandbox-workspace-runtime-transaction-architecture-security | ADR-20260730-sandbox-workspace-runtime-transaction-and-checkpoint | REQ-2026-0021 | critical | pending-human-review |
+| 17 | REVIEW-20260730-sandbox-standalone-data-residency-and-recovery | ADR-20260730-sandbox-standalone-data-residency-and-recovery | REQ-2026-0022 | critical | pending-human-review |
 
 ## 评审决策摘要
 
-### CMD-01 至 CMD-11: Command Execution
+### CMD-01 至 CMD-13: Command Execution
 
 | ID | 决策 | 接受效果 |
 | --- | --- | --- |
@@ -51,16 +60,23 @@ Updated: 2026-07-29
 | CMD-09 | Fingerprint 由 Sandbox Service 派生，Executor 必须重算 | 防伪造 |
 | CMD-10 | Cancel 独立幂等，终态 Result 不伪装可重试错误 | 取消可审计 |
 | CMD-11 | durable first-terminal CAS 仲裁竞争 | 终态唯一 |
+| CMD-12 | Logical Executable 只由绑定期不可变的 Provider Registry 解析 | 禁止 Caller Path、PATH/CWD Search 和重放 Binary 漂移 |
+| CMD-13 | Final Environment 从空集合按绑定期不可变 Policy 构造 | 禁止请求扩展 Policy 或覆盖受保护 Provider 值 |
 
 ### Local Provider (REQ-2026-0003) 决策
 
 | 决策 ID | 决策 | 接受效果 |
 | --- | --- | --- |
-| LOC-01 | Kind 固定 `local`，Assurance 固定 `HostUser` | 不承诺更强隔离 |
-| LOC-02 | 只通过已授权 Workspace Capability 访问 | 不任意读取 Host Path |
-| LOC-03 | Process Supervision 需跨平台验证 | Windows/macOS/Linux 分别证据 |
-| LOC-04 | 未验证 Egress 前不声明 Network/Browser/Port | 默认拒绝 |
-| LOC-05 | Secret 只通过短期 Reference 注入 | 不进入 Debug/Log/Event |
+| LOCAL-01 | Kind 固定 `local`，Assurance 固定 `HostUser` | 不承诺更强或多租户隔离 |
+| LOCAL-02 | 只消费 Composition 打开的 Runtime/Workspace Capability Handle | 不接收 Host Root，不从 ID 推导 Path |
+| LOCAL-03 | Windows suspended Job Object、Linux race-free delegated cgroup v2；macOS 当前拒绝 Terminal | Capability 与真实平台证据一致 |
+| LOCAL-04 | Filesystem 使用 handle-relative no-follow/file-identity verification | canonicalize/check-then-open 不构成安全边界 |
+| LOCAL-05 | Command 只使用共享 `SandboxCommandExecutor` 与 Provider-owned Logical Executable Registry | 无 Local-private DTO、Caller Path、PATH/CWD Resolver 或 Shell Wrapper |
+| LOCAL-06 | Environment 从空集合按绑定期不可变 Policy 构造 | 不继承 Credential Channel，调用方不能扩展 Policy 或覆盖受保护 Provider 值 |
+| LOCAL-07 | 未验证 Egress 前不声明 Network/Browser/Port/Shell | 默认拒绝且无弱回退 |
+| LOCAL-08 | Stop/Destroy 幂等清理，失败 Quarantine；不删除 Agents Workspace | 保持 Workspace 所有权和零残留门禁 |
+
+上述决策已由 `specs/sandbox-local-provider-host-boundary.contract.json` 和对应 13 项 Contract Test 固定为可机检候选，但仍等待四类人工 Reviewer 和真实平台证据，不能据此开始 Host I/O 或 Process Spawn。
 
 ### Firecracker Provider (REQ-2026-0008) 决策
 
@@ -72,19 +88,46 @@ Updated: 2026-07-29
 | FIR-04 | Confirmed Reservation-before-Allocate | 容量原子预留 |
 | FIR-05 | Guest Auth 不替代 Host Attestation | 双层验证 |
 
+### Workspace Runtime Transaction (REQ-2026-0021) 决策
+
+| 决策 ID | 决策 | 接受效果 |
+| --- | --- | --- |
+| WRT-01 | Sandbox Service 组合现有窄 Port，不接管 Agents/Storage/Provider 权威 | 高内聚且不形成新单体 |
+| WRT-02 | Local/Cloud 共用 Revision/Command/Checkpoint/Compensation，Assurance 和 Adapter 分离 | 一套产品语义，无虚假隔离声明 |
+| WRT-03 | ReadWrite 使用单 Writer Revision Target 和 Fencing | 禁止共享写和旧 Writer 复活 |
+| WRT-04 | Durable Candidate/Handoff 先于 Runtime Release，Agents 独占 Revision CAS Promotion | 不丢写、不复制 Workspace 权威 |
+| WRT-05 | Disconnect Grace 有界，到期执行 Fenced Checkpoint/Cleanup | IDE 恢复与容量安全兼顾 |
+| WRT-06 | Host/Storage/Checkpoint/Cleanup 不确定即 Quarantine 且容量继续占用 | 不跨租户复用不确定资源 |
+
+### Standalone Data Residency And Recovery (REQ-2026-0022) 决策
+
+| 决策 ID | 决策 | 接受效果 |
+| --- | --- | --- |
+| SDR-01..SDR-02 | Local-only Data Gate；持久化与严格本地处理声明分离 | 拓扑/Provider 不再冒充隐私承诺 |
+| SDR-03..SDR-04 | 保留四仓单一权威；Server PostgreSQL 与显式 `client-local` SQLite 分离 | 不新增 BirdCoder 业务库或弱 Server Fallback |
+| SDR-05..SDR-07 | Workspace/Service/Runtime/Cache/Log/Secret/Temp 分离，默认拒绝隐式传输并保留 Workspace | 清理、同步与用户数据生命周期解耦 |
+| SDR-08..SDR-10 | Export/Purge 覆盖派生副本；Backup 角色正确且经 Restore；故障关闭 | 无虚假删除、恢复或 Cloud Fallback |
+| SDR-11..SDR-12 | Telemetry 内容安全；四仓 Windows/macOS/Linux + Network/Residue Evidence | 静态合同不能冒充商业声明 |
+
 ## 评审退出后立即可执行的工作项
 
+### Phase 0.5: Bounded Lifecycle Persistence
+批准 REQ-2026-0020 的最大 Operation 数、最大活动 Session 生命周期、终态保留、Late Retry、Repository 命名与 `MIG-*` 后，以 expand/backfill/verify/cutover 方式将完整历史 hydrate 收敛为 bounded Hot State + point-lookup Idempotency Ledger；真实 PostgreSQL 证据完成前不改变现有持久化行为。
+
 ### Phase 1: Command Execution Port
-在 `sdkwork-sandbox-provider-spi` 创建 `SandboxCommandExecutor` Port 与公共类型，Component Spec 更新端口声明。
+在 REQ-2026-0021 事务边界中创建经过批准的 Workspace Runtime Transaction/Checkpoint 组合 Port，并在 `sdkwork-sandbox-provider-spi` 创建 `SandboxCommandExecutor` Port 与公共类型；各窄 Port 保持独立所有权。
 
 ### Phase 2: Local Provider
-跨平台 Process Supervision 实现 (Windows Job Object / POSIX Process Group / cgroup)，Workspace Attachment Capability 注入，Environment/Timeout/Output/Cancellation/Fencing 真实执行。
+严格按 Local Host Boundary 实现：Workspace/Runtime opened Capability Handle、handle-relative Filesystem；Windows suspended Job Object + Completion Port 后 Resume；Linux 用户代码前 race-free delegated cgroup v2 membership；macOS 保持 Terminal denial，直到独立机制和证据获批。Environment 从空集合按 allowlist 构造，Timeout/Output/PID/Cancellation/Fencing 有界，Cleanup 不确定时 Quarantine。任何 Local 数据声明还必须独立通过 REQ-2026-0022 的四仓 Store/Transfer/Backup/Restore/Purge/OS Evidence，不能由 Provider Ready 推导。
 
 ### Phase 3: Firecracker Provider
 KVM Preflight、Artifact 校验、Host Isolation Broker、Workspace/Network/Resource 实现。
 
 ### Phase 4: Service Host + CLI
 L5 Typed Composition + Readiness，Operator CLI 命令。
+
+### Phase 5: Cloud Scheduling + Runtime Pool
+完成 Node Trust、Admission/Scheduler/Capacity、PostgreSQL Authority 后，按 REQ-2026-0019 先实现 tenant-neutral `PreparedSlot`，并通过 REQ-2026-0021 的 Revision -> Claim -> Attachment -> Command -> Durable Checkpoint -> Sanitization -> Release 全链路；再以独立真实 KVM 证据评审 `WarmMicroVmSlot`。
 
 ## 已完成的人工评审
 

@@ -73,7 +73,7 @@ flowchart LR
 
 ### 把 Warm Pool 同时纳入第一版 Scheduler
 
-拒绝。Pool 需要独立的跨 Tenant Residue、Image Compatibility、Refresh、Drain 与 Reuse Gate；当前 Firecracker Contract 明确延期 Warm Pool。
+拒绝。Pool 需要独立的跨 Tenant Residue、Image Compatibility、Refresh、Drain 与 Reuse Gate；该边界现由 REQ-2026-0019、ADR-20260730 和 `specs/sandbox-runtime-pool.contract.json` 管理，仍不是本 Scheduler Requirement 的实现范围。
 
 ## Consequences
 

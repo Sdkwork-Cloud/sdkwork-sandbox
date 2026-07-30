@@ -206,8 +206,12 @@ impl SandboxSessionRepository for InMemorySandboxSessionRepository {
         {
             return Err(SandboxSessionRepositoryError::LeaseConflict);
         }
+        let next_sandbox_version = expected_sandbox_version
+            .checked_add(1)
+            .filter(|sandbox_version| *sandbox_version <= i64::MAX as u64)
+            .ok_or(SandboxSessionRepositoryError::VersionConflict)?;
         if current_sandbox_session.sandbox_version() != expected_sandbox_version
-            || sandbox_session.sandbox_version() != expected_sandbox_version + 1
+            || sandbox_session.sandbox_version() != next_sandbox_version
         {
             return Err(SandboxSessionRepositoryError::VersionConflict);
         }

@@ -2,12 +2,15 @@ use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum SandboxFakeHostBoundaryError {
+    ExecutableInvalid,
     ExecutableDenied,
     ArgumentCountExceeded,
     ArgumentInvalid,
     WorkingDirectoryInvalid,
     EnvironmentCountExceeded,
     EnvironmentNameInvalid,
+    EnvironmentProtected,
+    EnvironmentSensitive,
     EnvironmentDenied,
     EnvironmentValueInvalid,
 }
@@ -15,6 +18,7 @@ enum SandboxFakeHostBoundaryError {
 struct SandboxFakeHostBoundary {
     sandbox_allowed_executables: BTreeSet<String>,
     sandbox_allowed_environment: BTreeSet<String>,
+    sandbox_max_executable_bytes: usize,
     sandbox_max_arguments: usize,
     sandbox_max_argument_bytes: usize,
     sandbox_max_working_directory_bytes: usize,
@@ -37,10 +41,11 @@ impl SandboxFakeHostBoundary {
                 .iter()
                 .map(|sandbox_environment_name| (*sandbox_environment_name).to_owned())
                 .collect(),
-            sandbox_max_arguments: 16,
-            sandbox_max_argument_bytes: 256,
+            sandbox_max_executable_bytes: 128,
+            sandbox_max_arguments: 128,
+            sandbox_max_argument_bytes: 4_096,
             sandbox_max_working_directory_bytes: 512,
-            sandbox_max_environment_entries: 8,
+            sandbox_max_environment_entries: 64,
             sandbox_max_environment_name_bytes: 64,
             sandbox_max_environment_value_bytes: 1_024,
         }
@@ -53,6 +58,9 @@ impl SandboxFakeHostBoundary {
         sandbox_working_directory: &str,
         sandbox_environment: &BTreeMap<&str, &str>,
     ) -> Result<(), SandboxFakeHostBoundaryError> {
+        if !is_valid_sandbox_executable(sandbox_executable, self.sandbox_max_executable_bytes) {
+            return Err(SandboxFakeHostBoundaryError::ExecutableInvalid);
+        }
         if !self
             .sandbox_allowed_executables
             .contains(sandbox_executable)
@@ -64,7 +72,7 @@ impl SandboxFakeHostBoundary {
             return Err(SandboxFakeHostBoundaryError::ArgumentCountExceeded);
         }
         if sandbox_arguments.iter().any(|sandbox_argument| {
-            sandbox_argument.as_bytes().contains(&0)
+            contains_forbidden_sandbox_string_byte(sandbox_argument)
                 || sandbox_argument.len() > self.sandbox_max_argument_bytes
         }) {
             return Err(SandboxFakeHostBoundaryError::ArgumentInvalid);
@@ -87,13 +95,19 @@ impl SandboxFakeHostBoundary {
             ) {
                 return Err(SandboxFakeHostBoundaryError::EnvironmentNameInvalid);
             }
+            if is_protected_sandbox_environment_name(sandbox_environment_name) {
+                return Err(SandboxFakeHostBoundaryError::EnvironmentProtected);
+            }
+            if is_sensitive_sandbox_environment_name(sandbox_environment_name) {
+                return Err(SandboxFakeHostBoundaryError::EnvironmentSensitive);
+            }
             if !self
                 .sandbox_allowed_environment
                 .contains(*sandbox_environment_name)
             {
                 return Err(SandboxFakeHostBoundaryError::EnvironmentDenied);
             }
-            if sandbox_environment_value.as_bytes().contains(&0)
+            if contains_forbidden_sandbox_string_byte(sandbox_environment_value)
                 || sandbox_environment_value.len() > self.sandbox_max_environment_value_bytes
             {
                 return Err(SandboxFakeHostBoundaryError::EnvironmentValueInvalid);
@@ -102,6 +116,29 @@ impl SandboxFakeHostBoundary {
 
         Ok(())
     }
+}
+
+fn contains_forbidden_sandbox_string_byte(sandbox_value: &str) -> bool {
+    sandbox_value
+        .bytes()
+        .any(|sandbox_byte| matches!(sandbox_byte, 0 | b'\r' | b'\n'))
+}
+
+fn is_valid_sandbox_executable(
+    sandbox_executable: &str,
+    sandbox_max_executable_bytes: usize,
+) -> bool {
+    let mut sandbox_executable_bytes = sandbox_executable.bytes();
+    let Some(sandbox_first_byte) = sandbox_executable_bytes.next() else {
+        return false;
+    };
+
+    sandbox_executable.len() <= sandbox_max_executable_bytes
+        && sandbox_first_byte.is_ascii_alphanumeric()
+        && sandbox_executable_bytes.all(|sandbox_byte| {
+            sandbox_byte.is_ascii_alphanumeric()
+                || matches!(sandbox_byte, b'.' | b'_' | b'+' | b'-')
+        })
 }
 
 fn is_valid_sandbox_logical_relative_path(
@@ -173,6 +210,42 @@ fn is_valid_sandbox_environment_name(
             sandbox_byte.is_ascii_uppercase()
                 || sandbox_byte.is_ascii_digit()
                 || sandbox_byte == b'_'
+        })
+}
+
+fn is_protected_sandbox_environment_name(sandbox_environment_name: &str) -> bool {
+    matches!(
+        sandbox_environment_name,
+        "PATH"
+            | "PATHEXT"
+            | "COMSPEC"
+            | "SYSTEMROOT"
+            | "WINDIR"
+            | "HOME"
+            | "USERPROFILE"
+            | "TMP"
+            | "TEMP"
+    )
+}
+
+fn is_sensitive_sandbox_environment_name(sandbox_environment_name: &str) -> bool {
+    sandbox_environment_name
+        .split('_')
+        .any(|sandbox_name_segment| {
+            matches!(
+                sandbox_name_segment,
+                "TOKEN"
+                    | "SECRET"
+                    | "PASSWORD"
+                    | "CREDENTIAL"
+                    | "PRIVATE"
+                    | "SSH"
+                    | "DOCKER"
+                    | "AWS"
+                    | "AZURE"
+                    | "GOOGLE"
+                    | "PROXY"
+            )
         })
 }
 
