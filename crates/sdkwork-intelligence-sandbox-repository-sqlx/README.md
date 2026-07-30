@@ -38,7 +38,7 @@ Live PostgreSQL verification is explicit and remains ignored in the default suit
 
 ```bash
 SDKWORK_DATABASE_URL=<server-test-url> cargo run --manifest-path ../sdkwork-database/Cargo.toml --locked -p sdkwork-database-cli -- --app-root . init
-SDKWORK_DATABASE_TEST_POSTGRES_URL=<server-test-url> cargo test -p sdkwork-intelligence-sandbox-repository-sqlx --test postgres_repository --locked -- --ignored --nocapture
+SDKWORK_DATABASE_URL=<server-test-url> SDKWORK_DATABASE_TEST_POSTGRES_URL=<same-server-test-url> cargo test -p sdkwork-intelligence-sandbox-repository-sqlx --test postgres_repository --locked -- --ignored --nocapture
 ```
 
-The pre-provisioned database and same-named schema must use a canonical `sdkwork_ai_test_<run_id>` identity with the `sdkwork_ai_test` role. Initialize the empty schema only through `sdkwork-database-cli`; do not apply the SQL asset through a repository-local migration runner. The test maps `SDKWORK_DATABASE_TEST_POSTGRES_URL` into the standard `PoolBuilder` configuration for pool construction and restores any ambient `SDKWORK_DATABASE_URL` before executing assertions, so its initial destructive cleanup cannot silently target the default development database.
+The pre-provisioned database and same-named schema must use a canonical `sdkwork_ai_test_<run_id>` identity with the `sdkwork_ai_test` role. Initialize the empty schema only through `sdkwork-database-cli`; do not apply the SQL asset through a repository-local migration runner. `SDKWORK_DATABASE_URL` remains the sole `PoolBuilder` connection input, while `SDKWORK_DATABASE_TEST_POSTGRES_URL` is a destructive-test safety latch. The test requires both values to match exactly before constructing a pool or running its initial `TRUNCATE`, does not echo either value on mismatch, and cannot silently target the default development database.
