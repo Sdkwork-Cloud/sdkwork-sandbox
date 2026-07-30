@@ -26,8 +26,8 @@ Updated: 2026-07-30
 
 | Command / Check | Result |
 | --- | --- |
-| `cargo fmt --all -- --check` | PASS. |
-| `cargo test --workspace --offline` | PASS: 41 Rust unit/behavior tests; the explicit live PostgreSQL test remains ignored unless `SDKWORK_DATABASE_TEST_POSTGRES_URL` is provided. |
+| `cargo fmt --package <each Sandbox workspace member> -- --check` | PASS for all 7 Sandbox crates. The full workspace check remains blocked only by the existing dirty `../sdkwork-database/crates/sdkwork-database-config/src/workspace_database.rs`; no sibling file was modified. |
+| `cargo test --workspace --locked` | PASS: 43 Rust tests; the explicit live PostgreSQL test remains intentionally ignored in the default suite because it requires an external database. |
 | `cargo clippy --workspace --all-targets -- -D warnings` | PASS. |
 | `node --test tests/contract/database-framework.contract.test.mjs` | PASS: 4 database contract tests, including stable Tenant+Session Operation Sequence constraints. |
 | `cargo run --manifest-path ../sdkwork-database/Cargo.toml --locked -p sdkwork-database-cli -- --app-root . init` against an empty database | PASS: 1 migration applied. Immediate second init applied 0 migrations. |
