@@ -37,6 +37,9 @@ node ../../sdkwork-specs/tools/check-database-framework-standard.mjs --root ../.
 Live PostgreSQL verification is explicit and remains ignored in the default suite:
 
 ```bash
+node tools/testing/sandbox-postgres-evidence.mjs --postgres-major 17
+
+# Equivalent manual flow:
 SDKWORK_DATABASE_URL=<server-test-url> cargo run --manifest-path ../sdkwork-database/Cargo.toml --locked -p sdkwork-database-cli -- --app-root . init
 SDKWORK_DATABASE_URL=<server-test-url> SDKWORK_DATABASE_TEST_POSTGRES_URL=<same-server-test-url> cargo test -p sdkwork-intelligence-sandbox-repository-sqlx --test postgres_repository --locked -- --ignored --nocapture
 ```
