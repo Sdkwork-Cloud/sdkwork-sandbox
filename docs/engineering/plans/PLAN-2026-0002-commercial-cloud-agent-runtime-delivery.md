@@ -217,7 +217,7 @@ Additional release evidence must include live PostgreSQL, real cross-platform Lo
 
 | Command | Result |
 | --- | --- |
-| `cargo fmt --all -- --check` | BLOCKED outside this repository: Cargo checks local path dependency `../sdkwork-database`, whose existing `crates/sdkwork-database-config/src/workspace_database.rs` changes are not rustfmt-clean. No sibling file was modified. |
+| `cargo fmt --all -- --check` | PASS on the final 2026-07-30 verification baseline; the earlier external path-dependency formatting blocker is closed. |
 | `cargo fmt --package <each Sandbox workspace member> -- --check` | PASS for all 7 `sdkwork-sandbox` crates. |
 | `cargo check --workspace --locked` | PASS; lockfile synchronized with the current sibling database dependency graph (`url`) and Local Provider test-only command-contract parser (`serde_json`). |
 | `cargo test --workspace --locked` | PASS: 44 passed, including the destructive-test URL guard; 1 live PostgreSQL test intentionally ignored in the default suite because it requires an external database. |
@@ -226,9 +226,11 @@ Additional release evidence must include live PostgreSQL, real cross-platform Lo
 | `cargo clippy --workspace --all-targets --locked -- -D warnings` | PASS |
 | `node --test tests/contract/*.test.mjs` | PASS: 190/190, including 6 PostgreSQL evidence-runner safety contracts, 9 Command Policy, 13 Local Host Boundary, 21 Service Host Bootstrap/Profile/Capability gates, 11 Runtime Pool, 10 Lifecycle History/Idempotency Gate 0, 12 Workspace Runtime Transaction/Checkpoint gates, 12 Standalone Data Residency/Recovery gates, and 3 documentation status/index/prose alignment tests. |
 | Repository docs/debt, Database Framework, packages layout, strict component ports, application layering, Rust backend composition, identity naming and baseline audit validators | PASS |
+| `node ../sdkwork-specs/tools/check-unified-postgres-profile.mjs --root .` | PASS; canonical `SDKWORK_DATABASE_TEST_POSTGRES_URL` usage is accepted by the current global validator. |
+| `node ../sdkwork-specs/tools/check-pnpm-script-standard.mjs --root . --application-code-prefix sandbox` | NOT APPLICABLE at Phase 0: it requires the full application lifecycle script set, while this repository has no `sdkwork.app.config.json`, executable Service Host, packaging or deployment authority. Adding placeholder `dev`, `build`, `check`, `verify` or `clean` scripts would misrepresent unavailable product capabilities. Apply this gate when the Service Host/application lifecycle requirement is ready and the application manifest enters scope. |
 | `git diff --check` | PASS; only Git line-ending normalization warnings were reported. |
 
-This checkpoint proves Sandbox code, contract and sdkwork-specs Gate 0 consistency, with the recorded external path-dependency format blocker. It is not Local Host execution, PostgreSQL release, KVM, tenant isolation, Pool latency or commercial readiness evidence.
+This checkpoint proves Sandbox code, contract and sdkwork-specs Gate 0 consistency. It is not Local Host execution, PostgreSQL release, KVM, tenant isolation, Pool latency or commercial readiness evidence.
 
 ## Immediate Human Actions
 
