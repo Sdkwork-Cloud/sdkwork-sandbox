@@ -25,3 +25,16 @@ Thumbs.db
 /data/
 /logs/
 /tmp/
+
+# SDKWork local-only and generated artifacts
+**/.runtime/
+**/node_modules/
+.env
+.env.*
+!.env.example
+!.env.*.example
+**/dist/
+**/build/
+*.log
+.DS_Store
+Thumbs.db
