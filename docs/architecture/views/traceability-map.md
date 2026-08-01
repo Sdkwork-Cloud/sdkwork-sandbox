@@ -4,7 +4,7 @@ Status: active
 
 Owner: SDKWork Runtime Platform
 
-Updated: 2026-07-30
+Updated: 2026-08-01
 
 ## 目的
 
@@ -59,6 +59,15 @@ flowchart LR
 | REQ-2026-0020 Lifecycle History/Idempotency | ADR-20260730-sandbox-lifecycle-hot-state-and-idempotency-ledger | REVIEW-20260730-sandbox-lifecycle-history-and-idempotency-retention | Draft machine contract/test only; no schema or runtime change |
 | REQ-2026-0021 Workspace Runtime Transaction | ADR-20260730-sandbox-workspace-runtime-transaction-and-checkpoint | REVIEW-20260730-sandbox-workspace-runtime-transaction-architecture-security | Draft end-to-end composition contract/test only; no runtime or cross-repository change |
 | REQ-2026-0022 Standalone Data Residency | ADR-20260730-sandbox-standalone-data-residency-and-recovery | REVIEW-20260730-sandbox-standalone-data-residency-and-recovery | Draft Local-only evidence contract/test; no database, runtime, recovery or cross-repository change |
+| REQ-2026-0023 Internal Control Plane | ADR-20260731-sandbox-internal-control-plane | REVIEW-20260731-sandbox-internal-control-plane | Draft in-process/internal-RPC parity contract/test; no Port, Proto, SDK, transport runtime, discovery, deployment or Kernel change |
+| REQ-2026-0024 Interactive Terminal Session | ADR-20260731-sandbox-interactive-terminal-session | REVIEW-20260731-sandbox-interactive-terminal-session | Draft capability/session/stream/containment contract/test; no PTY, process, guest stream, SDK/API, persistence, Provider or cross-repository change |
+| REQ-2026-0025 Runtime Secret Projection | ADR-20260801-sandbox-runtime-secret-projection | REVIEW-20260801-sandbox-runtime-secret-projection | Draft value-free grant/projection/rotation/revocation/cleanup contract/test; no Secret Authority, value transport, process projection, SDK/API, Provider or cross-repository change |
+| REQ-2026-0026 Cloud Data Residency/Recovery | ADR-20260801-sandbox-cloud-data-residency-and-recovery | REVIEW-20260801-sandbox-cloud-data-residency-and-recovery | Draft Cloud data inventory/region/replication/backup/PITR/recovery/export/delete contract/test; no storage adapter, replication, backup worker, restore controller, deployment or cross-repository change |
+| REQ-2026-0027 Cross-Repository Version Compatibility | ADR-20260801-sandbox-cross-repository-version-compatibility | REVIEW-20260801-sandbox-cross-repository-version-compatibility | Draft immutable four-repository release-set, compatibility/preflight, rollout/drain/rollback/downgrade/support-window contract/test; no release authority, registry, SDK/proto/artifact publication, migration, deployment or cross-repository change |
+
+## Commercial Release Gate
+
+[REVIEW-20260731 Sandbox Commercial Readiness Gap Audit](../../engineering/reviews/REVIEW-20260731-sandbox-commercial-readiness-gap-audit.md) and `specs/sandbox-commercial-readiness.contract.json` aggregate the cross-repository release decision without replacing any REQ, ADR, owner review, or real-environment evidence. The current derived decision is `NO-GO`; the gate identifies six blocked delivery slices and five missing ready contract boundaries.
 
 ## 验证证据索引
 
@@ -77,3 +86,6 @@ flowchart LR
 | Lifecycle History And Idempotency Retention | `docs/engineering/reviews/REVIEW-20260730-sandbox-lifecycle-history-and-idempotency-retention.md` | REQ-2026-0020 |
 | Workspace Runtime Transaction Architecture Security | `docs/engineering/reviews/REVIEW-20260730-sandbox-workspace-runtime-transaction-architecture-security.md` | REQ-2026-0021 |
 | Standalone Data Residency And Recovery | `docs/engineering/reviews/REVIEW-20260730-sandbox-standalone-data-residency-and-recovery.md` | REQ-2026-0022 |
+| Runtime Secret Projection | `docs/engineering/reviews/REVIEW-20260801-sandbox-runtime-secret-projection.md` | REQ-2026-0025 |
+| Cloud Data Residency And Recovery | `docs/engineering/reviews/REVIEW-20260801-sandbox-cloud-data-residency-and-recovery.md` | REQ-2026-0026 |
+| Cross-Repository Version Compatibility | `docs/engineering/reviews/REVIEW-20260801-sandbox-cross-repository-version-compatibility.md` | REQ-2026-0027 |

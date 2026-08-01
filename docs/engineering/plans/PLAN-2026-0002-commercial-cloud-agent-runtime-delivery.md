@@ -58,6 +58,9 @@ The Local standalone path uses the same Revision/Transaction/Command/Checkpoint 
 | P0 | Provider implementation is explicitly unauthorized. | `specs/sandbox-provider-delivery-gates.contract.json` is `draft` with `implementationAuthorized: false`; all provider REQ/ADR reviews are pending. | Real Host/KVM work must not start. |
 | P0 | Local is test-only. | `sdkwork-sandbox-provider-local` exports no port and only compiles a fake host boundary under `#[cfg(test)]`; the focused Local Host Boundary contract is static and keeps Host I/O/process spawn disabled. | No executable V1 product. |
 | P0 | Shared command execution has schemas but no Rust port/executor. | Contract tests reject `SandboxCommandExecutor` materialization. | Kernel cannot run a real command through Sandbox. |
+| P0 | Interactive IDE Terminal has no ready contract. | REQ-2026-0024 now supplies a draft capability/session/stream/containment contract, but Command/Interactive Terminal naming, exact bounds, transport and runtime evidence remain unauthorized. | A bounded unary Command result still cannot provide a safe commercial IDE Terminal. |
+| P0 | Kernel-to-Sandbox cloud control-plane transport is unresolved. | REQ-2026-0021 excludes API/SDK/transport implementation; REQ-2026-0023 now supplies a draft in-process/internal-RPC parity contract but remains unauthorized. | Kernel cannot compose Sandbox across cloud processes or nodes until authority, compatibility and retry semantics are approved and materialized. |
+| P0 | Runtime Secret projection has no ready authority. | REQ-2026-0025 now supplies a draft value-free grant/projection/rotation/revocation/cleanup contract, but no Local/Cloud Secret Authority, exact budget, process projection or real evidence is approved. | Credentialed builds remain disabled until the candidate reaches ready and is materialized without ambient-secret leakage. |
 | P0 | Firecracker data plane does not exist. | No `sdkwork-sandbox-provider-firecracker` crate, Broker, VMM launcher or Guest Agent integration. | No isolated Cloud runtime. |
 | P0 | Service Host and CLI are stubs. | Service Host now has fail-closed Bootstrap and Profile/Capability contracts, including safe config, preopened runtime directories, repository-only database composition and bounded Telemetry, but both crates still have no runtime composition or commands. | No runnable standalone or node process. |
 | P0 | Cloud admission, scheduler, node trust and Pool are contracts only. | REQ-2026-0016/0017/0019 are draft; no ports, tables, workers or node agent. | Users cannot be assigned trusted capacity. |
@@ -70,12 +73,14 @@ The Local standalone path uses the same Revision/Transaction/Command/Checkpoint 
 | P0 | Kernel adapter is lifecycle-only and legacy execution can bypass policy. | Kernel REQ-2026-0002 and its review are `blocked`/No-Go; `sandbox_runtime.rs` still lacks Revision/Attachment/Command/Checkpoint intent, while public legacy `SandboxProvider`/`PlatformSandboxProvider`/`NoOpSandboxProvider` can bypass the target policy path. | One security authority is not enforced. |
 | P0 | Kernel Execution Placement and Sandbox Capacity Placement are not correlated as independent fenced records in runtime code. | Draft contracts now require distinct IDs, leases, fencing and idempotency, but the current Kernel adapter and Sandbox lifecycle schema have no approved cross-plane reference/generation contract. | Duplicate or delayed delivery can create dual placement authority or stale side effects. |
 | P0 | Local all-data-local runtime evidence is absent. | REQ-2026-0022 now defines the 11-class, four-repository, database-role, capability, transfer, backup/restore and purge Gate, but it remains draft; no real composition or OS/network evidence exists. | Local commercial privacy and recovery claims remain No-Go. |
+| P0 | Cloud data residency and recovery is not one approved release gate. | REQ-2026-0026 now supplies a draft Cloud-only inventory/region/replication/backup/PITR/recovery/export/delete contract, but no region policy, storage authority, exact RPO/RTO or real recovery evidence is approved. | Cloud isolation alone cannot prove SaaS privacy, residency, deletion or recovery claims. |
 | P0 | Workspace byte and Checkpoint storage authority is unresolved. | Workspace Attachment contract leaves Block-volume authority unresolved; no durable Candidate/Handoff implementation exists. | ReadWrite Cloud sessions can neither prove durability nor safe revision conflict handling. |
 | P0 | No real KVM evidence environment is assigned. | Firecracker review lists x86_64/aarch64 KVM runners and operations owner as unresolved. | Firecracker acceptance cannot run. |
 | P1 | Observability/audit/outbox are static contracts only. | No exporter, outbox migration/worker, dashboards, alerts or retention evidence. | Incidents, support and metering are not operable. |
 | P1 | Kernel integration is only lifecycle-candidate level. | Kernel adapter exists, but command execution, cloud transport and conformance are absent; a legacy one-shot Kernel `SandboxProvider` remains public. | Risk of duplicated lifecycle or provider branching. |
 | P1 | IDE disconnect, reconnect, writer concurrency and checkpoint conflicts are not implemented. | REQ-2026-0021 has static bounds/compensation only; exact grace and retention values await owners. | High-concurrency SaaS sessions risk leaked capacity or ambiguous save outcomes. |
 | P1 | Production topology and release identity are absent by design. | No Sandbox app manifest, production config, image/package, service unit or rollout/rollback automation. | Nothing can be commercially deployed. |
+| P1 | Cross-repository version compatibility is not approved or materialized. | REQ-2026-0027 now supplies a draft immutable release-set and multi-dimensional compatibility contract, but no Release Authority, exact four-repository revisions, generated SDK/RPC provenance, registry, mixed-version evidence, rollout/drain or rollback implementation is approved. | Independent rolling changes can still cross incompatible lifecycle, fencing, checkpoint, Secret, residency or assurance semantics. |
 | P1 | Live PostgreSQL verification is not yet archived by release CI. | The repository-owned disposable runner passes PostgreSQL 16 and 17 locally, including exact destructive-test URL latching, migration idempotency, status/drift, Repository behavior, plaintext denial and backup/restore; the default workspace suite intentionally skips the external test and no CI job archives the matrix evidence. | Current implementation evidence is reproducible, but release evidence is not yet continuously enforced or retained. |
 | P1 | Lifecycle Operation history has no approved retention or compaction policy. | Session/Operation lookup reads complete ordered history and Reconciliation performs pre-Lease per-candidate hydrate. REQ-2026-0020 now defines bounded Hot State, a point-lookup ledger and migration gates, but exact limits/retention/Late Retry decisions remain pending. | Long-lived Session cost is not commercially bounded yet; schema/code changes remain unauthorized. |
 | P1 | SLO and performance claims have no reference benchmark. | No fixed hardware/workload/sample report for cold, Prepared or Warm allocation. | The p95 target is not yet a release claim. |
@@ -95,6 +100,7 @@ Exit evidence:
 6. Product, Database and Reliability owners approve lifecycle Operation idempotency retention, archival/compaction and maximum supported Session lifetime before any implementation changes the current full-history behavior.
 7. BirdCoder, Agents, Kernel, Workspace/Drive/Storage and Runtime owners approve REQ-2026-0021 ownership, Revision/Checkpoint, independent Kernel/Sandbox placement records and cross-repository adapter decisions; Product/Privacy, Database and Local Operations owners separately approve REQ-2026-0022 claim modes, data inventory, store roles, transfer, backup/restore and purge behavior.
 8. BirdCoder REQ-2026-0006, Agents REQ-2026-0730 and Kernel REQ-2026-0002 plus their ADR/Review/machine contracts reach approved implementation authority with one versioned Agents-to-Kernel and Kernel-to-Sandbox handoff; transitional client-created binding and shell-string execution are excluded from Cloud readiness.
+9. Owners approve REQ-2026-0024 Interactive Terminal, REQ-2026-0025 Runtime Secret Projection, REQ-2026-0026 Cloud Data Residency/Recovery and REQ-2026-0027 Cross-Repository Version Compatibility, including public names, exact bounds, authorities, lane/region behavior, immutable revisions, compatibility/support windows and real evidence. These responsibilities are not inferred from Command, Provider, Service Host or deployment profile selection.
 
 No implementation phase below starts before its own Gate A subset passes.
 
@@ -107,9 +113,10 @@ Implementation order:
 3. Materialize provider-neutral Command types and `SandboxCommandExecutor` behind the Service boundary, including logical executable identifiers, Provider-owned binding-scoped resolution without PATH/CWD lookup, immutable environment policy, fingerprint, fencing, first-terminal CAS, cancellation, timeout, output bounds and cleanup result.
 4. Replace the Local fake-only boundary with a public L4 adapter that consumes an authorized Workspace Attachment port. Preserve `HostUser` assurance and default-deny Network/Browser/Port.
 5. Implement the approved Local Host Boundary exactly: request identity must match opened capabilities and Runtime Binding; the binding owns one immutable execution policy and executable registry; callers cannot supply paths, trigger PATH/CWD lookup, extend environment policy, or override protected Provider values. Windows uses suspended spawn + Kill-on-close Job Object + Completion Port before Resume; Linux requires race-free pre-user-code membership in a per-binding delegated cgroup v2 Scope; macOS Terminal remains denied until detached descendants are contained. Process Group-only and spawn-then-attach are insufficient. No shell parsing or ambient environment inheritance.
-6. Compose lifecycle repository, Transaction, Local Provider, Command, Checkpoint/Handoff, reconciliation, observability and bounded shutdown in `sdkwork-sandbox-service-host`.
-7. Add operator CLI health/create/start/execute/cancel/checkpoint/stop/destroy flows with confirmation for destructive operations.
-8. Run shared lifecycle/transaction/command/disconnect/checkpoint conformance plus REQ-2026-0022 database-locality, network-capture, restart, backup/restore, purge, uninstall-preservation, disk-full, corruption and residue scenarios on real Windows, macOS and Linux runners.
+6. Materialize REQ-2026-0025 Local projection only through the approved device-local Secret Authority and opened capability. Prove no Local value or grant enters Cloud, Workspace, Checkpoint, logs, support bundles or reusable Runtime state; unsupported platform/mode combinations remain denied.
+7. Compose lifecycle repository, Transaction, Local Provider, Command, approved Secret projection, Checkpoint/Handoff, reconciliation, observability and bounded shutdown in `sdkwork-sandbox-service-host`.
+8. Add operator CLI health/create/start/execute/cancel/checkpoint/stop/destroy flows with confirmation for destructive operations and no Secret-bearing output.
+9. Run shared lifecycle/transaction/command/disconnect/checkpoint/Secret conformance plus REQ-2026-0022 database-locality, network-capture, restart, backup/restore, purge, uninstall-preservation, disk-full, corruption and residue scenarios on real Windows, macOS and Linux runners.
 
 Launch boundary: standalone/private developer product only. It must state `HostUser`, no multi-tenant isolation, no Cloud Pool and no unverified network capability. It may publish only the exact Local data claim whose REQ-2026-0022 evidence passed; otherwise it must publish no all-data-local or recovery claim.
 
@@ -123,8 +130,9 @@ Implementation order:
 4. Implement the typed local-only Host Isolation Broker with peer identity, short-lived grants, durable fencing journal and fixed privileged operations. It must never accept shell, executable, arbitrary path or remote TCP input.
 5. Implement per-binding Workspace block device, at-rest encryption, network namespace/Tap/default-deny firewall and Firecracker Machine Config plus cgroup v2 CPU/memory/PID/IO.
 6. Implement the Firecracker Provider, authenticated Guest Agent and REQ-2026-0021 transaction path. Start readiness requires Broker, artifact, VMM, guest, Workspace, network, resources, command policy, checkpoint capability and fencing evidence.
-7. Implement durable Workspace Candidate/Handoff through Drive or the approved Volume Authority; prove Agents CAS promotion and non-destructive conflict behavior.
-8. Run real KVM lifecycle/transaction/command/checkpoint/failure/cleanup/cross-tenant residue conformance. Cold allocation remains the correctness fallback when no clean Pool Slot exists.
+7. Materialize REQ-2026-0025 Cloud projection through the approved region-bound Secret Authority, workload identity and attested Guest Agent. Prove bounded rotation/revocation/outage, no value or raw-grant persistence, teardown before Checkpoint, microVM destruction and cross-Tenant/lane/region denial.
+8. Implement durable Workspace Candidate/Handoff through Drive or the approved Volume Authority; prove Agents CAS promotion and non-destructive conflict behavior.
+9. Run real KVM lifecycle/transaction/command/Secret/checkpoint/failure/cleanup/cross-tenant residue conformance. Cold allocation remains the correctness fallback when no clean Pool Slot exists.
 
 Launch boundary: limited Cloud preview only after multi-tenant security review and incident drills. Do not advertise pool latency yet.
 
@@ -148,6 +156,7 @@ Launch boundary: limited Cloud preview only after multi-tenant security review a
 6. Make BirdCoder resolve Local/Cloud execution exclusively through generated Agents App SDK methods; remove direct shell-string execution and keep the Work Provider installer on a separately reviewed supply-chain boundary.
 7. Prove end-to-end cancellation, disconnect/reconnect, checkpoint promotion/conflict, trace/event ordering, retry classification and Ready-only opaque `runtimeLocationId` mapping.
 8. Bind Kernel agent/provider capability manifests to Sandbox Resource Profiles without exposing concrete Firecracker, Node, Pool or Storage identity to Agent behavior.
+9. Require REQ-2026-0027 release-set identity and peer preflight before placement, Workspace mount, Secret projection, Command/Terminal attach or recovery; version-skew conformance must cover upgrade, stop-new-placement, drain, rollback, downgrade denial and end-of-support outcomes.
 
 This slice is cross-repository work and requires human review before source changes outside `sdkwork-sandbox`.
 
@@ -155,10 +164,11 @@ This slice is cross-repository work and requires human review before source chan
 
 1. Create `sdkwork.app.config.json`, runtime profiles and deployment assets only when packaging/deployment Requirements are ready; validate against `APP_MANIFEST_SPEC.md`.
 2. Ship separate control-plane and KVM node artifacts, signed with SBOM/provenance and rollback metadata.
-3. Provide staging soak, canary, kill switch, node drain, schema rollback/forward recovery, artifact rollback and compromised-node quarantine procedures.
-4. Publish capability/assurance matrix, exact Local persistence/processing claim and evidence scope, Cloud data residency, supported host/KVM matrix, Workspace/Checkpoint retention and conflict behavior, limits, regional availability and explicit non-goals.
-5. Connect durable usage facts to Commerce through an approved adapter. Reconcile usage, lifecycle and capacity facts before chargeability.
-6. Complete tenant isolation penetration tests, dependency/CVE review, capacity test, backup/PITR restore, chaos drills and on-call handoff.
+3. Publish one approved immutable REQ-2026-0027 release set with exact source, Workspace/storage, RPC/Proto, generated SDK, config, provider/artifact and evidence revisions; mutable tags and local patches are not release identity.
+4. Provide staging soak, canary, kill switch, stop-new-placement, transaction drain, schema rollback/forward recovery, artifact rollback, downgrade denial, end-of-support and compromised-node quarantine procedures.
+5. Publish capability/assurance matrix, exact Local persistence/processing claim and evidence scope, Cloud data residency, supported host/KVM matrix, Workspace/Checkpoint retention and conflict behavior, limits, regional availability and explicit non-goals.
+6. Connect durable usage facts to Commerce through an approved adapter. Reconcile usage, lifecycle and capacity facts before chargeability.
+7. Complete tenant isolation penetration tests, dependency/CVE review, capacity test, backup/PITR restore, chaos drills and on-call handoff.
 
 ## Candidate Launch SLOs
 
@@ -184,6 +194,9 @@ Release is allowed only when all rows have evidence:
 | Security | Threat model, KVM/Jailer/Broker/Workspace/Network/Resource isolation, secret handling and tenant residue review approved. |
 | Data | PostgreSQL migrations, constraints, concurrency, RLS/roles, backups, PITR, bounded lifecycle hydrate/idempotency, approved Session limits and retention verified. |
 | Local privacy/recovery | REQ-2026-0022 four-repository inventory, local store resolution, no implicit transfer, role-correct restore, export/purge, uninstall preservation and real Windows/macOS/Linux network/residue evidence accepted for the published claim. |
+| Secrets | REQ-2026-0025 authority, grant binding, Local/Cloud residency, target, rotation/revocation/outage, Checkpoint/Pool exclusion, audit, incident drill and real platform evidence approved. |
+| Cloud data | REQ-2026-0026 data inventory, region tuple, replication, backup/PITR, restore ordering, RPO/RTO, tenant isolation, export/delete, Secret exclusion and real multi-region recovery evidence approved. |
+| Compatibility | REQ-2026-0027 immutable release set, generated provenance, closed compatibility matrix, peer preflight, version-skew tests, stop-new-placement/drain, migration-aware rollback, downgrade denial and support-window evidence approved. |
 | Supply chain | Signed exact artifact tuples, SBOM/provenance, CVE policy, revocation and rollback verified. |
 | Reliability | Reconciliation, fencing, node drain, crash, pool quarantine, dependency outage and rollback drills pass. |
 | Performance | Cold/Prepared/Warm benchmark and capacity saturation report accepted. |
@@ -242,5 +255,6 @@ This checkpoint proves Sandbox code, contract and sdkwork-specs Gate 0 consisten
 6. Approve REQ-2026-0020 limits, terminal retention, post-retention Late Retry, Repository/public naming and migration strategy before lifecycle persistence changes.
 7. Approve REQ-2026-0021 decisions and assign BirdCoder/Agents/Kernel/Workspace/Drive owners before any cross-repository Runtime/Checkpoint implementation.
 8. Approve REQ-2026-0022 claim wording, all data owners, PostgreSQL/`client-local` roles, transfer, backup/restore, export/purge and failure semantics; assign real Windows/macOS/Linux and network-evidence owners before any Local data or recovery claim.
+9. Approve REQ-2026-0023 through REQ-2026-0027, assign Control Plane, Terminal, Secret, Region/Storage and Release Authorities, and provide multi-process, PTY, KMS/Secret, multi-region recovery and mixed-version release-set evidence environments before those mechanisms enter implementation.
 
 Until these actions are complete, the only truthful deliverable is Gate 0 contract/documentation quality. The repository must not be presented as production, SaaS, Firecracker, pooled-runtime or commercial-ready.

@@ -6,7 +6,7 @@ Owner: SDKWork Runtime Platform
 
 Application: sandbox
 
-Updated: 2026-07-30
+Updated: 2026-08-01
 
 Specs: `REQUIREMENTS_SPEC.md`, `DOCUMENTATION_SPEC.md`, `SECURITY_SPEC.md`, `DEPLOYMENT_SPEC.md`, `PERFORMANCE_SPEC.md`
 
@@ -36,6 +36,11 @@ Specs: `REQUIREMENTS_SPEC.md`, `DOCUMENTATION_SPEC.md`, `SECURITY_SPEC.md`, `DEP
 - [REQ-2026-0020: Sandbox Lifecycle Hot State And Idempotency Retention](../requirements/REQ-2026-0020-sandbox-lifecycle-hot-state-and-idempotency-retention.md)
 - [REQ-2026-0021: Sandbox Workspace Runtime Transaction And Checkpoint](../requirements/REQ-2026-0021-sandbox-workspace-runtime-transaction-and-checkpoint.md)
 - [REQ-2026-0022: Sandbox Standalone Data Residency And Recovery](../requirements/REQ-2026-0022-sandbox-standalone-data-residency-and-recovery.md)
+- [REQ-2026-0023: Sandbox Internal Control Plane](../requirements/REQ-2026-0023-sandbox-internal-control-plane.md)
+- [REQ-2026-0024: Sandbox Interactive Terminal Session](../requirements/REQ-2026-0024-sandbox-interactive-terminal-session.md)
+- [REQ-2026-0025: Sandbox Runtime Secret Projection](../requirements/REQ-2026-0025-sandbox-runtime-secret-projection.md)
+- [REQ-2026-0026: Sandbox Cloud Data Residency And Recovery](../requirements/REQ-2026-0026-sandbox-cloud-data-residency-and-recovery.md)
+- [REQ-2026-0027: Sandbox Cross-Repository Version Compatibility And Release Set](../requirements/REQ-2026-0027-sandbox-cross-repository-version-compatibility.md)
 - [技术架构](../../architecture/tech/TECH_ARCHITECTURE.md)
 
 ## 1. 背景与问题 (Background And Problem)
@@ -80,7 +85,7 @@ SDKWork Sandbox 是面向 SDKWork Agent 的 Provider 无关执行环境。它将
 
 ## 4. 范围 (Scope)
 
-产品范围包括 Runtime、Session、Workspace Runtime Transaction、Sandbox Provider SPI、资源与配额执行、Scheduler、Pool、面向执行的 Filesystem/Terminal/Browser/Port 能力、Checkpoint/Snapshot、Cache 集成、Network Policy、Secret 注入、日志、指标、Trace、审计事件与恢复编排。
+产品范围包括 Runtime、Session、Workspace Runtime Transaction、Sandbox Provider SPI、资源与配额执行、Scheduler、Pool、面向执行的 Filesystem/Terminal/Browser/Port 能力、Checkpoint/Snapshot、Cache 集成、Network Policy、Secret Projection、日志、指标、Trace、审计事件与恢复编排。
 
 ### 术语与所有权
 
@@ -167,6 +172,11 @@ SDKWork 共享类型 `TenantId`、`OperationId`、`RuntimeCapability` 与 `Isola
 - [REQ-2026-0020: Sandbox Lifecycle Hot State And Idempotency Retention](../requirements/REQ-2026-0020-sandbox-lifecycle-hot-state-and-idempotency-retention.md) - bounded current-state projection、Tenant-scoped point-lookup idempotency ledger、current-operation-only hydration、Session limits、terminal retention、late retry 与 expand/backfill/cutover migration gate；保持 `draft`，不批准 Rust/Database/API/SDK/Kernel 实现。
 - [REQ-2026-0021: Sandbox Workspace Runtime Transaction And Checkpoint](../requirements/REQ-2026-0021-sandbox-workspace-runtime-transaction-and-checkpoint.md) - Local/Firecracker lane parity、Workspace Revision Writer Lease、allocation/attachment/command/checkpoint/cleanup 顺序、耐久 Handoff、失败补偿与 bounded SaaS backpressure；保持 `draft`，不批准 Runtime/Storage/API/SDK/Kernel/BirdCoder 实现。
 - [REQ-2026-0022: Sandbox Standalone Data Residency And Recovery](../requirements/REQ-2026-0022-sandbox-standalone-data-residency-and-recovery.md) - Local-only 四仓数据清单、设备本地持久化/严格本地处理声明、数据库角色、独立 Runtime Capability、无隐式传输、备份恢复、导出清除和真实 OS 证据；保持 `draft`，不批准数据库、配置、打包、遥测、同步或跨仓库实现。
+- [REQ-2026-0023: Sandbox Internal Control Plane](../requirements/REQ-2026-0023-sandbox-internal-control-plane.md) - Sandbox-owned application port、in-process standalone/generated internal-RPC cloud adapter parity、service identity、durable operation/idempotency、independent Kernel/Sandbox fencing、bounded operation event、version/discovery/drain/rollback gate；保持 `draft`，不批准 Rust Port、Proto、SDK、server/client、route、config、deployment 或 Kernel 实现。
+- [REQ-2026-0024: Sandbox Interactive Terminal Session](../requirements/REQ-2026-0024-sandbox-interactive-terminal-session.md) - Command/Interactive Terminal Capability 拆分、subordinate Terminal Session、single-controller lease、at-most-once input、idempotent resize、bounded output replay/reconnect、first-terminal CAS、Checkpoint ordering、platform containment 与 privacy gate；保持 `draft`，不批准 PTY/ConPTY、process、guest stream、Proto/SDK/API、persistence、Provider、Service Host 或跨仓库实现。
+- [REQ-2026-0025: Sandbox Runtime Secret Projection](../requirements/REQ-2026-0025-sandbox-runtime-secret-projection.md) - value-free opaque grant、Agents/IAM/Secret Authority/Kernel/Sandbox 职责拆分、Local/Cloud lane 与 region binding、显式 process target、rotation/revocation/outage、Checkpoint/Pool exclusion 和 scoped security claim；保持 `draft`，不批准 Secret Authority、value transport、process projection、Proto/SDK/API、persistence、Provider、Service Host 或跨仓库实现。
+- [REQ-2026-0026: Sandbox Cloud Data Residency And Recovery](../requirements/REQ-2026-0026-sandbox-cloud-data-residency-and-recovery.md) - Cloud-only data inventory、`regionCode/providerRegion/storageRegion/availabilityZone` tuple、Drive/Agents/Sandbox authority split、explicit replication、backup/PITR、ordered recovery、tenant isolation、export/delete、Secret exclusion 与 RPO/RTO gate；保持 `draft`，不批准 storage/replication/backup/restore/purge implementation、API/SDK、Provider、Service Host 或跨仓库实现。
+- [REQ-2026-0027: Sandbox Cross-Repository Version Compatibility And Release Set](../requirements/REQ-2026-0027-sandbox-cross-repository-version-compatibility.md) - immutable BirdCoder/Agents/Kernel/Sandbox revision set, Workspace/storage/RPC/SDK/config/artifact/evidence provenance, explicit multi-dimensional compatibility matrix, peer preflight, drain/rollout/rollback/downgrade and bounded support window；保持 `draft`，不批准 release registry、SDK/proto/artifact publication、migration、deployment 或跨仓库实现。
 
 后续 Runtime API、生命周期、Provider、Scheduler、安全、Snapshot、Cache 与 SaaS 工作必须在实施前拆分为可评审的需求记录。
 

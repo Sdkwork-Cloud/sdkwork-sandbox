@@ -115,6 +115,31 @@ entries:
     layer: work
     audience: [product, architecture, engineering, security, privacy, database, reliability, operations]
     status: draft
+  - id: REQ-2026-0023
+    path: docs/product/requirements/REQ-2026-0023-sandbox-internal-control-plane.md
+    layer: work
+    audience: [product, architecture, engineering, security, privacy, rpc, sdk, reliability, operations, release]
+    status: draft
+  - id: REQ-2026-0024
+    path: docs/product/requirements/REQ-2026-0024-sandbox-interactive-terminal-session.md
+    layer: work
+    audience: [product, architecture, engineering, security, privacy, performance, reliability, local-platform, firecracker, operations, review]
+    status: draft
+  - id: REQ-2026-0025
+    path: docs/product/requirements/REQ-2026-0025-sandbox-runtime-secret-projection.md
+    layer: work
+    audience: [product, architecture, engineering, security, privacy, iam, secret-kms, reliability, local-platform, firecracker, operations, review]
+    status: draft
+  - id: REQ-2026-0026
+    path: docs/product/requirements/REQ-2026-0026-sandbox-cloud-data-residency-and-recovery.md
+    layer: work
+    audience: [product, architecture, engineering, security, privacy, region, storage, database, reliability, operations, review]
+    status: draft
+  - id: REQ-2026-0027
+    path: docs/product/requirements/REQ-2026-0027-sandbox-cross-repository-version-compatibility.md
+    layer: work
+    audience: [product, architecture, engineering, security, privacy, rpc, sdk, storage, release, reliability, operations, review]
+    status: draft
   - id: ADR-20260728
     path: docs/architecture/decisions/ADR-20260728-runtime-boundary-and-rust-workspace.md
     layer: work
@@ -224,6 +249,31 @@ entries:
     path: docs/architecture/decisions/ADR-20260730-sandbox-standalone-data-residency-and-recovery.md
     layer: work
     audience: [product, architecture, engineering, security, privacy, database, reliability, operations, review]
+    status: proposed
+  - id: ADR-20260731-INTERNAL-CONTROL-PLANE
+    path: docs/architecture/decisions/ADR-20260731-sandbox-internal-control-plane.md
+    layer: work
+    audience: [product, architecture, engineering, security, privacy, rpc, sdk, reliability, operations, release, review]
+    status: proposed
+  - id: ADR-20260731-INTERACTIVE-TERMINAL
+    path: docs/architecture/decisions/ADR-20260731-sandbox-interactive-terminal-session.md
+    layer: work
+    audience: [product, architecture, engineering, security, privacy, performance, reliability, local-platform, firecracker, operations, review]
+    status: proposed
+  - id: ADR-20260801-RUNTIME-SECRET-PROJECTION
+    path: docs/architecture/decisions/ADR-20260801-sandbox-runtime-secret-projection.md
+    layer: work
+    audience: [product, architecture, engineering, security, privacy, iam, secret-kms, reliability, local-platform, firecracker, operations, review]
+    status: proposed
+  - id: ADR-20260801-CLOUD-DATA-RESIDENCY
+    path: docs/architecture/decisions/ADR-20260801-sandbox-cloud-data-residency-and-recovery.md
+    layer: work
+    audience: [product, architecture, engineering, security, privacy, region, storage, database, reliability, operations, review]
+    status: proposed
+  - id: ADR-20260801-CROSS-REPOSITORY-COMPATIBILITY
+    path: docs/architecture/decisions/ADR-20260801-sandbox-cross-repository-version-compatibility.md
+    layer: work
+    audience: [product, architecture, engineering, security, privacy, rpc, sdk, storage, release, reliability, operations, review]
     status: proposed
   - id: PLAN-2026-0001
     path: docs/engineering/plans/PLAN-2026-0001-local-and-firecracker-provider-delivery.md
@@ -344,6 +394,36 @@ entries:
     path: docs/engineering/reviews/REVIEW-20260730-sandbox-standalone-data-residency-and-recovery.md
     layer: work
     audience: [product, architecture, engineering, security, privacy, database, reliability, operations, review]
+    status: pending-human-review
+  - id: REVIEW-20260731-COMMERCIAL-READINESS
+    path: docs/engineering/reviews/REVIEW-20260731-sandbox-commercial-readiness-gap-audit.md
+    layer: work
+    audience: [product, architecture, engineering, security, privacy, performance, reliability, operations, release, review]
+    status: active
+  - id: REVIEW-20260731-INTERNAL-CONTROL-PLANE
+    path: docs/engineering/reviews/REVIEW-20260731-sandbox-internal-control-plane.md
+    layer: work
+    audience: [product, architecture, engineering, security, privacy, rpc, sdk, reliability, operations, release, review]
+    status: pending-human-review
+  - id: REVIEW-20260731-INTERACTIVE-TERMINAL
+    path: docs/engineering/reviews/REVIEW-20260731-sandbox-interactive-terminal-session.md
+    layer: work
+    audience: [product, architecture, engineering, security, privacy, performance, reliability, local-platform, firecracker, operations, review]
+    status: pending-human-review
+  - id: REVIEW-20260801-RUNTIME-SECRET-PROJECTION
+    path: docs/engineering/reviews/REVIEW-20260801-sandbox-runtime-secret-projection.md
+    layer: work
+    audience: [product, architecture, engineering, security, privacy, iam, secret-kms, reliability, local-platform, firecracker, operations, review]
+    status: pending-human-review
+  - id: REVIEW-20260801-CLOUD-DATA-RESIDENCY
+    path: docs/engineering/reviews/REVIEW-20260801-sandbox-cloud-data-residency-and-recovery.md
+    layer: work
+    audience: [product, architecture, engineering, security, privacy, region, storage, database, reliability, operations, review]
+    status: pending-human-review
+  - id: REVIEW-20260801-CROSS-REPOSITORY-COMPATIBILITY
+    path: docs/engineering/reviews/REVIEW-20260801-sandbox-cross-repository-version-compatibility.md
+    layer: work
+    audience: [product, architecture, engineering, security, privacy, rpc, sdk, storage, release, reliability, operations, review]
     status: pending-human-review
   - id: VIEW-GATE-ZERO-STATE
     path: docs/architecture/views/gate-zero-current-state.md

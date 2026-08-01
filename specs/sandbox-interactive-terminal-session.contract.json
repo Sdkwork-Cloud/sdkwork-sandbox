@@ -1,0 +1,222 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.sandbox.interactive-terminal-session-contract",
+  "status": "draft",
+  "requirementId": "REQ-2026-0024",
+  "decisionId": "ADR-20260731-sandbox-interactive-terminal-session",
+  "reviewId": "REVIEW-20260731-sandbox-interactive-terminal-session",
+  "implementationAuthorized": false,
+  "candidateNamesArePubliclyApproved": false,
+  "capabilitySplitCandidate": {
+    "currentNonInteractiveCandidate": "Terminal",
+    "currentCandidateProvesInteractiveTerminal": false,
+    "proposedNonInteractiveCapability": "Command",
+    "proposedInteractiveCapability": "InteractiveTerminal",
+    "publicRenameAuthorized": false,
+    "descriptorRequiresPortAndPlatformConformance": true
+  },
+  "authority": {
+    "portCandidate": "SandboxTerminalSessionPort",
+    "portOwner": "sdkwork-sandbox-application-service",
+    "separateFromCommandExecutor": true,
+    "separateFromLifecycleProvider": true,
+    "kernelIsOnlyCrossRepositoryRuntimeConsumer": true,
+    "birdcoderDirectAccessAllowed": false,
+    "agentsDirectAccessAllowed": false,
+    "terminalSessionOwnsWorkspaceRevisionOrWriterLease": false,
+    "terminalSessionOwnsRuntimeAllocation": false
+  },
+  "materialization": {
+    "rustPortOrTypesAllowed": false,
+    "ptyOrConptyAllowed": false,
+    "processSpawnAllowed": false,
+    "guestAgentStreamAllowed": false,
+    "protoSdkApiOrWebSocketAllowed": false,
+    "persistenceOrCacheAllowed": false,
+    "runtimeConfigAllowed": false,
+    "providerOrServiceHostAllowed": false,
+    "deploymentAllowed": false,
+    "crossRepositorySourceChangeAllowed": false
+  },
+  "launchPolicy": {
+    "logicalExecutableRequired": true,
+    "providerOwnedImmutableRegistryRequired": true,
+    "boundedArgvRequired": true,
+    "workspaceRelativeWorkingDirectoryRequired": true,
+    "finalEnvironmentStartsEmpty": true,
+    "immutableEnvironmentAllowlistRequired": true,
+    "shellCommandStringAllowed": false,
+    "implicitShellFallbackAllowed": false,
+    "loginProfileLoadingAllowed": false,
+    "callerExecutablePathAllowed": false,
+    "pathOrCwdSearchAllowed": false,
+    "ambientEnvironmentAllowed": false,
+    "secretValueAllowed": false
+  },
+  "lifecycle": {
+    "states": ["requested", "opening", "ready", "attached", "detached", "closing", "closed", "failed", "quarantined"],
+    "initialState": "requested",
+    "successfulTerminalState": "closed",
+    "uncertainCleanupState": "quarantined",
+    "unknownStateRejected": true,
+    "illegalTransitionRejected": true,
+    "terminalStateCannotReattach": true,
+    "subordinateWorkspaceRuntimeTransactionRequired": true,
+    "readyRuntimeBindingRequired": true
+  },
+  "controller": {
+    "singleControllerV1": true,
+    "multipleControllersAllowed": false,
+    "observersAllowed": false,
+    "controllerLeaseRequired": true,
+    "controllerGenerationMonotonic": true,
+    "reconnectRotatesConnectionIdentity": true,
+    "reconnectPreservesTerminalSessionIdentity": true,
+    "staleConnectionMutationAllowed": false,
+    "authorizationRecheckedOnAttachAndReconnect": true
+  },
+  "input": {
+    "binarySafeFrames": true,
+    "monotonicSequenceRequired": true,
+    "canonicalFingerprintRequired": true,
+    "acknowledgementRequired": true,
+    "atMostOncePerTerminalSession": true,
+    "sameSequenceSameFingerprintReplaysAck": true,
+    "sameSequenceDifferentFingerprintConflicts": true,
+    "unknownDeliveryRequiresStatusLookup": true,
+    "blindRetransmissionAllowed": false,
+    "currentControllerLeaseAndSandboxFencingRequired": true
+  },
+  "resize": {
+    "positiveColumnsAndRowsRequired": true,
+    "operationSequenceRequired": true,
+    "idempotencyRequired": true,
+    "currentControllerLeaseAndSandboxFencingRequired": true,
+    "hostPixelsFontDisplayOrDeviceMetadataAllowed": false
+  },
+  "output": {
+    "singleOrderedPtyByteStream": true,
+    "binarySafeFrames": true,
+    "monotonicSequenceRequired": true,
+    "acknowledgementRequired": true,
+    "resumeCursorRequired": true,
+    "boundedReplayRequired": true,
+    "explicitGapOrTruncationOutcomeRequired": true,
+    "normalLogMetricOrAuditPayloadCopyAllowed": false,
+    "commandStdoutOrStderrFieldReuseAllowed": false
+  },
+  "disconnectAndReconnect": {
+    "connectionAndTerminalLifetimesSeparate": true,
+    "disconnectImmediatelyReleasesRuntime": false,
+    "eligibleDisconnectMovesToDetached": true,
+    "boundedGraceRequired": true,
+    "graceExpiryFreezesInput": true,
+    "graceExpiryTriggersFencedCloseCheckpointAndCleanup": true,
+    "reconnectValidatesAuthorizationBindingControllerFenceStateAndCursor": true,
+    "cloudFallbackAfterLocalDisconnectAllowed": false
+  },
+  "terminalArbitration": {
+    "durableFirstTerminalCasRequired": true,
+    "competingOutcomes": ["process-exit", "close", "timeout", "cancel", "output-limit", "fencing-lost", "runtime-freeze", "provider-failure"],
+    "laterOutcomeMayRewritePrimary": false,
+    "cleanupStatusSeparateFromPrimaryOutcome": true,
+    "cleanupUncertaintyQuarantinesBindingAndCapacity": true,
+    "terminalResultPersistedAfterCleanupKnown": true
+  },
+  "workspaceTransaction": {
+    "freezeRejectsNewAttachInputAndResize": true,
+    "activeTerminalDrainedOrCancelledWithinBound": true,
+    "workspaceWriteAccessRevokedAndFlushedAfterDrain": true,
+    "durableCheckpointHandoffAfterTerminalOutcome": true,
+    "runtimeReleaseAfterCheckpointAndCleanup": true,
+    "terminalDisconnectMaySkipCheckpoint": false
+  },
+  "platformMatrix": [
+    {
+      "platform": "windows-local",
+      "candidateSupport": "conditional",
+      "requiredMechanisms": ["conpty", "suspended-process", "job-object-kill-on-close", "completion-port-supervision"],
+      "preUserCodeContainmentRequired": true
+    },
+    {
+      "platform": "linux-local",
+      "candidateSupport": "conditional",
+      "requiredMechanisms": ["pty", "delegated-cgroup-v2", "race-free-pre-user-code-membership"],
+      "preUserCodeContainmentRequired": true
+    },
+    {
+      "platform": "macos-local",
+      "candidateSupport": "denied",
+      "requiredMechanisms": ["approved-detached-descendant-containment"],
+      "fallbackAllowed": false
+    },
+    {
+      "platform": "linux-kvm-firecracker",
+      "candidateSupport": "conditional",
+      "requiredMechanisms": ["authenticated-guest-agent", "microvm-readiness", "cgroup-v2", "workspace-and-network-readiness"],
+      "preUserCodeContainmentRequired": true
+    }
+  ],
+  "privateTransport": {
+    "futureBidirectionalStreamAdapterRequiresSeparateMaterializationReview": true,
+    "transportCallsTerminalPort": true,
+    "publicSandboxWebSocketAllowed": false,
+    "directBirdcoderConnectionAllowed": false,
+    "kernelMediatedPlacementAndProxyRequired": true,
+    "boundedFramesDeadlinesCancellationAndBackpressureRequired": true
+  },
+  "privacyAndObservability": {
+    "inputAndOutputClassification": "sensitive-content",
+    "encryptedReplayIfPersisted": true,
+    "approvedShortRetentionRequired": true,
+    "accessAuditRequired": true,
+    "ordinaryTelemetryContentAllowed": false,
+    "rawTenantWorkspaceSessionTerminalOrConnectionMetricLabelsAllowed": false,
+    "executableArgumentsEnvironmentPathsOrInfrastructureInAuditAllowed": false
+  },
+  "bounds": {
+    "activeTerminalSessionsPerRuntimeBindingMax": null,
+    "inputFrameBytesMax": null,
+    "outputFrameBytesMax": null,
+    "inMemoryReplayBytesMax": null,
+    "durableReplayBytesMax": null,
+    "unacknowledgedFramesMax": null,
+    "columnsMax": null,
+    "rowsMax": null,
+    "reconnectGraceMsMax": null,
+    "terminalLifetimeMsMax": null,
+    "closeAndCleanupMsMax": null,
+    "replayRetentionSecondsMax": null,
+    "allExactValuesRequireOwnerApproval": true,
+    "unboundedValueAllowed": false
+  },
+  "requiredRealEvidence": [
+    "sandbox_terminal_shared_provider_conformance",
+    "sandbox_terminal_windows_conpty_job_containment",
+    "sandbox_terminal_linux_pty_cgroup_v2_containment",
+    "sandbox_terminal_macos_explicit_denial",
+    "sandbox_terminal_firecracker_guest_agent_kvm",
+    "sandbox_terminal_duplicate_and_conflicting_input",
+    "sandbox_terminal_stale_connection_and_fencing",
+    "sandbox_terminal_output_replay_gap_and_slow_consumer",
+    "sandbox_terminal_disconnect_reconnect_and_grace_expiry",
+    "sandbox_terminal_freeze_checkpoint_and_release",
+    "sandbox_terminal_descendant_cleanup_and_quarantine",
+    "sandbox_terminal_control_plane_restart_recovery",
+    "sandbox_terminal_cross_tenant_authorization_and_residue",
+    "sandbox_terminal_privacy_retention_and_deletion"
+  ],
+  "humanReview": {
+    "required": true,
+    "approvedOutcomeRequiredBeforeImplementation": true,
+    "reviewers": [
+      "sdkwork-product-birdcoder-owner",
+      "sdkwork-sandbox-architecture-owner",
+      "sdkwork-kernel-agents-owner",
+      "sdkwork-local-platform-owner",
+      "sdkwork-firecracker-guest-agent-owner",
+      "sdkwork-security-privacy-owner",
+      "sdkwork-reliability-capacity-operations-owner"
+    ]
+  }
+}

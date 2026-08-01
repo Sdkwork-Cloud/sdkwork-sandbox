@@ -48,6 +48,26 @@ Parent: [SDKWork Sandbox PRD](PRD.md)
 
 `REQ-2026-0009` 与对应 ADR 当前为 `draft`/`proposed`，只定义 L5 typed Service Host Composition、依赖注入、fail-closed Readiness、安全 Shutdown 与 Standalone/Cloud parity。它不激活 Local/Firecracker Provider、HTTP/API/SDK、Scheduler、Secret/KMS 实现或 Deployment Profile；实现前必须完成相关公共命名、Config/Secret/Telemetry Port、Workspace Attachment、Provider Fencing 和运维 Owner 的人工评审。
 
+## V1/V2 Integration Governance Slice: Internal Control Plane
+
+`REQ-2026-0023`、对应 ADR/Review 与 `sandbox-internal-control-plane.contract.json` 当前分别为 `draft`/`proposed`/`pending-human-review`/`draft`。该切片提出一个 Sandbox-owned application port，Standalone 通过 in-process adapter 组合，Cloud 通过 future Proto/RPC manifest 生成的 L3 internal-RPC client 组合；两条路径共享 lifecycle/transaction/idempotency/error/readiness conformance。Trusted context、mTLS/workload identity、independent Kernel/Sandbox lease/fencing、ambiguous-result lookup、deadline/cancellation、bounded operation-event stream、version fail-close、discovery/drain/rollback 和 real multi-process evidence 都是前置门禁。当前不创建 Rust Port、Proto、SDK、server/client、HTTP route、discovery、config、deployment 或 Kernel 源码变更。
+
+## V1/V2 IDE Governance Slice: Interactive Terminal
+
+`REQ-2026-0024`、对应 ADR/Review 与 `sandbox-interactive-terminal-session.contract.json` 当前分别为 `draft`/`proposed`/`pending-human-review`/`draft`。该切片纠正当前候选 `Terminal` 同时暗示非交互 Command 和 PTY 的歧义，提出 `Command`/`InteractiveTerminal` capability split、独立 Terminal Session Port、single-controller lease、at-most-once input、idempotent resize、ordered bounded output replay、disconnect/reconnect grace、first-terminal CAS、Workspace freeze/checkpoint ordering和 Windows/Linux/Firecracker exact containment；macOS 保持显式 Denied。当前不批准任何 Capability 公共命名、PTY/ConPTY、Process、Guest Agent Stream、Proto/SDK/API、Persistence、Provider、Service Host、Deployment 或跨仓库实现。
+
+## V1/V2 Security Governance Slice: Runtime Secret Projection
+
+`REQ-2026-0025`、对应 ADR/Review 与 `sandbox-runtime-secret-projection.contract.json` 当前分别为 `draft`/`proposed`/`pending-human-review`/`draft`。该切片保持 BirdCoder、Agents、Kernel 与 Sandbox Control Plane value-free，由 Agents/IAM/approved Secret Authority/Kernel/Sandbox 分别拥有 business intent、authorization、value/version/grant、opaque transport 与 projection lifecycle；Local 与 Cloud Authority 不同步、不跨 lane/device/region 回退。候选 target 仅为 immutable registry 中的 process handle、protected ephemeral file 和显式 environment exception；rotation/revocation/outage、Checkpoint exclusion、Secret-exposed microVM destroy、audit split 和 scoped exfiltration claim 均关闭失败。当前不批准 Secret/KMS/Keychain、value transport、Process Projection、Host Broker/Guest Agent、Proto/SDK/API、Persistence、Provider、Service Host、Deployment 或跨仓库实现。
+
+## V2 Governance Slice: Cloud Data Residency And Recovery
+
+`REQ-2026-0026`、对应 ADR/Review 与 `sandbox-cloud-data-residency.contract.json` 当前分别为 `draft`/`proposed`/`pending-human-review`/`draft`。该切片仅治理 Cloud lane，区分 `regionCode`、`providerRegion`、`storageRegion` 与 `availabilityZone`，并为 Workspace、Revision、Checkpoint、output、log、cache、backup/PITR、replica、export/delete 和 support data 指定唯一 authority、retention、encryption、residency 与 recovery owner。Cross-region replication/failover 必须显式授权、保留 deletion tombstone 和 legal hold，恢复顺序必须先验证 Agents/Drive data 与 Revision/Checkpoint，再创建新的 Kernel/Sandbox placement/fencing 和 Secret grant；任何未知位置、滞后副本、PITR gap、删除不确定或 cleanup uncertainty 都关闭失败。当前不批准 region/storage choice、replication、backup/restore/purge worker、API/SDK、Provider、Service Host、Deployment 或跨仓库实现。
+
+## V2 Governance Slice: Cross-Repository Version Compatibility
+
+`REQ-2026-0027`、对应 ADR/Review 与 `sandbox-cross-repository-version-compatibility.contract.json` 当前分别为 `draft`/`proposed`/`pending-human-review`/`draft`。该切片引入不可变 `SandboxCrossRepositoryReleaseSet`，固定 BirdCoder、Agents、Kernel、Sandbox、Workspace/Storage、RPC/Proto、generated SDK、runtime config、Local Provider、Firecracker artifact 与 evidence provenance，并按 semantic、wire、SDK、data/schema、Workspace/Checkpoint、artifact/guest protocol、residency、Secret 和 isolation assurance 维度判定兼容性。Peer preflight 必须早于 placement、mount、Secret projection、Command/Terminal attach 和 recovery；不兼容升级先停止新 placement，再 drain active transactions；rollback 只能选择已批准 immutable set，downgrade 默认拒绝，support window 到期只返回 `upgrade-required`。当前不批准 release authority、compatibility registry、SDK/proto/artifact publication、migration、rollout worker、deployment 或跨仓库实现。
+
 ## V1 Governance Slice: Observability And Events
 
 `REQ-2026-0010`、对应 ADR 和 Review 当前分别为 `draft`/`proposed`/`pending-human-review`。`apis/async/` 已形成 Sandbox-owned AsyncAPI、`SandboxEventEnvelope`、精确 `sandbox.*` Event Catalog、Outbox Contract、`SandboxAuditRecord` 与 Observability Catalog，通过静态 Contract Test 明确 telemetry、audit-fact、billing fact、retention、redaction、ordering、replay、idempotency、低基数指标、Trace、backpressure 和 PostgreSQL Outbox 事务边界。该切片不实现 Event Worker、Exporter、Outbox migration、API/SDK、Metering、Dashboard、Secret/KMS 或 Deployment Profile；Owner、Security/Privacy、Database、Operations、Retention、Release 和跨仓库 Trace Authority 人工评审完成前不得进入 `ready`。

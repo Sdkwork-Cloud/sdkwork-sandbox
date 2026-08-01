@@ -1,0 +1,241 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.sandbox.cloud-data-residency-and-recovery-contract",
+  "status": "draft",
+  "requirementId": "REQ-2026-0026",
+  "decisionId": "ADR-20260801-sandbox-cloud-data-residency-and-recovery",
+  "reviewId": "REVIEW-20260801-sandbox-cloud-data-residency-and-recovery",
+  "implementationAuthorized": false,
+  "candidateClaimsPubliclyApproved": false,
+  "materialization": {
+    "regionChoiceAllowed": false,
+    "storageOrDriveAdapterAllowed": false,
+    "replicationAllowed": false,
+    "backupPitrWorkerAllowed": false,
+    "restoreOrPurgeControllerAllowed": false,
+    "databaseMigrationAllowed": false,
+    "apiSdkOrTransportAllowed": false,
+    "runtimeConfigOrDeploymentAllowed": false,
+    "providerServiceHostKernelAgentsOrBirdcoderChangeAllowed": false
+  },
+  "authority": {
+    "tenantAndResidencyPolicyOwner": "sdkwork-iam-and-region-registry",
+    "workspaceBusinessRevisionAuthorizationOwner": "sdkwork-agents",
+    "workspaceAndCheckpointBytesOwner": "sdkwork-drive-or-approved-volume-authority",
+    "sandboxLifecycleAndRuntimeControlFactsOwner": "sdkwork-sandbox",
+    "kernelExecutionPlacementOwner": "sdkwork-kernel",
+    "postgresqlBackupPitrAndRestoreMechanismOwner": "approved-database-operations",
+    "driveObjectBackupRestoreAndDeletionMechanismOwner": "sdkwork-drive-or-approved-volume-authority",
+    "usageBillingTruthOwner": "sdkwork-commerce",
+    "sandboxOwnsWorkspaceOrCheckpointBytes": false,
+    "sandboxOwnsTenantResidencyPolicy": false,
+    "runtimeResumeMayBypassAgentsDriveOrIam": false
+  },
+  "claimScope": {
+    "appliesOnlyToCloudLane": true,
+    "cloudTopologyAloneProvesResidency": false,
+    "providerRegionAloneProvesResidency": false,
+    "storageRegionAloneProvesResidency": false,
+    "availabilityZoneIsResidencyAuthority": false,
+    "exactTupleRequired": true,
+    "requiredTupleFields": [
+      "regionCode",
+      "allowedProviderRegions",
+      "allowedStorageRegions",
+      "allowedProcessingRegions",
+      "availabilityZoneOrFailureDomainPolicy",
+      "replicationPolicy",
+      "residencyPolicyRevision"
+    ],
+    "callerMayWidenTuple": false,
+    "unknownLocationFailsClosed": true
+  },
+  "dataClasses": [
+    {
+      "id": "workspace-source-bytes",
+      "owner": "sdkwork-drive-or-approved-volume-authority",
+      "businessAuthority": "sdkwork-agents",
+      "authoritative": true,
+      "checkpointOrSnapshotAllowed": false,
+      "secretProjectionRootAllowed": false
+    },
+    {
+      "id": "agents-workspace-revision-business-state",
+      "owner": "sdkwork-agents",
+      "businessAuthority": "sdkwork-agents",
+      "authoritative": true,
+      "checkpointOrSnapshotAllowed": false,
+      "secretProjectionRootAllowed": false
+    },
+    {
+      "id": "durable-checkpoint-candidate-handoff",
+      "owner": "sdkwork-drive-or-approved-volume-authority",
+      "businessAuthority": "sdkwork-agents",
+      "authoritative": true,
+      "checkpointOrSnapshotAllowed": true,
+      "secretProjectionRootAllowed": false
+    },
+    {
+      "id": "sandbox-lifecycle-binding-operation-control",
+      "owner": "sdkwork-sandbox",
+      "businessAuthority": "sdkwork-sandbox",
+      "authoritative": true,
+      "checkpointOrSnapshotAllowed": false,
+      "secretProjectionRootAllowed": false
+    },
+    {
+      "id": "runtime-image-and-immutable-artifact",
+      "owner": "approved-sandbox-artifact-authority",
+      "businessAuthority": "sdkwork-sandbox",
+      "authoritative": true,
+      "checkpointOrSnapshotAllowed": false,
+      "secretProjectionRootAllowed": false
+    },
+    {
+      "id": "command-terminal-output-and-generated-artifact",
+      "owner": "sdkwork-drive-or-approved-output-authority",
+      "businessAuthority": "sdkwork-agents",
+      "authoritative": false,
+      "checkpointOrSnapshotAllowed": false,
+      "secretProjectionRootAllowed": false
+    },
+    {
+      "id": "logs-audit-events-support-diagnostics",
+      "owner": "approved-observability-and-audit-authority",
+      "businessAuthority": "sdkwork-sandbox-or-owning-domain",
+      "authoritative": false,
+      "checkpointOrSnapshotAllowed": false,
+      "secretProjectionRootAllowed": false
+    },
+    {
+      "id": "cache-temp-and-scratch",
+      "owner": "owning-runtime-adapter",
+      "businessAuthority": "none-rebuildable",
+      "authoritative": false,
+      "checkpointOrSnapshotAllowed": false,
+      "secretProjectionRootAllowed": false
+    },
+    {
+      "id": "usage-and-metering-facts",
+      "owner": "sdkwork-sandbox-with-commerce-handoff",
+      "businessAuthority": "sdkwork-commerce",
+      "authoritative": false,
+      "checkpointOrSnapshotAllowed": false,
+      "secretProjectionRootAllowed": false
+    },
+    {
+      "id": "database-drive-backup-wal-pitr-and-dr-copies",
+      "owner": "approved-database-drive-recovery-authority",
+      "businessAuthority": "owning-data-authority",
+      "authoritative": false,
+      "checkpointOrSnapshotAllowed": false,
+      "secretProjectionRootAllowed": false
+    }
+  ],
+  "replicationAndResidency": {
+    "primaryAndDrCopiesAreDistinctResources": true,
+    "crossRegionReplicationRequiresExplicitPolicy": true,
+    "replicationDestinationAllowlistRequired": true,
+    "replicationPreservesTenantRevisionAndDeletionTombstones": true,
+    "partialOrStaleReplicaMayBePromoted": false,
+    "implicitCrossRegionStorageAllowed": false,
+    "implicitLocalCloudOrProviderFallbackAllowed": false,
+    "replicationLagIsObservableWithoutRawContent": true
+  },
+  "retentionExportAndDeletion": {
+    "perClassRetentionOwnerRequired": true,
+    "legalHoldOverridesPurge": true,
+    "exportIsTenantAuthorizedScopedAuditedAndExpiring": true,
+    "secretValuesAndInfrastructureCredentialsExported": false,
+    "driveOwnsDownloadGrant": true,
+    "purgeIncludesPrimaryDerivedReplicaBackupAndSupportCopies": true,
+    "purgeIsResumableAndFailureVisible": true,
+    "unknownOrUnreachableClassMayClaimDeleted": false,
+    "uninstallEqualsPrivacyDeletion": false
+  },
+  "backupAndRecovery": {
+    "databaseAwareBaseWalAndPitrRequired": true,
+    "driveOrVolumeVersionedBackupRequired": true,
+    "backupStorageEncryptedAndKeyScoped": true,
+    "backupMetadataExcludesRawContentCredentialsAndProviderKeys": true,
+    "backupJobAloneProvesRecovery": false,
+    "restoreTargetIsIsolatedAndNonDestructive": true,
+    "restoreIntegrityAndRegionPolicyVerifiedBeforeCutover": true,
+    "recoveryOrder": [
+      "approved-region-and-control-plane",
+      "iam-residency-policy",
+      "agents-drive-workspace-metadata-and-bytes",
+      "revision-checkpoint-integrity",
+      "sandbox-control-facts-or-rebuild",
+      "fresh-kernel-and-sandbox-placement-fencing",
+      "fresh-data-and-secret-grants",
+      "provider-runtime-start"
+    ],
+    "runtimeMayResumeBeforeFreshFencingAndDataValidation": false,
+    "pitrGapOrChecksumMismatchQuarantines": true
+  },
+  "tenantIsolation": {
+    "authorizationKeyScopeNamespaceAndRoleIsolationRequired": true,
+    "sharedPhysicalInfrastructureMayShareLogicalData": false,
+    "crossTenantRestoreExportCacheLogBackupOrSupportReadAllowed": false,
+    "residueVerificationRequired": true,
+    "operatorAccessTimeBoundRegionScopedAndAudited": true
+  },
+  "secretAndRuntimeExclusion": {
+    "secretProjectionRootsInWorkspaceCheckpointSnapshotBackupOrReplicationAllowed": false,
+    "rawSecretValuesOrGrantsPersistedForRecoveryAllowed": false,
+    "runtimeImageCarriesTenantDataOrSecretsAllowed": false,
+    "cloudRecoveryRequiresFreshSecretGrant": true,
+    "secretExposedRuntimeReturnsToWarmPool": false
+  },
+  "failurePolicy": {
+    "regionStorageBackupReplicaPitrCorruptionOrDeletionUncertaintyFailsClosed": true,
+    "silentRegionProviderStorageOrLocalFallbackAllowed": false,
+    "staleRevisionCheckpointOrFencingMayStartRuntime": false,
+    "capacityQuarantinedOnRecoveryCleanupUncertainty": true,
+    "supportBundleContainsRawWorkspaceOutputSecretOrInfrastructureDetails": false
+  },
+  "bounds": {
+    "backupFrequencySecondsMax": null,
+    "replicationLagSecondsMax": null,
+    "pitrWindowSecondsMin": null,
+    "rpoSecondsMax": null,
+    "rtoSecondsMax": null,
+    "exportGrantTtlSecondsMax": null,
+    "purgeCompletionSecondsMax": null,
+    "recoveryConcurrencyMax": null,
+    "cacheRetentionSecondsMax": null,
+    "allExactValuesRequireOwnerApproval": true,
+    "unboundedValueAllowed": false
+  },
+  "requiredRealEvidence": [
+    "sandbox_cloud_primary_region_and_storage_tuple",
+    "sandbox_cloud_cross_region_replication_policy_and_lag",
+    "sandbox_cloud_tenant_workspace_revision_checkpoint_restore",
+    "sandbox_cloud_postgresql_base_wal_pitr_restore_and_role_isolation",
+    "sandbox_cloud_drive_or_volume_backup_restore_and_version_integrity",
+    "sandbox_cloud_region_outage_control_plane_restart_and_node_loss",
+    "sandbox_cloud_stale_replica_revision_checkpoint_and_fencing_denial",
+    "sandbox_cloud_cross_tenant_restore_export_cache_log_backup_and_support_denial",
+    "sandbox_cloud_class_complete_export_and_purge_with_legal_hold",
+    "sandbox_cloud_secret_projection_and_runtime_image_exclusion",
+    "sandbox_cloud_corruption_checksum_pitr_gap_and_quarantine",
+    "sandbox_cloud_operator_audit_support_bundle_redaction_and_incident_drill",
+    "sandbox_cloud_high_concurrency_recovery_export_purge_and_capacity_bounds"
+  ],
+  "humanReview": {
+    "required": true,
+    "approvedOutcomeRequiredBeforeImplementation": true,
+    "reviewers": [
+      "sdkwork-product-owner",
+      "sdkwork-agents-workspace-owner",
+      "sdkwork-kernel-owner",
+      "sdkwork-sandbox-architecture-owner",
+      "sdkwork-iam-region-owner",
+      "sdkwork-drive-storage-owner",
+      "sdkwork-database-owner",
+      "sdkwork-security-privacy-owner",
+      "sdkwork-reliability-capacity-operations-owner"
+    ]
+  }
+}

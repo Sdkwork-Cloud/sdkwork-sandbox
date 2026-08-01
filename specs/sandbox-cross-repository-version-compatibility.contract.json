@@ -1,0 +1,161 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.sandbox.cross-repository-version-compatibility-contract",
+  "status": "draft",
+  "requirementId": "REQ-2026-0027",
+  "decisionId": "ADR-20260801-sandbox-cross-repository-version-compatibility",
+  "reviewId": "REVIEW-20260801-sandbox-cross-repository-version-compatibility",
+  "implementationAuthorized": false,
+  "candidateNamesPubliclyApproved": false,
+  "materialization": {
+    "releaseSetRegistryAllowed": false,
+    "releaseVersionOrTagAllowed": false,
+    "generatedSdkOrProtoAllowed": false,
+    "discoveryMetadataAllowed": false,
+    "migrationAllowed": false,
+    "artifactPublicationAllowed": false,
+    "rolloutOrDrainWorkerAllowed": false,
+    "deploymentOrRuntimeConfigAllowed": false,
+    "apiSdkProviderServiceHostKernelAgentsOrBirdcoderChangeAllowed": false
+  },
+  "releaseSet": {
+    "candidateType": "SandboxCrossRepositoryReleaseSet",
+    "releaseAuthority": "approved-sdkwork-release-authority",
+    "immutableIdentityRequired": true,
+    "uniqueNonSecretIdentityRequired": true,
+    "parentAndReplacesRelationsRequired": true,
+    "requiredLanes": [
+      "standalone-local",
+      "cloud-control-plane",
+      "cloud-node",
+      "client-runtime-configurable"
+    ],
+    "requiredMembers": [
+      "sdkwork-birdcoder-source-revision",
+      "sdkwork-agents-source-revision",
+      "sdkwork-kernel-source-revision",
+      "sdkwork-sandbox-source-revision",
+      "workspace-and-storage-contract-revision",
+      "rpc-proto-contract-revision",
+      "generated-sdk-input-output-revisions",
+      "runtime-config-schema-revision",
+      "local-provider-artifact-tuple",
+      "firecracker-artifact-tuple",
+      "evidence-bundle-revision"
+    ],
+    "mutableBranchTagLatestAliasOrLocalPatchIsIdentity": false,
+    "sourceDependencyLockAndGeneratorProvenanceRequired": true,
+    "signatureSbomProvenanceAndDigestEvidenceRequired": true
+  },
+  "compatibilityMatrix": {
+    "dimensions": [
+      "semantic-domain-contract",
+      "rpc-wire",
+      "generated-sdk-client",
+      "database-and-drive-schema",
+      "workspace-revision-and-checkpoint",
+      "artifact-and-guest-protocol",
+      "runtime-config",
+      "residency-policy",
+      "secret-projection",
+      "isolation-assurance"
+    ],
+    "allowedRelations": ["same", "forward", "backward", "migration-required", "incompatible"],
+    "unknownRelationFailsClosed": true,
+    "silentProtocolDowngradeAllowed": false,
+    "weakerIsolationAssuranceFallbackAllowed": false,
+    "weakerSecretOrResidencyPolicyFallbackAllowed": false,
+    "sharedVersionNumberImpliesCompatibility": false,
+    "terminalCommandCheckpointSecretAndRecoveryEdgesAreExplicit": true
+  },
+  "peerPreflight": {
+    "requiredBeforePlacementMountSecretProjectionCommandTerminalAttachOrRecovery": true,
+    "peerAdvertisesReleaseSetContractCapabilityProfileArchitectureAndBounds": true,
+    "minimumAndMaximumCompatiblePeerRequired": true,
+    "staleOrExpiredDiscoveryMetadataRejected": true,
+    "revokedArtifactOrReleaseSetRejected": true,
+    "generationAndFenceRevalidated": true,
+    "staticCloudEndpointOrPackageFallbackAllowed": false,
+    "safeUpgradeRequiredOutcomeAllowed": true
+  },
+  "rolloutAndDrain": {
+    "stagedPublicationRequired": true,
+    "preflightConformanceRequired": true,
+    "boundedOverlapRequired": true,
+    "incompatibleChangeStopsNewPlacementBeforeDrain": true,
+    "activeTransactionsFreezeCheckpointCancelOrFinishWithinApprovedBound": true,
+    "drainBeforeIncompatibleSchemaArtifactOrProtocolChange": true,
+    "uncertainCapacityQuarantined": true,
+    "cloudDiscoveryAndIntegrityProtectedMetadataRequired": true,
+    "standaloneInProcessAndCloudLanesShareSemanticsOnly": true
+  },
+  "rollbackAndDowngrade": {
+    "rollbackSelectsPreviousApprovedImmutableSet": true,
+    "rollbackByMutableAliasAllowed": false,
+    "rollbackPreflightChecksMigrationDataWorkspaceCheckpointSecretResidencyRpcSdkArtifactAndDrain": true,
+    "forwardFixMayBeRequired": true,
+    "downgradeDeniedByDefault": true,
+    "downgradeRequiresExplicitMigrationRecoveryPlan": true,
+    "newerOnlyStateMayBeConsumedByDowngrade": false,
+    "publishedSetMutationAllowed": false,
+    "hotfixCreatesImmutableChildSet": true
+  },
+  "supportWindow": {
+    "minimumSupportedClientNodeControlPlaneAndSdkVersionsRequired": true,
+    "deprecationNoticeRequired": true,
+    "securityFixOverlapRequired": true,
+    "migrationDeadlineRequired": true,
+    "rollbackHorizonRequired": true,
+    "expiredPeerFailsWithUpgradeRequired": true,
+    "expiredPeerMayNegotiateWeakerAssurance": false,
+    "exactWindowValuesRequireOwnerApproval": true
+  },
+  "evidence": {
+    "sourceAndDependencyCommandsRecorded": true,
+    "generatedSdkProtoInputsOutputsAndGeneratorRecorded": true,
+    "artifactSignatureDigestSbomAndProvenanceRecorded": true,
+    "migrationRollbackAndForwardFixRecorded": true,
+    "residencySecretPoolAndProviderGatesReferenced": true,
+    "rolloutDrainAndHumanApprovalRecorded": true,
+    "staticContractSuccessIsRuntimeEvidence": false
+  },
+  "bounds": {
+    "overlapSecondsMax": null,
+    "drainSecondsMax": null,
+    "preflightSecondsMax": null,
+    "upgradeDeadlineSecondsMax": null,
+    "rollbackHorizonSecondsMax": null,
+    "supportWindowSecondsMax": null,
+    "mixedVersionConcurrencyMax": null,
+    "allExactValuesRequireOwnerApproval": true,
+    "unboundedValueAllowed": false
+  },
+  "requiredRealEvidence": [
+    "sandbox_release_set_immutable_member_and_digest_verification",
+    "sandbox_release_generated_sdk_proto_and_artifact_provenance",
+    "sandbox_release_mixed_version_standalone_matrix",
+    "sandbox_release_mixed_version_cloud_control_and_node_matrix",
+    "sandbox_release_rpc_sdk_skew_duplicate_reorder_cancel_and_stream",
+    "sandbox_release_workspace_revision_checkpoint_and_recovery_compatibility",
+    "sandbox_release_secret_projection_residency_and_assurance_compatibility",
+    "sandbox_release_artifact_revocation_node_drain_and_quarantine",
+    "sandbox_release_migration_forward_fix_rollback_and_downgrade_denial",
+    "sandbox_release_support_window_expiry_and_upgrade_required",
+    "sandbox_release_high_concurrency_rollout_drain_and_capacity_load"
+  ],
+  "humanReview": {
+    "required": true,
+    "approvedOutcomeRequiredBeforeImplementation": true,
+    "reviewers": [
+      "sdkwork-release-compatibility-owner",
+      "sdkwork-product-birdcoder-owner",
+      "sdkwork-agents-owner",
+      "sdkwork-kernel-owner",
+      "sdkwork-sandbox-architecture-owner",
+      "sdkwork-drive-storage-owner",
+      "sdkwork-rpc-sdk-owner",
+      "sdkwork-security-privacy-owner",
+      "sdkwork-reliability-capacity-operations-owner"
+    ]
+  }
+}

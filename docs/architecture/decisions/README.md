@@ -26,6 +26,11 @@ New ADRs use `ADR-YYYYMMDD-<short-title>.md` in this directory.
 - [ADR-20260730: Sandbox Lifecycle Hot State And Idempotency Ledger](ADR-20260730-sandbox-lifecycle-hot-state-and-idempotency-ledger.md) - proposed.
 - [ADR-20260730: Sandbox Workspace Runtime Transaction And Checkpoint](ADR-20260730-sandbox-workspace-runtime-transaction-and-checkpoint.md) - proposed.
 - [ADR-20260730: Sandbox Standalone Data Residency And Recovery](ADR-20260730-sandbox-standalone-data-residency-and-recovery.md) - proposed.
+- [ADR-20260731: Sandbox Internal Control Plane](ADR-20260731-sandbox-internal-control-plane.md) - proposed; one application port with in-process standalone and generated internal-RPC cloud adapters, independent fencing, durable operations, private service identity, compatibility and resilience gates.
+- [ADR-20260731: Sandbox Interactive Terminal Session](ADR-20260731-sandbox-interactive-terminal-session.md) - proposed; capability separation, single-controller PTY session, idempotent input/resize, bounded output replay/reconnect, first-terminal CAS, Checkpoint ordering and platform containment gates.
+- [ADR-20260801: Sandbox Runtime Secret Projection](ADR-20260801-sandbox-runtime-secret-projection.md) - proposed; opaque post-placement grants, split Secret custody/projection authority, Local/Cloud and region binding, explicit process targets, bounded rotation/revocation, Checkpoint exclusion and no Secret-exposed microVM pool reuse.
+- [ADR-20260801: Sandbox Cloud Data Residency And Recovery](ADR-20260801-sandbox-cloud-data-residency-and-recovery.md) - proposed; four-layer region tuple, Drive/Agents/Sandbox authority split, explicit cross-region replication, ordered restore, class-complete export/delete, tenant isolation and Secret exclusion.
+- [ADR-20260801: Sandbox Cross-Repository Version Compatibility And Release Set](ADR-20260801-sandbox-cross-repository-version-compatibility.md) - proposed; immutable BirdCoder/Agents/Kernel/Sandbox release set, canonical SDK/RPC/storage/artifact provenance, explicit compatibility matrix, preflight, drain, migration-aware rollback, downgrade denial and bounded support windows.
 
 Retired layout: `docs/adr/` must not be used for new ADRs.
 

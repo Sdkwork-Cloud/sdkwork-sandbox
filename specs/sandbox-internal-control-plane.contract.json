@@ -1,0 +1,261 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.sandbox.internal-control-plane-contract",
+  "status": "draft",
+  "requirementId": "REQ-2026-0023",
+  "decisionId": "ADR-20260731-sandbox-internal-control-plane",
+  "reviewId": "REVIEW-20260731-sandbox-internal-control-plane",
+  "implementationAuthorized": false,
+  "candidateNamesArePubliclyApproved": false,
+  "materialization": {
+    "rustPortAllowed": false,
+    "protoAllowed": false,
+    "rpcManifestAllowed": false,
+    "generatedSdkAllowed": false,
+    "serverOrClientAllowed": false,
+    "httpRouteAllowed": false,
+    "discoveryRegistrationAllowed": false,
+    "runtimeConfigAllowed": false,
+    "deploymentAllowed": false,
+    "kernelSourceChangeAllowed": false
+  },
+  "authority": {
+    "portCandidate": "SandboxControlPlanePort",
+    "portOwner": "sdkwork-sandbox-application-service",
+    "crossRepositoryConsumer": "sdkwork-kernel",
+    "birdcoderDirectAccessAllowed": false,
+    "agentsDirectAccessAllowed": false,
+    "providerPrivateOperationsExposed": false,
+    "repositoryAccessFromTransportAdapterAllowed": false,
+    "workspaceByteOwnership": "sdkwork-drive-or-approved-workspace-volume-owner"
+  },
+  "adapterParity": {
+    "standaloneAdapter": "in-process-port",
+    "cloudAdapterCandidate": "generated-internal-rpc-client",
+    "candidateTransport": "grpc-http2",
+    "sharedConformanceRequired": true,
+    "transportMayOwnDomainSemantics": false,
+    "httpInternalApiIsPrimaryServiceTransport": false,
+    "rawHttpFallbackAllowed": false,
+    "handwrittenGrpcStubAllowed": false,
+    "generatedClientRequiredBeforeCloudConsumption": true
+  },
+  "rpcCandidate": {
+    "level": "L3",
+    "surface": "internal",
+    "protoPackage": "sdkwork.intelligence.sandbox.internal.v1",
+    "service": "SandboxControlService",
+    "sdkFamily": "sdkwork-sandbox-rpc-sdk",
+    "privateServiceNetworkRequired": true,
+    "applicationPublicIngressAllowed": false,
+    "reflectionInProduction": "disabled-or-access-controlled",
+    "standardGrpcHealthRequired": true,
+    "protoAndRpcManifestAreFutureAuthority": true,
+    "breakingChangeCheckRequired": true
+  },
+  "candidateOperations": [
+    {
+      "method": "GetSandboxCapabilities",
+      "operationId": "sandbox.capabilities.retrieve",
+      "kind": "unary-read",
+      "idempotency": "read-only"
+    },
+    {
+      "method": "AcquireSandboxWorkspaceRuntime",
+      "operationId": "sandbox.workspaceRuntimes.acquire",
+      "kind": "unary-command-to-durable-operation",
+      "idempotency": "required"
+    },
+    {
+      "method": "GetSandboxOperation",
+      "operationId": "sandbox.operations.retrieve",
+      "kind": "unary-read",
+      "idempotency": "read-only"
+    },
+    {
+      "method": "ExecuteSandboxCommand",
+      "operationId": "sandbox.commands.execute",
+      "kind": "bounded-unary-or-durable-operation",
+      "idempotency": "required"
+    },
+    {
+      "method": "CancelSandboxCommand",
+      "operationId": "sandbox.commands.cancel",
+      "kind": "unary-command",
+      "idempotency": "required"
+    },
+    {
+      "method": "CreateSandboxCheckpoint",
+      "operationId": "sandbox.checkpoints.create",
+      "kind": "unary-command-to-durable-operation",
+      "idempotency": "required"
+    },
+    {
+      "method": "ReleaseSandboxWorkspaceRuntime",
+      "operationId": "sandbox.workspaceRuntimes.release",
+      "kind": "unary-command-to-durable-operation",
+      "idempotency": "required"
+    },
+    {
+      "method": "WatchSandboxOperationEvents",
+      "operationId": "sandbox.operationEvents.watch",
+      "kind": "server-stream",
+      "idempotency": "resume-cursor"
+    }
+  ],
+  "requestBoundary": {
+    "typedCallerContextRequired": true,
+    "typedRequestMetadataRequired": true,
+    "serviceIdentityRequired": true,
+    "tenantContextServerResolved": true,
+    "organizationContextTrusted": true,
+    "callerMetadataOverrideAllowed": false,
+    "requiredCorrelations": [
+      "sandbox_kernel_execution_placement_ref",
+      "sandbox_kernel_execution_placement_generation",
+      "sandbox_workspace_authorization_ref",
+      "sandbox_workspace_revision_ref",
+      "sandbox_operation_id",
+      "sandbox_idempotency_key",
+      "sandbox_request_fingerprint",
+      "sandbox_deadline"
+    ],
+    "forbiddenFields": [
+      "sandbox_provider_kind",
+      "sandbox_provider_id",
+      "sandbox_node_id",
+      "sandbox_pool_slot_id",
+      "sandbox_host_path",
+      "sandbox_device_path",
+      "sandbox_mount_path",
+      "sandbox_network_namespace",
+      "sandbox_cgroup_path",
+      "sandbox_lease_token",
+      "sandbox_fencing_token",
+      "sandbox_provider_allocation_ref",
+      "sandbox_credential_value",
+      "sandbox_secret_value"
+    ]
+  },
+  "placementSeparation": {
+    "kernelExecutionPlacementOwner": "sdkwork-kernel",
+    "sandboxCapacityPlacementOwner": "sdkwork-sandbox",
+    "recordIdentityShared": false,
+    "leaseOwnerShared": false,
+    "fencingGenerationShared": false,
+    "idempotencyScopeShared": false,
+    "reconcilerShared": false,
+    "kernelGenerationIsSandboxAuthority": false,
+    "currentAuthorityAtBothBoundariesRequired": true
+  },
+  "reliability": {
+    "durableOperationBeforeExternalSideEffectRequired": true,
+    "canonicalFingerprintRequired": true,
+    "sameKeySameFingerprintReplays": true,
+    "sameKeyDifferentFingerprintConflicts": true,
+    "ambiguousResultRequiresOperationLookup": true,
+    "blindMutationRetryAllowed": false,
+    "databaseTransactionHeldAcrossDependencyCallAllowed": false,
+    "clientDeadlineRequired": true,
+    "serverCancellationObserved": true,
+    "dependencyBudgetsMustBeSmallerThanRemainingDeadline": true,
+    "unknownOutcomeRequiresReconciliation": true,
+    "hedgedMutationAllowed": false
+  },
+  "streaming": {
+    "operationEventsOnly": true,
+    "interactiveTerminalAllowed": false,
+    "ptyAllowed": false,
+    "stdinAllowed": false,
+    "resizeAllowed": false,
+    "genericPayloadAllowed": false,
+    "sequenceRequired": true,
+    "resumeCursorRequired": true,
+    "boundedReplayRequired": true,
+    "authorizationRechecked": true,
+    "backpressureRequired": true,
+    "slowConsumerPolicyRequired": true
+  },
+  "security": {
+    "productionMutualTlsRequired": true,
+    "leastPrivilegePerOperationRequired": true,
+    "userTokenForwardingAsServiceIdentityAllowed": false,
+    "bodyValidatedBeforeSideEffects": true,
+    "rawInfrastructureDetailInErrorAllowed": false,
+    "secretOrWorkspaceContentInTelemetryAllowed": false,
+    "rawIdentityInMetricLabelsAllowed": false,
+    "credentialRotationAndRevocationEvidenceRequired": true
+  },
+  "safeErrorCategories": [
+    "validation",
+    "unauthenticated",
+    "unauthorized",
+    "unsupported_capability",
+    "policy_denied",
+    "quota_exhausted",
+    "capacity_unavailable",
+    "rate_limited",
+    "deadline",
+    "canceled",
+    "invalid_state",
+    "idempotency_conflict",
+    "lease_lost",
+    "fencing_conflict",
+    "provider_unavailable",
+    "storage_failure",
+    "dependency_degraded",
+    "unknown_outcome"
+  ],
+  "compatibility": {
+    "contractVersionRequired": true,
+    "capabilityVersionRequired": true,
+    "freshnessOrExpiryRequired": true,
+    "unsupportedVersionFailsClosed": true,
+    "silentProtocolDowngradeAllowed": false,
+    "weakerAssuranceFallbackAllowed": false,
+    "rollingSkewWindowRequiresApproval": true,
+    "upgradeDowngradeDrainAndRollbackEvidenceRequired": true
+  },
+  "deployment": {
+    "standaloneInProcessAllowed": true,
+    "standaloneLoopbackRequiresExplicitTrustBoundary": true,
+    "cloudDiscoveryRequired": true,
+    "staticCloudEndpointFallbackAllowed": false,
+    "readinessDependsOnRuntimeGateClosure": true,
+    "drainRequiredBeforeIncompatibleChange": true,
+    "boundedShutdownRequired": true
+  },
+  "deferredSeparateContracts": [
+    "sandbox-interactive-terminal-session",
+    "sandbox-runtime-secret-projection",
+    "sandbox-cloud-data-residency-and-recovery",
+    "sandbox-cross-repository-version-compatibility"
+  ],
+  "requiredRealEvidence": [
+    "sandbox_in_process_and_rpc_conformance",
+    "sandbox_multi_process_duplicate_delivery",
+    "sandbox_ambiguous_result_operation_lookup",
+    "sandbox_deadline_and_cancellation_reconciliation",
+    "sandbox_stale_kernel_generation_rejection",
+    "sandbox_restart_and_dependency_loss",
+    "sandbox_workload_identity_and_authorization_denial",
+    "sandbox_certificate_rotation_and_revocation",
+    "sandbox_discovery_loss_and_recovery",
+    "sandbox_version_skew_drain_and_rollback",
+    "sandbox_stream_backpressure_and_slow_consumer",
+    "sandbox_saturation_and_bounded_shutdown",
+    "sandbox_transport_adapter_dependency_boundary"
+  ],
+  "humanReview": {
+    "required": true,
+    "approvedOutcomeRequiredBeforeImplementation": true,
+    "reviewers": [
+      "sdkwork-sandbox-architecture-owner",
+      "sdkwork-kernel-architecture-runtime-owner",
+      "sdkwork-api-rpc-sdk-owner",
+      "sdkwork-security-privacy-owner",
+      "sdkwork-reliability-operations-owner",
+      "sdkwork-release-compatibility-owner"
+    ]
+  }
+}
