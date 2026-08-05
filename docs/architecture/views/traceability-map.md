@@ -33,9 +33,9 @@ flowchart LR
 | PRD 能力 | REQ | ADR | 实现 | 测试 | 评审证据 |
 | --- | --- | --- | --- | --- | --- |
 | Runtime Boundary | REQ-2026-0001 | ADR-20260728-runtime-boundary-and-rust-workspace | Workspace layout + Cargo.toml | Repository baseline audit | REVIEW-20260728-sandbox-foundation-verification |
-| Lifecycle Core | REQ-2026-0002 | ADR-20260728-sandbox-lifecycle-provider-spi-and-memory-store | service crate (24 tests) | cargo test + clippy | REVIEW-20260728-sandbox-lifecycle-core-verification |
+| Lifecycle Core | REQ-2026-0002 | ADR-20260728-sandbox-lifecycle-provider-spi-and-memory-store | service crate (33 tests) | cargo test + clippy | REVIEW-20260728-sandbox-lifecycle-core-verification |
 | Workspace Attachment | REQ-2026-0004 | ADR-20260728-agents-workspace-and-sandbox-attachment-ownership | SandboxWorkspaceId type | identity tests | REVIEW-20260728-sandbox-workspace-attachment-boundary-verification |
-| PostgreSQL Repository | REQ-2026-0005 | ADR-20260728-postgresql-sandbox-lifecycle-persistence-and-reconciliation | sqlx repository + migration | 6 unit tests + live PG evidence | REVIEW-20260728-sandbox-postgresql-persistence-verification |
+| PostgreSQL Repository | REQ-2026-0005 | ADR-20260728-postgresql-sandbox-lifecycle-persistence-and-reconciliation | sqlx repository + migration | 9 unit tests + live PG evidence | REVIEW-20260728-sandbox-postgresql-persistence-verification |
 | Key Rotation | REQ-2026-0006 | ADR-20260728-sandbox-provider-allocation-key-rotation-and-reencryption | reencryption module + runbook | unit tests + live PG evidence | REVIEW-20260729-sandbox-provider-allocation-key-rotation-verification |
 
 ## 待人工评审 (Pending Human Review)

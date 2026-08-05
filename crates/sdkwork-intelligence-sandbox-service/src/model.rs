@@ -391,6 +391,150 @@ impl SandboxSession {
 mod tests {
     use super::*;
 
+    fn sandbox_session_in_state(sandbox_session_state: SandboxSessionState) -> SandboxSession {
+        SandboxSession::restore(
+            TenantId::parse("tenant-test")
+                .unwrap_or_else(|error| panic!("invalid test tenant id: {error}")),
+            SandboxWorkspaceId::parse("workspace-test")
+                .unwrap_or_else(|error| panic!("invalid test workspace id: {error}")),
+            SandboxSessionId::parse("session-test")
+                .unwrap_or_else(|error| panic!("invalid test session id: {error}")),
+            sandbox_session_state,
+            BTreeSet::new(),
+            IsolationAssurance::HostUser,
+            None,
+            None,
+            vec![SandboxSessionOperation::restore(
+                OperationId::generate(),
+                SandboxSessionOperationKind::Create,
+                SandboxOperationOutcome::Succeeded,
+            )],
+            0,
+        )
+    }
+
+    #[test]
+    fn sandbox_session_state_transition_matrix_matches_the_documented_state_machine() {
+        let sandbox_valid_transitions = [
+            (SandboxSessionState::Created, SandboxSessionState::Starting),
+            (
+                SandboxSessionState::Created,
+                SandboxSessionState::Destroying,
+            ),
+            (SandboxSessionState::Starting, SandboxSessionState::Running),
+            (SandboxSessionState::Starting, SandboxSessionState::Failed),
+            (SandboxSessionState::Running, SandboxSessionState::Stopping),
+            (SandboxSessionState::Stopping, SandboxSessionState::Stopped),
+            (SandboxSessionState::Stopping, SandboxSessionState::Failed),
+            (SandboxSessionState::Stopped, SandboxSessionState::Starting),
+            (
+                SandboxSessionState::Stopped,
+                SandboxSessionState::Destroying,
+            ),
+            (SandboxSessionState::Failed, SandboxSessionState::Starting),
+            (SandboxSessionState::Failed, SandboxSessionState::Destroying),
+            (
+                SandboxSessionState::Destroying,
+                SandboxSessionState::Destroyed,
+            ),
+            (SandboxSessionState::Destroying, SandboxSessionState::Failed),
+        ];
+        let sandbox_all_states = [
+            SandboxSessionState::Created,
+            SandboxSessionState::Starting,
+            SandboxSessionState::Running,
+            SandboxSessionState::Stopping,
+            SandboxSessionState::Stopped,
+            SandboxSessionState::Failed,
+            SandboxSessionState::Destroying,
+            SandboxSessionState::Destroyed,
+        ];
+        for sandbox_from_state in sandbox_all_states {
+            for sandbox_to_state in sandbox_all_states {
+                let mut sandbox_session = sandbox_session_in_state(sandbox_from_state);
+                let sandbox_result = sandbox_session.transition_sandbox_session(
+                    sandbox_to_state,
+                    SandboxSessionOperationKind::Start,
+                );
+                if sandbox_valid_transitions.contains(&(sandbox_from_state, sandbox_to_state)) {
+                    assert!(
+                        sandbox_result.is_ok(),
+                        "transition {sandbox_from_state:?} -> {sandbox_to_state:?} must be valid"
+                    );
+                    assert_eq!(sandbox_session.sandbox_session_state(), sandbox_to_state);
+                } else {
+                    assert!(
+                        matches!(
+                            sandbox_result,
+                            Err(SandboxLifecycleError::InvalidTransition { .. })
+                        ),
+                        "transition {sandbox_from_state:?} -> {sandbox_to_state:?} must be rejected"
+                    );
+                    assert_eq!(sandbox_session.sandbox_session_state(), sandbox_from_state);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn sandbox_session_transition_away_from_failed_clears_last_failure() {
+        let mut sandbox_session = sandbox_session_in_state(SandboxSessionState::Starting);
+        sandbox_session
+            .fail_sandbox_operation(&OperationId::generate(), SandboxSessionFailure::Readiness);
+        sandbox_session
+            .transition_sandbox_session(
+                SandboxSessionState::Failed,
+                SandboxSessionOperationKind::Start,
+            )
+            .unwrap_or_else(|error| panic!("valid transition to failed: {error}"));
+        assert_eq!(
+            sandbox_session.sandbox_last_failure(),
+            Some(SandboxSessionFailure::Readiness)
+        );
+
+        sandbox_session
+            .transition_sandbox_session(
+                SandboxSessionState::Starting,
+                SandboxSessionOperationKind::Start,
+            )
+            .unwrap_or_else(|error| panic!("valid transition away from failed: {error}"));
+        assert_eq!(sandbox_session.sandbox_last_failure(), None);
+    }
+
+    #[test]
+    fn sandbox_session_replay_distinguishes_matching_conflicting_and_missing_operations() {
+        let mut sandbox_session = sandbox_session_in_state(SandboxSessionState::Created);
+        let sandbox_start_operation_id = OperationId::generate();
+        sandbox_session.begin_sandbox_operation(
+            sandbox_start_operation_id.clone(),
+            SandboxSessionOperationKind::Start,
+        );
+
+        assert!(matches!(
+            sandbox_session.replay_sandbox_operation(
+                &sandbox_start_operation_id,
+                SandboxSessionOperationKind::Start,
+            ),
+            Ok(Some(SandboxOperationOutcome::InProgress))
+        ));
+        assert!(matches!(
+            sandbox_session.replay_sandbox_operation(
+                &OperationId::generate(),
+                SandboxSessionOperationKind::Start,
+            ),
+            Ok(None)
+        ));
+        assert!(matches!(
+            sandbox_session.replay_sandbox_operation(
+                &sandbox_start_operation_id,
+                SandboxSessionOperationKind::Destroy,
+            ),
+            Err(SandboxLifecycleError::IdempotencyConflict {
+                sandbox_operation_id: conflict_operation_id,
+            }) if conflict_operation_id == sandbox_start_operation_id
+        ));
+    }
+
     #[test]
     fn sandbox_session_version_fails_closed_at_the_persistence_maximum() {
         let mut sandbox_session = SandboxSession::restore(

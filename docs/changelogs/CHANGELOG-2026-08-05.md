@@ -46,6 +46,28 @@ Phase: V1 lifecycle core after accepted Phase 0 foundation
 
 - `repository-memory` 新增 `sandbox_session_insert_conflicts_are_scoped_by_tenant`：同租户重复 insert 返回 `VersionConflict`、同 session id 跨租户隔离、各租户保留独立投影
 - `repository.rs`（service crate）新增 `sandbox_protected_allocation_reference_enforces_storage_bounds`（密文 8192/Key ID 字符集/版本范围边界）与 `sandbox_session_lease_rejects_non_positive_expiry`（非正过期时间拒绝）
+- `model.rs` 新增状态机全矩阵测试（8×8=64 组合逐一断言合法/非法转换）、`transition` 离开 Failed 清除 `sandbox_last_failure`、`replay_sandbox_operation` 匹配/冲突/缺失三种语义
+- `service/tests.rs` 新增 `sandbox_stop_provider_failure_records_failed_operation_and_keeps_binding` 与 `sandbox_destroy_provider_failure_records_cleanup_failure_and_keeps_binding`（Provider 失败 → `Failed` 状态、Operation 失败类型正确、Allocation Binding 保留以便重试清理；FakeSandboxProvider 新增 stop 失败注入）
+- `provider-spi/identity.rs` 新增 `sandbox_fencing_token_rejects_zero_and_signed_maximum_overflow`（0 与 >i64::MAX 拒绝、上界接受）
+- `repository.rs`（sqlx crate）新增 3 个 SQLSTATE 错误映射测试：23505 按 constraint 分类（`pk_sandbox_session_operation`→`DuplicateOperation`、`uk_sandbox_session_operation_sequence`→`InvalidStoredData`、其余→`VersionConflict`）、23502/23503/23514→`InvalidStoredData`、40001/40P01/55P03/57014 及未知码→`Unavailable`、连接类错误→`Unavailable`（该分类逻辑此前零覆盖）
+
+### 构建与供应链验证
+
+- `cargo build --release --workspace`：PASS（生产优化模式）
+- `cargo check --workspace --locked`：PASS（CI 锁文件模式）
+- `cargo fmt --all -- --check` 作用域包含 path dependency（`sdkwork-database`）；其 `crates/sdkwork-database-spi/src/layout.rs` 存在 rustfmt 格式偏差（该仓库近期修改引入），已按标准 rustfmt 修复该文件
+- `cargo audit`：本机可用但无法访问 RustSec advisory 数据库（网络受限），供应链漏洞审计需在可访问网络的 CI 环境执行，记录为验证缺口
+
+### 测试补强（续）
+
+- `service/tests.rs` 新增 `sandbox_lifecycle_service_rejects_invalid_operation_policy_and_duplicate_providers`：lease duration 越界（0ms/301s）、provider timeout 为零或超过 lease 一半、重复 provider id 均在构造时以 `InvariantViolation`/`DuplicateProvider` 失败关闭
+- `codec.rs`（sqlx crate）新增 4 个编解码往返测试：8 个 Session 状态、4 个 Operation Kind、5 个 Outcome（含失败原因）、Failure 与 IsolationAssurance 全枚举往返 + 未知值/失败原因与 outcome 不匹配拒绝
+
+### 文档同步（续）
+
+- `README.md` REQ-2026-0020 描述精确化：正式保留/迁移策略仍被阻塞，此前仓储读取由 `MAX_SANDBOX_SESSION_OPERATIONS` 安全界约束（超限失败关闭）
+- `traceability-map.md` 测试数字同步（service 24→33、sqlx 6→9）
+- `component-interaction-flows.md` 测试数字同步（Repository trait 22→33、reconciler 3→7）
 
 ### 一致性复核（无变更项）
 
@@ -57,7 +79,7 @@ Phase: V1 lifecycle core after accepted Phase 0 foundation
 
 - cargo fmt --all -- --check: PASS
 - cargo check --workspace: PASS
-- cargo test --workspace: PASS (49 单元/集成测试，1 ignored；契约测试 242 全部通过)
+- cargo test --workspace: PASS (63 单元/集成测试，1 ignored；契约测试 242 全部通过)
 - cargo clippy --workspace --all-targets -- -D warnings: PASS
 - node --test tests/contract/*.test.mjs: PASS (242)
 - check-repository-docs-standard: PASS
@@ -81,6 +103,8 @@ Phase: V1 lifecycle core after accepted Phase 0 foundation
 - Modified: `crates/sdkwork-intelligence-sandbox-service/src/tests.rs`（回归测试与测试钩子）
 - Modified: `crates/sdkwork-intelligence-sandbox-repository-memory/src/lib.rs`（租户隔离 insert 冲突测试）
 - Modified: `crates/sdkwork-intelligence-sandbox-service/src/repository.rs`（受保护引用/租约边界测试）
+- Modified: `crates/sdkwork-intelligence-sandbox-repository-sqlx/src/repository.rs`（SQLSTATE 错误映射测试）
+- Modified: `../sdkwork-database/crates/sdkwork-database-spi/src/layout.rs`（rustfmt 格式偏差修复，跨仓库 fmt 作用域）
 - Modified: `docs/architecture/views/gate-zero-current-state.md`（测试数字同步）
 - Modified: `docs/architecture/tech/TECH-security-and-operations.md`（有界历史描述同步）
 - Modified: `docs/architecture/tech/TECH-modules-and-contracts.md`（有界历史描述同步）

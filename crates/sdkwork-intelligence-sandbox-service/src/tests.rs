@@ -604,6 +604,7 @@ struct FakeSandboxProvider {
         Mutex<VecDeque<Result<SandboxProviderReadiness, SandboxProviderErrorKind>>>,
     sandbox_start_delay: Option<Duration>,
     fail_sandbox_destroy_call: Option<usize>,
+    fail_sandbox_stop_call: Option<usize>,
     sandbox_health_calls: AtomicUsize,
     sandbox_allocate_calls: AtomicUsize,
     sandbox_start_calls: AtomicUsize,
@@ -651,6 +652,7 @@ impl FakeSandboxProvider {
             sandbox_provider_readiness: Mutex::new(sandbox_provider_readiness),
             sandbox_start_delay: None,
             fail_sandbox_destroy_call,
+            fail_sandbox_stop_call: None,
             sandbox_health_calls: AtomicUsize::new(0),
             sandbox_allocate_calls: AtomicUsize::new(0),
             sandbox_start_calls: AtomicUsize::new(0),
@@ -667,6 +669,11 @@ impl FakeSandboxProvider {
 
     fn with_sandbox_start_delay(mut self, sandbox_start_delay: Duration) -> Self {
         self.sandbox_start_delay = Some(sandbox_start_delay);
+        self
+    }
+
+    fn fail_sandbox_stop_call(mut self, sandbox_stop_call: usize) -> Self {
+        self.fail_sandbox_stop_call = Some(sandbox_stop_call);
         self
     }
 
@@ -809,8 +816,15 @@ impl SandboxProvider for FakeSandboxProvider {
             &self.sandbox_stop_fencing_tokens,
             sandbox_request.sandbox_fencing_token,
         );
-        self.sandbox_stop_calls.fetch_add(1, Ordering::SeqCst);
-        Ok(())
+        let sandbox_stop_call = self.sandbox_stop_calls.fetch_add(1, Ordering::SeqCst) + 1;
+        if self.fail_sandbox_stop_call == Some(sandbox_stop_call) {
+            Err(self.sandbox_provider_error(
+                SandboxProviderOperation::Stop,
+                SandboxProviderErrorKind::Conflict,
+            ))
+        } else {
+            Ok(())
+        }
     }
 
     async fn destroy(
@@ -1270,6 +1284,141 @@ async fn sandbox_lifecycle_commands_are_idempotent_without_duplicate_provider_ef
     );
     assert_eq!(sandbox_destroy_fencing_tokens.len(), 1);
     assert!(sandbox_destroy_fencing_tokens[0] > sandbox_stop_fencing_tokens[0]);
+}
+
+#[tokio::test]
+async fn sandbox_stop_provider_failure_records_failed_operation_and_keeps_binding() {
+    let sandbox_provider = Arc::new(
+        FakeSandboxProvider::ready(
+            [RuntimeCapability::Filesystem],
+            IsolationAssurance::HostUser,
+        )
+        .fail_sandbox_stop_call(1),
+    );
+    let sandbox_lifecycle_service = sandbox_lifecycle_service_with(Arc::clone(&sandbox_provider));
+    let sandbox_session = create_sandbox_session(
+        &sandbox_lifecycle_service,
+        [RuntimeCapability::Filesystem],
+        IsolationAssurance::HostUser,
+    )
+    .await;
+    let running_sandbox_session = sandbox_lifecycle_service
+        .start_sandbox_session(sandbox_session_lifecycle_command(&sandbox_session))
+        .await
+        .unwrap_or_else(|error| panic!("sandbox session start failed: {error}"));
+
+    let sandbox_stop_command = sandbox_session_lifecycle_command(&running_sandbox_session);
+    let sandbox_operation_id = sandbox_stop_command.sandbox_operation_id.clone();
+    let failed_sandbox_session = sandbox_lifecycle_service
+        .stop_sandbox_session(sandbox_stop_command)
+        .await;
+    assert!(matches!(
+        failed_sandbox_session,
+        Err(SandboxLifecycleError::Provider(_))
+    ));
+    let failed_sandbox_session = sandbox_lifecycle_service
+        .get_sandbox_session(
+            running_sandbox_session.tenant_id(),
+            running_sandbox_session.sandbox_session_id(),
+        )
+        .await
+        .unwrap_or_else(|error| panic!("failed sandbox session read: {error}"));
+    assert_eq!(
+        failed_sandbox_session.sandbox_session_state(),
+        SandboxSessionState::Failed
+    );
+    assert_eq!(
+        failed_sandbox_session.sandbox_last_failure(),
+        Some(SandboxSessionFailure::Provider)
+    );
+    assert!(failed_sandbox_session
+        .sandbox_operations()
+        .iter()
+        .any(|sandbox_operation| sandbox_operation.sandbox_operation_id()
+            == &sandbox_operation_id
+            && sandbox_operation.sandbox_operation_outcome()
+                == SandboxOperationOutcome::Failed(SandboxSessionFailure::Provider)));
+    // The provider allocation still exists, so the runtime binding with its
+    // allocation reference is retained for a later destroy cleanup.
+    assert!(failed_sandbox_session
+        .sandbox_runtime_binding()
+        .is_some_and(|sandbox_runtime_binding| sandbox_runtime_binding
+            .sandbox_allocation_reference()
+            .is_some()));
+    assert_eq!(
+        sandbox_provider.sandbox_stop_calls.load(Ordering::SeqCst),
+        1
+    );
+}
+
+#[tokio::test]
+async fn sandbox_destroy_provider_failure_records_cleanup_failure_and_keeps_binding() {
+    let sandbox_provider = Arc::new(FakeSandboxProvider::with_behavior(
+        SandboxProviderHealthStatus::Ready,
+        [RuntimeCapability::Filesystem],
+        IsolationAssurance::HostUser,
+        VecDeque::new(),
+        Some(1),
+    ));
+    let sandbox_lifecycle_service = sandbox_lifecycle_service_with(Arc::clone(&sandbox_provider));
+    let sandbox_session = create_sandbox_session(
+        &sandbox_lifecycle_service,
+        [RuntimeCapability::Filesystem],
+        IsolationAssurance::HostUser,
+    )
+    .await;
+    let running_sandbox_session = sandbox_lifecycle_service
+        .start_sandbox_session(sandbox_session_lifecycle_command(&sandbox_session))
+        .await
+        .unwrap_or_else(|error| panic!("sandbox session start failed: {error}"));
+    let stopped_sandbox_session = sandbox_lifecycle_service
+        .stop_sandbox_session(sandbox_session_lifecycle_command(&running_sandbox_session))
+        .await
+        .unwrap_or_else(|error| panic!("sandbox session stop failed: {error}"));
+
+    let sandbox_destroy_command = sandbox_session_lifecycle_command(&stopped_sandbox_session);
+    let sandbox_operation_id = sandbox_destroy_command.sandbox_operation_id.clone();
+    let failed_destroy_result = sandbox_lifecycle_service
+        .destroy_sandbox_session(sandbox_destroy_command)
+        .await;
+    assert!(matches!(
+        failed_destroy_result,
+        Err(SandboxLifecycleError::Provider(_))
+    ));
+    let failed_sandbox_session = sandbox_lifecycle_service
+        .get_sandbox_session(
+            stopped_sandbox_session.tenant_id(),
+            stopped_sandbox_session.sandbox_session_id(),
+        )
+        .await
+        .unwrap_or_else(|error| panic!("failed sandbox session read: {error}"));
+    assert_eq!(
+        failed_sandbox_session.sandbox_session_state(),
+        SandboxSessionState::Failed
+    );
+    assert_eq!(
+        failed_sandbox_session.sandbox_last_failure(),
+        Some(SandboxSessionFailure::Cleanup)
+    );
+    assert!(failed_sandbox_session
+        .sandbox_operations()
+        .iter()
+        .any(|sandbox_operation| sandbox_operation.sandbox_operation_id()
+            == &sandbox_operation_id
+            && sandbox_operation.sandbox_operation_outcome()
+                == SandboxOperationOutcome::Failed(SandboxSessionFailure::Cleanup)));
+    // Cleanup failed, so the allocation is retained for a retried destroy.
+    assert!(failed_sandbox_session
+        .sandbox_runtime_binding()
+        .is_some_and(|sandbox_runtime_binding| sandbox_runtime_binding
+            .sandbox_allocation_reference()
+            .is_some()));
+    assert_eq!(
+        sandbox_provider
+            .sandbox_destroy_calls
+            .load(Ordering::SeqCst),
+        1
+    );
 }
 
 #[tokio::test]
@@ -2246,6 +2395,54 @@ async fn sandbox_provider_timeout_is_bounded_and_persisted_as_a_typed_failure() 
             &sandbox_provider.sandbox_destroy_fencing_tokens
         )
     );
+}
+
+#[test]
+fn sandbox_lifecycle_service_rejects_invalid_operation_policy_and_duplicate_providers() {
+    let sandbox_session_repository = Arc::new(TestSandboxSessionRepository::default());
+    let sandbox_provider = Arc::new(FakeSandboxProvider::ready(
+        [RuntimeCapability::Filesystem],
+        IsolationAssurance::HostUser,
+    ));
+    let sandbox_lease_owner_id = SandboxLeaseOwnerId::generate();
+
+    for sandbox_invalid_lease_duration in [Duration::from_millis(0), Duration::from_secs(301)] {
+        assert!(matches!(
+            SandboxLifecycleService::new_with_sandbox_operation_policy(
+                Arc::clone(&sandbox_session_repository) as Arc<dyn SandboxSessionRepository>,
+                vec![Arc::clone(&sandbox_provider) as Arc<dyn SandboxProvider>],
+                sandbox_lease_owner_id.clone(),
+                sandbox_invalid_lease_duration,
+                Duration::from_secs(30),
+            ),
+            Err(SandboxLifecycleError::InvariantViolation(_))
+        ));
+    }
+    for sandbox_invalid_provider_timeout in [Duration::from_millis(0), Duration::from_secs(31)] {
+        assert!(matches!(
+            SandboxLifecycleService::new_with_sandbox_operation_policy(
+                Arc::clone(&sandbox_session_repository) as Arc<dyn SandboxSessionRepository>,
+                vec![Arc::clone(&sandbox_provider) as Arc<dyn SandboxProvider>],
+                sandbox_lease_owner_id.clone(),
+                Duration::from_secs(60),
+                sandbox_invalid_provider_timeout,
+            ),
+            Err(SandboxLifecycleError::InvariantViolation(_))
+        ));
+    }
+    assert!(matches!(
+        SandboxLifecycleService::new_with_sandbox_operation_policy(
+            Arc::clone(&sandbox_session_repository) as Arc<dyn SandboxSessionRepository>,
+            vec![
+                Arc::clone(&sandbox_provider) as Arc<dyn SandboxProvider>,
+                Arc::clone(&sandbox_provider) as Arc<dyn SandboxProvider>,
+            ],
+            sandbox_lease_owner_id,
+            Duration::from_secs(60),
+            Duration::from_secs(30),
+        ),
+        Err(SandboxLifecycleError::DuplicateProvider { .. })
+    ));
 }
 
 #[test]

@@ -1079,3 +1079,155 @@ impl SandboxSessionRepository for SqlxSandboxSessionRepository {
         Ok(sandbox_sessions)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::borrow::Cow;
+    use std::error::Error as StdError;
+    use std::fmt;
+
+    use sqlx::error::{DatabaseError, ErrorKind};
+
+    use super::SqlxSandboxSessionRepository;
+    use crate::repository::SandboxSessionRepositoryError;
+
+    struct TestSandboxDatabaseError {
+        sandbox_sqlstate_code: Option<String>,
+        sandbox_constraint_name: Option<String>,
+    }
+
+    impl TestSandboxDatabaseError {
+        fn with_code(sandbox_sqlstate_code: &str) -> Self {
+            Self {
+                sandbox_sqlstate_code: Some(sandbox_sqlstate_code.to_owned()),
+                sandbox_constraint_name: None,
+            }
+        }
+
+        fn with_constraint(sandbox_sqlstate_code: &str, sandbox_constraint_name: &str) -> Self {
+            Self {
+                sandbox_sqlstate_code: Some(sandbox_sqlstate_code.to_owned()),
+                sandbox_constraint_name: Some(sandbox_constraint_name.to_owned()),
+            }
+        }
+    }
+
+    impl fmt::Debug for TestSandboxDatabaseError {
+        fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+            formatter.write_str("TestSandboxDatabaseError")
+        }
+    }
+
+    impl fmt::Display for TestSandboxDatabaseError {
+        fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+            formatter.write_str("test sandbox database error")
+        }
+    }
+
+    impl StdError for TestSandboxDatabaseError {}
+
+    impl DatabaseError for TestSandboxDatabaseError {
+        fn message(&self) -> &str {
+            "test sandbox database error"
+        }
+
+        fn code(&self) -> Option<Cow<'_, str>> {
+            self.sandbox_sqlstate_code.as_deref().map(Cow::Borrowed)
+        }
+
+        fn constraint(&self) -> Option<&str> {
+            self.sandbox_constraint_name.as_deref()
+        }
+
+        fn kind(&self) -> ErrorKind {
+            ErrorKind::Other
+        }
+
+        fn as_error(&self) -> &(dyn StdError + Send + Sync + 'static) {
+            self
+        }
+
+        fn as_error_mut(&mut self) -> &mut (dyn StdError + Send + Sync + 'static) {
+            self
+        }
+
+        fn into_error(self: Box<Self>) -> Box<dyn StdError + Send + Sync + 'static> {
+            self
+        }
+    }
+
+    fn sandbox_database_error(sandbox_database_error: TestSandboxDatabaseError) -> sqlx::Error {
+        sqlx::Error::Database(Box::new(sandbox_database_error))
+    }
+
+    #[test]
+    fn sandbox_sqlx_error_mapping_classifies_unique_violations_by_constraint() {
+        assert_eq!(
+            SqlxSandboxSessionRepository::map_sandbox_sqlx_error(sandbox_database_error(
+                TestSandboxDatabaseError::with_constraint("23505", "pk_sandbox_session_operation"),
+            )),
+            SandboxSessionRepositoryError::DuplicateOperation
+        );
+        assert_eq!(
+            SqlxSandboxSessionRepository::map_sandbox_sqlx_error(sandbox_database_error(
+                TestSandboxDatabaseError::with_constraint(
+                    "23505",
+                    "uk_sandbox_session_operation_sequence",
+                ),
+            )),
+            SandboxSessionRepositoryError::InvalidStoredData
+        );
+        assert_eq!(
+            SqlxSandboxSessionRepository::map_sandbox_sqlx_error(sandbox_database_error(
+                TestSandboxDatabaseError::with_constraint("23505", "pk_sandbox_session"),
+            )),
+            SandboxSessionRepositoryError::VersionConflict
+        );
+        assert_eq!(
+            SqlxSandboxSessionRepository::map_sandbox_sqlx_error(sandbox_database_error(
+                TestSandboxDatabaseError::with_code("23505"),
+            )),
+            SandboxSessionRepositoryError::VersionConflict
+        );
+    }
+
+    #[test]
+    fn sandbox_sqlx_error_mapping_classifies_integrity_and_transient_codes() {
+        for sandbox_integrity_code in ["23502", "23503", "23514"] {
+            assert_eq!(
+                SqlxSandboxSessionRepository::map_sandbox_sqlx_error(sandbox_database_error(
+                    TestSandboxDatabaseError::with_code(sandbox_integrity_code),
+                )),
+                SandboxSessionRepositoryError::InvalidStoredData
+            );
+        }
+        for sandbox_transient_code in ["40001", "40P01", "55P03", "57014"] {
+            assert_eq!(
+                SqlxSandboxSessionRepository::map_sandbox_sqlx_error(sandbox_database_error(
+                    TestSandboxDatabaseError::with_code(sandbox_transient_code),
+                )),
+                SandboxSessionRepositoryError::Unavailable
+            );
+        }
+        assert_eq!(
+            SqlxSandboxSessionRepository::map_sandbox_sqlx_error(sandbox_database_error(
+                TestSandboxDatabaseError::with_code("42P01"),
+            )),
+            SandboxSessionRepositoryError::Unavailable
+        );
+    }
+
+    #[test]
+    fn sandbox_sqlx_error_mapping_maps_connection_failures_to_unavailable() {
+        assert_eq!(
+            SqlxSandboxSessionRepository::map_sandbox_sqlx_error(sqlx::Error::Io(
+                std::io::Error::new(std::io::ErrorKind::ConnectionRefused, "connection refused"),
+            )),
+            SandboxSessionRepositoryError::Unavailable
+        );
+        assert_eq!(
+            SqlxSandboxSessionRepository::map_sandbox_sqlx_error(sqlx::Error::PoolTimedOut),
+            SandboxSessionRepositoryError::Unavailable
+        );
+    }
+}

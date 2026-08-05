@@ -143,7 +143,9 @@ impl Drop for SandboxProviderAllocationRef {
 
 #[cfg(test)]
 mod tests {
-    use super::{SandboxProviderAllocationRef, TenantId};
+    use super::{
+        SandboxFencingToken, SandboxIdentifierError, SandboxProviderAllocationRef, TenantId,
+    };
 
     #[test]
     fn rejects_path_like_tenant_identifiers() {
@@ -163,5 +165,21 @@ mod tests {
             "Ok(SandboxProviderAllocationRef([REDACTED]))"
         );
         assert!(!sandbox_debug_output.contains("private-host-path"));
+    }
+
+    #[test]
+    fn sandbox_fencing_token_rejects_zero_and_signed_maximum_overflow() {
+        assert!(matches!(
+            SandboxFencingToken::new(0),
+            Err(SandboxIdentifierError::InvalidFencingToken)
+        ));
+        assert!(matches!(
+            SandboxFencingToken::new(i64::MAX as u64 + 1),
+            Err(SandboxIdentifierError::InvalidFencingToken)
+        ));
+        let sandbox_maximum_token = SandboxFencingToken::new(i64::MAX as u64)
+            .unwrap_or_else(|error| panic!("signed maximum fencing token must be valid: {error}"));
+        assert_eq!(sandbox_maximum_token.value(), i64::MAX as u64);
+        assert_eq!(sandbox_maximum_token.to_string(), i64::MAX.to_string());
     }
 }

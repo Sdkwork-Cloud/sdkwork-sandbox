@@ -200,11 +200,21 @@ pub(crate) fn parse_sandbox_operation_outcome(
 mod tests {
     use std::collections::BTreeSet;
 
-    use sdkwork_intelligence_sandbox_service::SandboxSessionRepositoryError;
+    use sdkwork_intelligence_sandbox_service::{
+        SandboxOperationOutcome, SandboxSessionFailure, SandboxSessionOperationKind,
+        SandboxSessionRepositoryError, SandboxSessionState,
+    };
     use sdkwork_sandbox_provider_spi::RuntimeCapability;
     use serde_json::json;
 
-    use super::{parse_sandbox_runtime_capabilities, sandbox_runtime_capabilities_value};
+    use super::{
+        parse_sandbox_isolation_assurance, parse_sandbox_operation_kind,
+        parse_sandbox_operation_outcome, parse_sandbox_runtime_capabilities,
+        parse_sandbox_session_failure, parse_sandbox_session_state,
+        sandbox_isolation_assurance_value, sandbox_operation_kind_value,
+        sandbox_operation_outcome_values, sandbox_runtime_capabilities_value,
+        sandbox_session_failure_value, sandbox_session_state_value,
+    };
 
     #[test]
     fn sandbox_capability_codec_is_canonical_and_rejects_duplicates() {
@@ -217,6 +227,122 @@ mod tests {
         );
         assert_eq!(
             parse_sandbox_runtime_capabilities(json!(["filesystem", "filesystem"])),
+            Err(SandboxSessionRepositoryError::InvalidStoredData)
+        );
+    }
+
+    #[test]
+    fn sandbox_state_codec_round_trips_every_state_and_rejects_unknown_values() {
+        for sandbox_session_state in [
+            SandboxSessionState::Created,
+            SandboxSessionState::Starting,
+            SandboxSessionState::Running,
+            SandboxSessionState::Stopping,
+            SandboxSessionState::Stopped,
+            SandboxSessionState::Failed,
+            SandboxSessionState::Destroying,
+            SandboxSessionState::Destroyed,
+        ] {
+            assert_eq!(
+                parse_sandbox_session_state(sandbox_session_state_value(sandbox_session_state)),
+                Ok(sandbox_session_state)
+            );
+        }
+        assert_eq!(
+            parse_sandbox_session_state("unknown"),
+            Err(SandboxSessionRepositoryError::InvalidStoredData)
+        );
+    }
+
+    #[test]
+    fn sandbox_operation_kind_codec_round_trips_every_kind_and_rejects_unknown_values() {
+        for sandbox_operation_kind in [
+            SandboxSessionOperationKind::Create,
+            SandboxSessionOperationKind::Start,
+            SandboxSessionOperationKind::Stop,
+            SandboxSessionOperationKind::Destroy,
+        ] {
+            assert_eq!(
+                parse_sandbox_operation_kind(sandbox_operation_kind_value(sandbox_operation_kind)),
+                Ok(sandbox_operation_kind)
+            );
+        }
+        assert_eq!(
+            parse_sandbox_operation_kind("unknown"),
+            Err(SandboxSessionRepositoryError::InvalidStoredData)
+        );
+    }
+
+    #[test]
+    fn sandbox_operation_outcome_codec_round_trips_every_outcome_and_rejects_mismatches() {
+        for sandbox_operation_outcome in [
+            SandboxOperationOutcome::InProgress,
+            SandboxOperationOutcome::Succeeded,
+            SandboxOperationOutcome::Failed(SandboxSessionFailure::Provider),
+            SandboxOperationOutcome::Failed(SandboxSessionFailure::Readiness),
+            SandboxOperationOutcome::Failed(SandboxSessionFailure::Cleanup),
+        ] {
+            let (sandbox_operation_outcome_value, sandbox_session_failure_value) =
+                sandbox_operation_outcome_values(sandbox_operation_outcome);
+            assert_eq!(
+                parse_sandbox_operation_outcome(
+                    sandbox_operation_outcome_value,
+                    sandbox_session_failure_value,
+                ),
+                Ok(sandbox_operation_outcome)
+            );
+        }
+        // A failed outcome without a failure reason is rejected.
+        assert_eq!(
+            parse_sandbox_operation_outcome("failed", None),
+            Err(SandboxSessionRepositoryError::InvalidStoredData)
+        );
+        // A non-failed outcome carrying a failure reason is rejected.
+        assert_eq!(
+            parse_sandbox_operation_outcome(
+                "succeeded",
+                Some(sandbox_session_failure_value(
+                    SandboxSessionFailure::Provider
+                )),
+            ),
+            Err(SandboxSessionRepositoryError::InvalidStoredData)
+        );
+    }
+
+    #[test]
+    fn sandbox_session_failure_and_isolation_assurance_codecs_reject_unknown_values() {
+        for sandbox_session_failure in [
+            SandboxSessionFailure::Provider,
+            SandboxSessionFailure::Readiness,
+            SandboxSessionFailure::Cleanup,
+        ] {
+            assert_eq!(
+                parse_sandbox_session_failure(sandbox_session_failure_value(
+                    sandbox_session_failure
+                )),
+                Ok(sandbox_session_failure)
+            );
+        }
+        assert_eq!(
+            parse_sandbox_session_failure("unknown"),
+            Err(SandboxSessionRepositoryError::InvalidStoredData)
+        );
+        for sandbox_isolation_assurance in [
+            sdkwork_sandbox_provider_spi::IsolationAssurance::HostUser,
+            sdkwork_sandbox_provider_spi::IsolationAssurance::Container,
+            sdkwork_sandbox_provider_spi::IsolationAssurance::UserSpaceKernel,
+            sdkwork_sandbox_provider_spi::IsolationAssurance::MicroVm,
+            sdkwork_sandbox_provider_spi::IsolationAssurance::DedicatedVm,
+        ] {
+            assert_eq!(
+                parse_sandbox_isolation_assurance(sandbox_isolation_assurance_value(
+                    sandbox_isolation_assurance
+                )),
+                Ok(sandbox_isolation_assurance)
+            );
+        }
+        assert_eq!(
+            parse_sandbox_isolation_assurance("unknown"),
             Err(SandboxSessionRepositoryError::InvalidStoredData)
         );
     }

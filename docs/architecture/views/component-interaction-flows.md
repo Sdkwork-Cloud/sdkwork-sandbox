@@ -161,8 +161,8 @@ flowchart TB
 | 调用方 | 被调用方 | 契约 | 验证方式 |
 | --- | --- | --- | --- |
 | Kernel | Lifecycle Service | SandboxSession API | Integration test |
-| Lifecycle Service | Repository | SandboxSessionRepository trait | 22 unit tests |
+| Lifecycle Service | Repository | SandboxSessionRepository trait | 33 unit tests |
 | Lifecycle Service | Provider SPI | SandboxProvider trait | 5 fake boundary tests |
 | Lifecycle Service | Lease Manager | Lease/Fencing | Concurrency tests |
-| Reconciliation | Repository + Provider | Recovery + page | 3 reconciler tests |
+| Reconciliation | Repository + Provider | Recovery + page | 7 reconciler tests |
 | Repository (SQLx) | PostgreSQL | Migration + query | 6 unit + live PG evidence |
