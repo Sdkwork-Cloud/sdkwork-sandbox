@@ -40,12 +40,24 @@ Phase: V1 lifecycle core after accepted Phase 0 foundation
 ### 文档同步
 
 - `TECH-security-and-operations.md`、`TECH-modules-and-contracts.md`、`gate-zero-exit-readiness-package.md` 中"完整历史 hydrate"的当前状态描述更新为"有界历史 hydrate（`MAX_SANDBOX_SESSION_OPERATIONS` 读取上限，超限失败关闭）"，REQ-2026-0020 的后续目标与门禁语义保持不变
+- `gate-zero-current-state.md` 组件状态矩阵测试数字同步（Lifecycle Service 24 → 26 tests）
+
+### 测试补强
+
+- `repository-memory` 新增 `sandbox_session_insert_conflicts_are_scoped_by_tenant`：同租户重复 insert 返回 `VersionConflict`、同 session id 跨租户隔离、各租户保留独立投影
+- `repository.rs`（service crate）新增 `sandbox_protected_allocation_reference_enforces_storage_bounds`（密文 8192/Key ID 字符集/版本范围边界）与 `sandbox_session_lease_rejects_non_positive_expiry`（非正过期时间拒绝）
+
+### 一致性复核（无变更项）
+
+- `database/contract/table-registry.json` 与迁移 0001 的 4 张表完全对齐（无缺失/多余）
+- 全部 7 个 crate 的 `component.spec.json` verification 命令与实现一致
+- `apis/` 事件契约与 EVENT_SPEC（CloudEvents 对齐）及 API_SPEC 输出规范方向一致，draft 状态诚实
 
 ## Verification
 
 - cargo fmt --all -- --check: PASS
 - cargo check --workspace: PASS
-- cargo test --workspace: PASS (46 单元/集成测试，1 ignored；契约测试 242 全部通过)
+- cargo test --workspace: PASS (49 单元/集成测试，1 ignored；契约测试 242 全部通过)
 - cargo clippy --workspace --all-targets -- -D warnings: PASS
 - node --test tests/contract/*.test.mjs: PASS (242)
 - check-repository-docs-standard: PASS
@@ -67,6 +79,9 @@ Phase: V1 lifecycle core after accepted Phase 0 foundation
 - Modified: `crates/sdkwork-intelligence-sandbox-service/src/error.rs`（`SandboxSessionIdConflict`）
 - Modified: `crates/sdkwork-intelligence-sandbox-service/src/service.rs`（create 幂等恢复、对账容错）
 - Modified: `crates/sdkwork-intelligence-sandbox-service/src/tests.rs`（回归测试与测试钩子）
+- Modified: `crates/sdkwork-intelligence-sandbox-repository-memory/src/lib.rs`（租户隔离 insert 冲突测试）
+- Modified: `crates/sdkwork-intelligence-sandbox-service/src/repository.rs`（受保护引用/租约边界测试）
+- Modified: `docs/architecture/views/gate-zero-current-state.md`（测试数字同步）
 - Modified: `docs/architecture/tech/TECH-security-and-operations.md`（有界历史描述同步）
 - Modified: `docs/architecture/tech/TECH-modules-and-contracts.md`（有界历史描述同步）
 - Modified: `docs/engineering/gate-zero-exit-readiness-package.md`（有界历史描述同步）
