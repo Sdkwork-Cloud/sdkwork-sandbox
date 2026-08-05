@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -14,6 +15,7 @@ use sdkwork_sandbox_provider_spi::{
     OperationId, SandboxFencingToken, SandboxId, SandboxLeaseOwnerId, SandboxProviderId,
     SandboxRuntimeBindingId, SandboxSessionId, SandboxWorkspaceId, TenantId,
 };
+use sqlx::postgres::PgRow;
 use sqlx::{PgConnection, PgPool, Row};
 
 use crate::codec::{
@@ -23,6 +25,23 @@ use crate::codec::{
     sandbox_operation_kind_value, sandbox_operation_outcome_values,
     sandbox_runtime_capabilities_value, sandbox_session_failure_value, sandbox_session_state_value,
 };
+
+/// Maximum lifecycle operations loaded for one sandbox session.
+///
+/// Safety bound until REQ-2026-0020 (bounded lifecycle history and idempotency
+/// retention) authorizes a retention policy. A persisted session whose
+/// operation history exceeds this bound fails closed instead of loading an
+/// unbounded row set into process memory, keeping repository reads bounded.
+pub const MAX_SANDBOX_SESSION_OPERATIONS: usize = 10_000;
+
+/// Statement timeout applied to every sandbox repository transaction,
+/// matching the authoritative-server migration header contract
+/// (`0001_create_sandbox_lifecycle.up.sql`).
+const SANDBOX_DATABASE_STATEMENT_TIMEOUT: &str = "30s";
+
+/// Lock timeout applied to every sandbox repository transaction, matching the
+/// authoritative-server migration header contract.
+const SANDBOX_DATABASE_LOCK_TIMEOUT: &str = "2s";
 
 pub struct SqlxSandboxSessionRepository {
     sandbox_database_pool: DatabasePool,
@@ -151,90 +170,205 @@ impl SqlxSandboxSessionRepository {
         Ok(())
     }
 
-    async fn load_sandbox_session_snapshot(
+    async fn enforce_sandbox_transaction_timeouts(
+        sandbox_connection: &mut PgConnection,
+    ) -> SandboxSessionRepositoryResult<()> {
+        sqlx::query("SET LOCAL statement_timeout = $1")
+            .bind(SANDBOX_DATABASE_STATEMENT_TIMEOUT)
+            .execute(&mut *sandbox_connection)
+            .await
+            .map_err(Self::map_sandbox_sqlx_error)?;
+        sqlx::query("SET LOCAL lock_timeout = $1")
+            .bind(SANDBOX_DATABASE_LOCK_TIMEOUT)
+            .execute(&mut *sandbox_connection)
+            .await
+            .map_err(Self::map_sandbox_sqlx_error)?;
+        Ok(())
+    }
+
+    fn parse_sandbox_runtime_binding_row(
+        sandbox_runtime_binding_row: &PgRow,
+    ) -> SandboxSessionRepositoryResult<SandboxRuntimeBindingRepositorySnapshot> {
+        let sandbox_id: String = sandbox_runtime_binding_row
+            .try_get("sandbox_id")
+            .map_err(Self::map_sandbox_sqlx_error)?;
+        let sandbox_runtime_binding_id: String = sandbox_runtime_binding_row
+            .try_get("sandbox_runtime_binding_id")
+            .map_err(Self::map_sandbox_sqlx_error)?;
+        let sandbox_provider_id: String = sandbox_runtime_binding_row
+            .try_get("sandbox_provider_id")
+            .map_err(Self::map_sandbox_sqlx_error)?;
+        let sandbox_allocation_ciphertext: Option<String> = sandbox_runtime_binding_row
+            .try_get("sandbox_allocation_ciphertext")
+            .map_err(Self::map_sandbox_sqlx_error)?;
+        let sandbox_allocation_key_id: Option<String> = sandbox_runtime_binding_row
+            .try_get("sandbox_allocation_key_id")
+            .map_err(Self::map_sandbox_sqlx_error)?;
+        let sandbox_allocation_key_version: Option<i64> = sandbox_runtime_binding_row
+            .try_get("sandbox_allocation_key_version")
+            .map_err(Self::map_sandbox_sqlx_error)?;
+        let sandbox_allocation_crypto_version: Option<i16> = sandbox_runtime_binding_row
+            .try_get("sandbox_allocation_crypto_version")
+            .map_err(Self::map_sandbox_sqlx_error)?;
+        let sandbox_protected_allocation_reference = match (
+            sandbox_allocation_ciphertext,
+            sandbox_allocation_key_id,
+            sandbox_allocation_key_version,
+            sandbox_allocation_crypto_version,
+        ) {
+            (None, None, None, None) => None,
+            (
+                Some(sandbox_allocation_ciphertext),
+                Some(sandbox_allocation_key_id),
+                Some(sandbox_allocation_key_version),
+                Some(sandbox_allocation_crypto_version),
+            ) => Some(SandboxProtectedProviderAllocationRef::new(
+                sandbox_allocation_ciphertext,
+                sandbox_allocation_key_id,
+                u64::try_from(sandbox_allocation_key_version)
+                    .map_err(|_| SandboxSessionRepositoryError::InvalidStoredData)?,
+                u16::try_from(sandbox_allocation_crypto_version)
+                    .map_err(|_| SandboxSessionRepositoryError::InvalidStoredData)?,
+            )?),
+            _ => return Err(SandboxSessionRepositoryError::InvalidStoredData),
+        };
+        Ok(SandboxRuntimeBindingRepositorySnapshot::new(
+            SandboxId::parse(sandbox_id)
+                .map_err(|_| SandboxSessionRepositoryError::InvalidStoredData)?,
+            SandboxRuntimeBindingId::parse(sandbox_runtime_binding_id)
+                .map_err(|_| SandboxSessionRepositoryError::InvalidStoredData)?,
+            SandboxProviderId::parse(sandbox_provider_id)
+                .map_err(|_| SandboxSessionRepositoryError::InvalidStoredData)?,
+            sandbox_protected_allocation_reference,
+        ))
+    }
+
+    /// Hydrates the requested sandbox sessions with at most three queries and
+    /// bounded memory: one query per sandbox_session / sandbox_runtime_binding /
+    /// sandbox_session_operation row family.
+    ///
+    /// Operation history is window-numbered per session and capped at
+    /// `MAX_SANDBOX_SESSION_OPERATIONS + 1` rows; a session whose history
+    /// exceeds the safety bound fails closed instead of loading an unbounded
+    /// row set into process memory.
+    async fn load_sandbox_session_snapshots(
         sandbox_connection: &mut PgConnection,
         tenant_id: &TenantId,
-        sandbox_session_id: &SandboxSessionId,
-    ) -> SandboxSessionRepositoryResult<Option<SandboxSessionRepositorySnapshot>> {
-        let sandbox_session_row = sqlx::query(
+        sandbox_session_ids: &[SandboxSessionId],
+    ) -> SandboxSessionRepositoryResult<Vec<SandboxSessionRepositorySnapshot>> {
+        if sandbox_session_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        let sandbox_session_id_values: Vec<&str> = sandbox_session_ids
+            .iter()
+            .map(SandboxSessionId::as_str)
+            .collect();
+        let sandbox_session_id_values: &[&str] = &sandbox_session_id_values;
+        let sandbox_operations_window_limit = i64::try_from(MAX_SANDBOX_SESSION_OPERATIONS + 1)
+            .map_err(|_| SandboxSessionRepositoryError::InvalidStoredData)?;
+
+        let sandbox_session_rows = sqlx::query(
             "SELECT tenant_id, sandbox_workspace_id, sandbox_session_id, \
                     sandbox_session_state, sandbox_required_capabilities, \
                     sandbox_minimum_assurance, sandbox_last_failure, version \
              FROM sandbox_session \
-             WHERE tenant_id = $1 AND sandbox_session_id = $2",
+             WHERE tenant_id = $1 AND sandbox_session_id = ANY($2)",
         )
         .bind(tenant_id.as_str())
-        .bind(sandbox_session_id.as_str())
-        .fetch_optional(&mut *sandbox_connection)
-        .await
-        .map_err(Self::map_sandbox_sqlx_error)?;
-        let Some(sandbox_session_row) = sandbox_session_row else {
-            return Ok(None);
-        };
-
-        let stored_tenant_id: String = sandbox_session_row
-            .try_get("tenant_id")
-            .map_err(Self::map_sandbox_sqlx_error)?;
-        let stored_sandbox_workspace_id: String = sandbox_session_row
-            .try_get("sandbox_workspace_id")
-            .map_err(Self::map_sandbox_sqlx_error)?;
-        let stored_sandbox_session_id: String = sandbox_session_row
-            .try_get("sandbox_session_id")
-            .map_err(Self::map_sandbox_sqlx_error)?;
-        let sandbox_session_state: String = sandbox_session_row
-            .try_get("sandbox_session_state")
-            .map_err(Self::map_sandbox_sqlx_error)?;
-        let sandbox_required_capabilities: serde_json::Value = sandbox_session_row
-            .try_get("sandbox_required_capabilities")
-            .map_err(Self::map_sandbox_sqlx_error)?;
-        let sandbox_minimum_assurance: String = sandbox_session_row
-            .try_get("sandbox_minimum_assurance")
-            .map_err(Self::map_sandbox_sqlx_error)?;
-        let sandbox_last_failure: Option<String> = sandbox_session_row
-            .try_get("sandbox_last_failure")
-            .map_err(Self::map_sandbox_sqlx_error)?;
-        let sandbox_version: i64 = sandbox_session_row
-            .try_get("version")
-            .map_err(Self::map_sandbox_sqlx_error)?;
-
-        let stored_tenant_id = TenantId::parse(stored_tenant_id)
-            .map_err(|_| SandboxSessionRepositoryError::InvalidStoredData)?;
-        let stored_sandbox_workspace_id = SandboxWorkspaceId::parse(stored_sandbox_workspace_id)
-            .map_err(|_| SandboxSessionRepositoryError::InvalidStoredData)?;
-        let stored_sandbox_session_id = SandboxSessionId::parse(stored_sandbox_session_id)
-            .map_err(|_| SandboxSessionRepositoryError::InvalidStoredData)?;
-        if stored_tenant_id != *tenant_id || stored_sandbox_session_id != *sandbox_session_id {
-            return Err(SandboxSessionRepositoryError::InvalidStoredData);
-        }
-
-        let sandbox_operation_rows = sqlx::query(
-            "SELECT sandbox_operation_id, sandbox_operation_sequence, sandbox_operation_kind, \
-                    sandbox_operation_outcome, sandbox_session_failure \
-             FROM sandbox_session_operation \
-             WHERE tenant_id = $1 AND sandbox_session_id = $2 \
-             ORDER BY sandbox_operation_sequence",
-        )
-        .bind(tenant_id.as_str())
-        .bind(sandbox_session_id.as_str())
+        .bind(sandbox_session_id_values)
         .fetch_all(&mut *sandbox_connection)
         .await
         .map_err(Self::map_sandbox_sqlx_error)?;
-        let mut sandbox_operations = Vec::with_capacity(sandbox_operation_rows.len());
-        for (expected_sandbox_operation_sequence, sandbox_operation_row) in
-            sandbox_operation_rows.into_iter().enumerate()
-        {
-            let sandbox_operation_id: String = sandbox_operation_row
-                .try_get("sandbox_operation_id")
+        let mut sandbox_session_rows_by_id: BTreeMap<String, PgRow> = BTreeMap::new();
+        for sandbox_session_row in sandbox_session_rows {
+            let stored_sandbox_session_id: String = sandbox_session_row
+                .try_get("sandbox_session_id")
+                .map_err(Self::map_sandbox_sqlx_error)?;
+            if sandbox_session_rows_by_id
+                .insert(stored_sandbox_session_id, sandbox_session_row)
+                .is_some()
+            {
+                return Err(SandboxSessionRepositoryError::InvalidStoredData);
+            }
+        }
+
+        let sandbox_runtime_binding_rows = sqlx::query(
+            "SELECT tenant_id, sandbox_session_id, sandbox_id, sandbox_runtime_binding_id, \
+                    sandbox_provider_id, sandbox_allocation_ciphertext, \
+                    sandbox_allocation_key_id, sandbox_allocation_key_version, \
+                    sandbox_allocation_crypto_version \
+             FROM sandbox_runtime_binding \
+             WHERE tenant_id = $1 AND sandbox_session_id = ANY($2)",
+        )
+        .bind(tenant_id.as_str())
+        .bind(sandbox_session_id_values)
+        .fetch_all(&mut *sandbox_connection)
+        .await
+        .map_err(Self::map_sandbox_sqlx_error)?;
+        let mut sandbox_runtime_bindings_by_id: BTreeMap<
+            String,
+            SandboxRuntimeBindingRepositorySnapshot,
+        > = BTreeMap::new();
+        for sandbox_runtime_binding_row in sandbox_runtime_binding_rows {
+            let stored_sandbox_session_id: String = sandbox_runtime_binding_row
+                .try_get("sandbox_session_id")
+                .map_err(Self::map_sandbox_sqlx_error)?;
+            if sandbox_runtime_bindings_by_id
+                .insert(
+                    stored_sandbox_session_id,
+                    Self::parse_sandbox_runtime_binding_row(&sandbox_runtime_binding_row)?,
+                )
+                .is_some()
+            {
+                return Err(SandboxSessionRepositoryError::InvalidStoredData);
+            }
+        }
+
+        let sandbox_operation_rows = sqlx::query(
+            "SELECT sandbox_operation_id, sandbox_session_id, sandbox_operation_sequence, \
+                    sandbox_operation_kind, sandbox_operation_outcome, \
+                    sandbox_session_failure, sandbox_operation_row_number \
+             FROM ( \
+                SELECT tenant_id, sandbox_session_id, sandbox_operation_id, \
+                       sandbox_operation_sequence, sandbox_operation_kind, \
+                       sandbox_operation_outcome, sandbox_session_failure, \
+                       ROW_NUMBER() OVER (PARTITION BY tenant_id, sandbox_session_id \
+                                          ORDER BY sandbox_operation_sequence) \
+                           AS sandbox_operation_row_number \
+                FROM sandbox_session_operation \
+                WHERE tenant_id = $1 AND sandbox_session_id = ANY($2) \
+             ) AS sandbox_operation_window \
+             WHERE sandbox_operation_window.sandbox_operation_row_number <= $3 \
+             ORDER BY sandbox_session_id, sandbox_operation_row_number",
+        )
+        .bind(tenant_id.as_str())
+        .bind(sandbox_session_id_values)
+        .bind(sandbox_operations_window_limit)
+        .fetch_all(&mut *sandbox_connection)
+        .await
+        .map_err(Self::map_sandbox_sqlx_error)?;
+        let max_sandbox_operations = i64::try_from(MAX_SANDBOX_SESSION_OPERATIONS)
+            .map_err(|_| SandboxSessionRepositoryError::InvalidStoredData)?;
+        let mut sandbox_operations_by_id: BTreeMap<
+            String,
+            Vec<(i64, SandboxSessionOperationRepositorySnapshot)>,
+        > = BTreeMap::new();
+        for sandbox_operation_row in sandbox_operation_rows {
+            let stored_sandbox_session_id: String = sandbox_operation_row
+                .try_get("sandbox_session_id")
                 .map_err(Self::map_sandbox_sqlx_error)?;
             let sandbox_operation_sequence: i64 = sandbox_operation_row
                 .try_get("sandbox_operation_sequence")
                 .map_err(Self::map_sandbox_sqlx_error)?;
-            if sandbox_operation_sequence
-                != i64::try_from(expected_sandbox_operation_sequence)
-                    .map_err(|_| SandboxSessionRepositoryError::InvalidStoredData)?
-            {
+            let sandbox_operation_row_number: i64 = sandbox_operation_row
+                .try_get("sandbox_operation_row_number")
+                .map_err(Self::map_sandbox_sqlx_error)?;
+            if sandbox_operation_row_number > max_sandbox_operations {
                 return Err(SandboxSessionRepositoryError::InvalidStoredData);
             }
+            let sandbox_operation_id: String = sandbox_operation_row
+                .try_get("sandbox_operation_id")
+                .map_err(Self::map_sandbox_sqlx_error)?;
             let sandbox_operation_kind: String = sandbox_operation_row
                 .try_get("sandbox_operation_kind")
                 .map_err(Self::map_sandbox_sqlx_error)?;
@@ -244,104 +378,116 @@ impl SqlxSandboxSessionRepository {
             let sandbox_session_failure: Option<String> = sandbox_operation_row
                 .try_get("sandbox_session_failure")
                 .map_err(Self::map_sandbox_sqlx_error)?;
-            sandbox_operations.push(SandboxSessionOperationRepositorySnapshot::new(
-                OperationId::parse(sandbox_operation_id)
-                    .map_err(|_| SandboxSessionRepositoryError::InvalidStoredData)?,
-                parse_sandbox_operation_kind(&sandbox_operation_kind)?,
-                parse_sandbox_operation_outcome(
-                    &sandbox_operation_outcome,
-                    sandbox_session_failure.as_deref(),
-                )?,
+            sandbox_operations_by_id
+                .entry(stored_sandbox_session_id)
+                .or_default()
+                .push((
+                    sandbox_operation_sequence,
+                    SandboxSessionOperationRepositorySnapshot::new(
+                        OperationId::parse(sandbox_operation_id)
+                            .map_err(|_| SandboxSessionRepositoryError::InvalidStoredData)?,
+                        parse_sandbox_operation_kind(&sandbox_operation_kind)?,
+                        parse_sandbox_operation_outcome(
+                            &sandbox_operation_outcome,
+                            sandbox_session_failure.as_deref(),
+                        )?,
+                    ),
+                ));
+        }
+
+        let mut sandbox_snapshots = Vec::with_capacity(sandbox_session_ids.len());
+        for sandbox_session_id in sandbox_session_ids {
+            let Some(sandbox_session_row) =
+                sandbox_session_rows_by_id.remove(sandbox_session_id.as_str())
+            else {
+                continue;
+            };
+            let stored_tenant_id: String = sandbox_session_row
+                .try_get("tenant_id")
+                .map_err(Self::map_sandbox_sqlx_error)?;
+            let stored_sandbox_workspace_id: String = sandbox_session_row
+                .try_get("sandbox_workspace_id")
+                .map_err(Self::map_sandbox_sqlx_error)?;
+            let stored_sandbox_session_id: String = sandbox_session_row
+                .try_get("sandbox_session_id")
+                .map_err(Self::map_sandbox_sqlx_error)?;
+            let sandbox_session_state: String = sandbox_session_row
+                .try_get("sandbox_session_state")
+                .map_err(Self::map_sandbox_sqlx_error)?;
+            let sandbox_required_capabilities: serde_json::Value = sandbox_session_row
+                .try_get("sandbox_required_capabilities")
+                .map_err(Self::map_sandbox_sqlx_error)?;
+            let sandbox_minimum_assurance: String = sandbox_session_row
+                .try_get("sandbox_minimum_assurance")
+                .map_err(Self::map_sandbox_sqlx_error)?;
+            let sandbox_last_failure: Option<String> = sandbox_session_row
+                .try_get("sandbox_last_failure")
+                .map_err(Self::map_sandbox_sqlx_error)?;
+            let sandbox_version: i64 = sandbox_session_row
+                .try_get("version")
+                .map_err(Self::map_sandbox_sqlx_error)?;
+
+            let stored_tenant_id = TenantId::parse(stored_tenant_id)
+                .map_err(|_| SandboxSessionRepositoryError::InvalidStoredData)?;
+            let stored_sandbox_workspace_id =
+                SandboxWorkspaceId::parse(stored_sandbox_workspace_id)
+                    .map_err(|_| SandboxSessionRepositoryError::InvalidStoredData)?;
+            let stored_sandbox_session_id = SandboxSessionId::parse(stored_sandbox_session_id)
+                .map_err(|_| SandboxSessionRepositoryError::InvalidStoredData)?;
+            if stored_tenant_id != *tenant_id || stored_sandbox_session_id != *sandbox_session_id {
+                return Err(SandboxSessionRepositoryError::InvalidStoredData);
+            }
+
+            let sandbox_operations = sandbox_operations_by_id
+                .remove(sandbox_session_id.as_str())
+                .ok_or(SandboxSessionRepositoryError::InvalidStoredData)?;
+            for (expected_sandbox_operation_sequence, (sandbox_operation_sequence, _)) in
+                sandbox_operations.iter().enumerate()
+            {
+                if *sandbox_operation_sequence
+                    != i64::try_from(expected_sandbox_operation_sequence)
+                        .map_err(|_| SandboxSessionRepositoryError::InvalidStoredData)?
+                {
+                    return Err(SandboxSessionRepositoryError::InvalidStoredData);
+                }
+            }
+            let sandbox_operations: Vec<SandboxSessionOperationRepositorySnapshot> =
+                sandbox_operations
+                    .into_iter()
+                    .map(|(_, sandbox_operation)| sandbox_operation)
+                    .collect();
+
+            sandbox_snapshots.push(SandboxSessionRepositorySnapshot::new(
+                stored_tenant_id,
+                stored_sandbox_workspace_id,
+                stored_sandbox_session_id,
+                parse_sandbox_session_state(&sandbox_session_state)?,
+                parse_sandbox_runtime_capabilities(sandbox_required_capabilities)?,
+                parse_sandbox_isolation_assurance(&sandbox_minimum_assurance)?,
+                sandbox_runtime_bindings_by_id.remove(sandbox_session_id.as_str()),
+                sandbox_last_failure
+                    .as_deref()
+                    .map(parse_sandbox_session_failure)
+                    .transpose()?,
+                sandbox_operations,
+                Self::sandbox_version_from_i64(sandbox_version)?,
             ));
         }
-        if sandbox_operations.is_empty() {
-            return Err(SandboxSessionRepositoryError::InvalidStoredData);
-        }
+        Ok(sandbox_snapshots)
+    }
 
-        let sandbox_runtime_binding_row = sqlx::query(
-            "SELECT sandbox_id, sandbox_runtime_binding_id, sandbox_provider_id, \
-                    sandbox_allocation_ciphertext, sandbox_allocation_key_id, \
-                    sandbox_allocation_key_version, sandbox_allocation_crypto_version \
-             FROM sandbox_runtime_binding \
-             WHERE tenant_id = $1 AND sandbox_session_id = $2",
+    async fn load_sandbox_session_snapshot(
+        sandbox_connection: &mut PgConnection,
+        tenant_id: &TenantId,
+        sandbox_session_id: &SandboxSessionId,
+    ) -> SandboxSessionRepositoryResult<Option<SandboxSessionRepositorySnapshot>> {
+        let mut sandbox_snapshots = Self::load_sandbox_session_snapshots(
+            sandbox_connection,
+            tenant_id,
+            std::slice::from_ref(sandbox_session_id),
         )
-        .bind(tenant_id.as_str())
-        .bind(sandbox_session_id.as_str())
-        .fetch_optional(&mut *sandbox_connection)
-        .await
-        .map_err(Self::map_sandbox_sqlx_error)?;
-        let sandbox_runtime_binding = sandbox_runtime_binding_row
-            .map(|sandbox_runtime_binding_row| {
-                let sandbox_id: String = sandbox_runtime_binding_row
-                    .try_get("sandbox_id")
-                    .map_err(Self::map_sandbox_sqlx_error)?;
-                let sandbox_runtime_binding_id: String = sandbox_runtime_binding_row
-                    .try_get("sandbox_runtime_binding_id")
-                    .map_err(Self::map_sandbox_sqlx_error)?;
-                let sandbox_provider_id: String = sandbox_runtime_binding_row
-                    .try_get("sandbox_provider_id")
-                    .map_err(Self::map_sandbox_sqlx_error)?;
-                let sandbox_allocation_ciphertext: Option<String> = sandbox_runtime_binding_row
-                    .try_get("sandbox_allocation_ciphertext")
-                    .map_err(Self::map_sandbox_sqlx_error)?;
-                let sandbox_allocation_key_id: Option<String> = sandbox_runtime_binding_row
-                    .try_get("sandbox_allocation_key_id")
-                    .map_err(Self::map_sandbox_sqlx_error)?;
-                let sandbox_allocation_key_version: Option<i64> = sandbox_runtime_binding_row
-                    .try_get("sandbox_allocation_key_version")
-                    .map_err(Self::map_sandbox_sqlx_error)?;
-                let sandbox_allocation_crypto_version: Option<i16> = sandbox_runtime_binding_row
-                    .try_get("sandbox_allocation_crypto_version")
-                    .map_err(Self::map_sandbox_sqlx_error)?;
-                let sandbox_protected_allocation_reference = match (
-                    sandbox_allocation_ciphertext,
-                    sandbox_allocation_key_id,
-                    sandbox_allocation_key_version,
-                    sandbox_allocation_crypto_version,
-                ) {
-                    (None, None, None, None) => None,
-                    (
-                        Some(sandbox_allocation_ciphertext),
-                        Some(sandbox_allocation_key_id),
-                        Some(sandbox_allocation_key_version),
-                        Some(sandbox_allocation_crypto_version),
-                    ) => Some(SandboxProtectedProviderAllocationRef::new(
-                        sandbox_allocation_ciphertext,
-                        sandbox_allocation_key_id,
-                        u64::try_from(sandbox_allocation_key_version)
-                            .map_err(|_| SandboxSessionRepositoryError::InvalidStoredData)?,
-                        u16::try_from(sandbox_allocation_crypto_version)
-                            .map_err(|_| SandboxSessionRepositoryError::InvalidStoredData)?,
-                    )?),
-                    _ => return Err(SandboxSessionRepositoryError::InvalidStoredData),
-                };
-                Ok(SandboxRuntimeBindingRepositorySnapshot::new(
-                    SandboxId::parse(sandbox_id)
-                        .map_err(|_| SandboxSessionRepositoryError::InvalidStoredData)?,
-                    SandboxRuntimeBindingId::parse(sandbox_runtime_binding_id)
-                        .map_err(|_| SandboxSessionRepositoryError::InvalidStoredData)?,
-                    SandboxProviderId::parse(sandbox_provider_id)
-                        .map_err(|_| SandboxSessionRepositoryError::InvalidStoredData)?,
-                    sandbox_protected_allocation_reference,
-                ))
-            })
-            .transpose()?;
-
-        Ok(Some(SandboxSessionRepositorySnapshot::new(
-            stored_tenant_id,
-            stored_sandbox_workspace_id,
-            stored_sandbox_session_id,
-            parse_sandbox_session_state(&sandbox_session_state)?,
-            parse_sandbox_runtime_capabilities(sandbox_required_capabilities)?,
-            parse_sandbox_isolation_assurance(&sandbox_minimum_assurance)?,
-            sandbox_runtime_binding,
-            sandbox_last_failure
-                .as_deref()
-                .map(parse_sandbox_session_failure)
-                .transpose()?,
-            sandbox_operations,
-            Self::sandbox_version_from_i64(sandbox_version)?,
-        )))
+        .await?;
+        Ok(sandbox_snapshots.pop())
     }
 
     async fn insert_sandbox_operations(
@@ -524,6 +670,7 @@ impl SqlxSandboxSessionRepository {
             .execute(&mut *sandbox_transaction)
             .await
             .map_err(Self::map_sandbox_sqlx_error)?;
+        Self::enforce_sandbox_transaction_timeouts(&mut sandbox_transaction).await?;
         let sandbox_snapshot = Self::load_sandbox_session_snapshot(
             &mut sandbox_transaction,
             tenant_id,
@@ -590,6 +737,7 @@ impl SandboxSessionRepository for SqlxSandboxSessionRepository {
             .begin()
             .await
             .map_err(Self::map_sandbox_sqlx_error)?;
+        Self::enforce_sandbox_transaction_timeouts(&mut sandbox_transaction).await?;
         sqlx::query(
             "INSERT INTO sandbox_session (\
                 tenant_id, sandbox_session_id, sandbox_workspace_id, \
@@ -659,6 +807,7 @@ impl SandboxSessionRepository for SqlxSandboxSessionRepository {
         {
             return Err(SandboxSessionRepositoryError::LeaseConflict);
         }
+        Self::enforce_sandbox_transaction_timeouts(&mut sandbox_transaction).await?;
         Self::lock_valid_sandbox_session_lease(&mut sandbox_transaction, sandbox_session_lease)
             .await?;
         let sandbox_update_result = sqlx::query(
@@ -880,7 +1029,7 @@ impl SandboxSessionRepository for SqlxSandboxSessionRepository {
         if !(1..=200).contains(&sandbox_page_size) {
             return Err(SandboxSessionRepositoryError::InvalidPageRequest);
         }
-        let sandbox_session_ids: Vec<String> = sqlx::query_scalar(
+        let sandbox_session_id_values: Vec<String> = sqlx::query_scalar(
             "SELECT sandbox_session_id \
              FROM sandbox_session \
              WHERE tenant_id = $1 \
@@ -895,16 +1044,37 @@ impl SandboxSessionRepository for SqlxSandboxSessionRepository {
         .fetch_all(self.sandbox_postgres_pool()?)
         .await
         .map_err(Self::map_sandbox_sqlx_error)?;
-        let mut sandbox_sessions = Vec::with_capacity(sandbox_session_ids.len());
-        for sandbox_session_id in sandbox_session_ids {
-            let sandbox_session_id = SandboxSessionId::parse(sandbox_session_id)
-                .map_err(|_| SandboxSessionRepositoryError::InvalidStoredData)?;
-            if let Some(sandbox_session) = self
-                .read_sandbox_session(tenant_id, &sandbox_session_id)
-                .await?
-            {
-                sandbox_sessions.push(sandbox_session);
-            }
+        let sandbox_session_ids: Vec<SandboxSessionId> = sandbox_session_id_values
+            .into_iter()
+            .map(|sandbox_session_id| {
+                SandboxSessionId::parse(sandbox_session_id)
+                    .map_err(|_| SandboxSessionRepositoryError::InvalidStoredData)
+            })
+            .collect::<SandboxSessionRepositoryResult<_>>()?;
+        let mut sandbox_transaction = self
+            .sandbox_postgres_pool()?
+            .begin()
+            .await
+            .map_err(Self::map_sandbox_sqlx_error)?;
+        sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
+            .execute(&mut *sandbox_transaction)
+            .await
+            .map_err(Self::map_sandbox_sqlx_error)?;
+        Self::enforce_sandbox_transaction_timeouts(&mut sandbox_transaction).await?;
+        let sandbox_snapshots = Self::load_sandbox_session_snapshots(
+            &mut sandbox_transaction,
+            tenant_id,
+            &sandbox_session_ids,
+        )
+        .await?;
+        sandbox_transaction
+            .commit()
+            .await
+            .map_err(Self::map_sandbox_sqlx_error)?;
+        let mut sandbox_sessions = Vec::with_capacity(sandbox_snapshots.len());
+        for sandbox_snapshot in sandbox_snapshots {
+            sandbox_sessions
+                .push(sandbox_snapshot.restore(self.sandbox_allocation_protector.as_ref())?);
         }
         Ok(sandbox_sessions)
     }

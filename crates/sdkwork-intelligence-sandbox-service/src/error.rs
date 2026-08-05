@@ -28,6 +28,11 @@ pub enum SandboxLifecycleError {
     },
     #[error("sandbox operation id {sandbox_operation_id} was already used for another lifecycle command")]
     IdempotencyConflict { sandbox_operation_id: OperationId },
+    #[error("sandbox session {sandbox_session_id} in tenant {tenant_id} already belongs to another lifecycle operation")]
+    SandboxSessionIdConflict {
+        tenant_id: TenantId,
+        sandbox_session_id: SandboxSessionId,
+    },
     #[error("sandbox operation {sandbox_operation_id} is already in progress")]
     OperationInProgress { sandbox_operation_id: OperationId },
     #[error("sandbox operation {sandbox_operation_id} previously failed with {sandbox_session_failure:?}")]

@@ -51,6 +51,9 @@ struct TestSandboxSessionRepository {
     sandbox_fail_renew_call: Mutex<Option<usize>>,
     sandbox_release_calls: AtomicUsize,
     sandbox_fail_release_call: Mutex<Option<usize>>,
+    sandbox_insert_calls: AtomicUsize,
+    sandbox_fail_insert: Mutex<Option<(usize, SandboxSessionRepositoryError)>>,
+    sandbox_insert_race_winner: Mutex<Option<SandboxSession>>,
     sandbox_reconciliation_page_override: Mutex<Option<Vec<SandboxSession>>>,
 }
 
@@ -65,6 +68,9 @@ impl TestSandboxSessionRepository {
             sandbox_fail_renew_call: Mutex::new(None),
             sandbox_release_calls: AtomicUsize::new(0),
             sandbox_fail_release_call: Mutex::new(None),
+            sandbox_insert_calls: AtomicUsize::new(0),
+            sandbox_fail_insert: Mutex::new(None),
+            sandbox_insert_race_winner: Mutex::new(None),
             sandbox_reconciliation_page_override: Mutex::new(None),
         }
     }
@@ -73,6 +79,82 @@ impl TestSandboxSessionRepository {
         self.fail_sandbox_save_call_with_error(
             sandbox_save_call,
             SandboxSessionRepositoryError::Unavailable,
+        );
+    }
+
+    /// Arms the insert failure hook: the armed insert call first commits the
+    /// race winner (simulating a concurrent identical create that committed
+    /// between the service operation lookup and this insert) and then returns
+    /// `VersionConflict`, exactly like the authoritative repository's
+    /// sandbox_session primary-key collision.
+    fn fail_sandbox_insert_call_with_race_winner(
+        &self,
+        sandbox_insert_call: usize,
+        sandbox_race_winner: SandboxSession,
+    ) {
+        let mut sandbox_fail_insert = match self.sandbox_fail_insert.lock() {
+            Ok(sandbox_fail_insert) => sandbox_fail_insert,
+            Err(poisoned_sandbox_fail_insert) => poisoned_sandbox_fail_insert.into_inner(),
+        };
+        *sandbox_fail_insert = Some((
+            sandbox_insert_call,
+            SandboxSessionRepositoryError::VersionConflict,
+        ));
+        let mut sandbox_insert_race_winner = match self.sandbox_insert_race_winner.lock() {
+            Ok(sandbox_insert_race_winner) => sandbox_insert_race_winner,
+            Err(poisoned_sandbox_insert_race_winner) => {
+                poisoned_sandbox_insert_race_winner.into_inner()
+            }
+        };
+        *sandbox_insert_race_winner = Some(sandbox_race_winner);
+    }
+
+    fn sandbox_insert_error(&self) -> Option<SandboxSessionRepositoryError> {
+        let sandbox_insert_call = self.sandbox_insert_calls.fetch_add(1, Ordering::SeqCst) + 1;
+        let mut sandbox_fail_insert = match self.sandbox_fail_insert.lock() {
+            Ok(sandbox_fail_insert) => sandbox_fail_insert,
+            Err(poisoned_sandbox_fail_insert) => poisoned_sandbox_fail_insert.into_inner(),
+        };
+        match sandbox_fail_insert.as_ref() {
+            Some((failed_sandbox_insert_call, _))
+                if *failed_sandbox_insert_call == sandbox_insert_call =>
+            {
+                sandbox_fail_insert
+                    .take()
+                    .map(|(_, sandbox_repository_error)| sandbox_repository_error)
+            }
+            _ => None,
+        }
+    }
+
+    fn store_sandbox_session_locked(
+        sandbox_state: &mut TestSandboxSessionRepositoryState,
+        sandbox_session: SandboxSession,
+    ) {
+        let sandbox_session_key = (
+            sandbox_session.tenant_id().clone(),
+            sandbox_session.sandbox_session_id().clone(),
+        );
+        for sandbox_operation in sandbox_session.sandbox_operations() {
+            sandbox_state.sandbox_operations.insert(
+                (
+                    sandbox_session.tenant_id().clone(),
+                    sandbox_operation.sandbox_operation_id().clone(),
+                ),
+                sandbox_session.sandbox_session_id().clone(),
+            );
+        }
+        sandbox_state
+            .sandbox_sessions
+            .insert(sandbox_session_key.clone(), sandbox_session);
+        sandbox_state.sandbox_leases.insert(
+            sandbox_session_key,
+            TestSandboxSessionLease {
+                sandbox_lease_owner_id: None,
+                sandbox_fencing_token: 0,
+                sandbox_lease_expires_at: None,
+                sandbox_lease_expires_at_unix_millis: None,
+            },
         );
     }
 
@@ -251,6 +333,18 @@ impl SandboxSessionRepository for TestSandboxSessionRepository {
         sandbox_session: SandboxSession,
     ) -> SandboxSessionRepositoryResult<()> {
         let mut sandbox_state = self.lock_sandbox_state();
+        if let Some(sandbox_repository_error) = self.sandbox_insert_error() {
+            let mut sandbox_insert_race_winner = match self.sandbox_insert_race_winner.lock() {
+                Ok(sandbox_insert_race_winner) => sandbox_insert_race_winner,
+                Err(poisoned_sandbox_insert_race_winner) => {
+                    poisoned_sandbox_insert_race_winner.into_inner()
+                }
+            };
+            if let Some(sandbox_race_winner) = sandbox_insert_race_winner.take() {
+                Self::store_sandbox_session_locked(&mut sandbox_state, sandbox_race_winner);
+            }
+            return Err(sandbox_repository_error);
+        }
         let sandbox_session_key = (
             sandbox_session.tenant_id().clone(),
             sandbox_session.sandbox_session_id().clone(),
@@ -269,27 +363,7 @@ impl SandboxSessionRepository for TestSandboxSessionRepository {
                 return Err(SandboxSessionRepositoryError::DuplicateOperation);
             }
         }
-        for sandbox_operation in sandbox_session.sandbox_operations() {
-            sandbox_state.sandbox_operations.insert(
-                (
-                    sandbox_session.tenant_id().clone(),
-                    sandbox_operation.sandbox_operation_id().clone(),
-                ),
-                sandbox_session.sandbox_session_id().clone(),
-            );
-        }
-        sandbox_state
-            .sandbox_sessions
-            .insert(sandbox_session_key.clone(), sandbox_session);
-        sandbox_state.sandbox_leases.insert(
-            sandbox_session_key,
-            TestSandboxSessionLease {
-                sandbox_lease_owner_id: None,
-                sandbox_fencing_token: 0,
-                sandbox_lease_expires_at: None,
-                sandbox_lease_expires_at_unix_millis: None,
-            },
-        );
+        Self::store_sandbox_session_locked(&mut sandbox_state, sandbox_session);
         Ok(())
     }
 
@@ -904,6 +978,110 @@ async fn create_sandbox_session(
         ))
         .await
         .unwrap_or_else(|error| panic!("sandbox session creation failed: {error}"))
+}
+
+#[tokio::test]
+async fn sandbox_create_rejects_sandbox_session_id_reuse_across_operations() {
+    let sandbox_session_repository = Arc::new(TestSandboxSessionRepository::default());
+    let sandbox_lifecycle_service = sandbox_lifecycle_service_with_repository(
+        sandbox_session_repository.clone(),
+        Arc::new(FakeSandboxProvider::ready(
+            BTreeSet::from([RuntimeCapability::Filesystem]),
+            IsolationAssurance::HostUser,
+        )),
+    );
+    let sandbox_tenant_id = tenant_id("tenant-a");
+    let sandbox_workspace_id = sandbox_workspace_id("workspace-a");
+    let sandbox_session_id = next_sandbox_session_id();
+    let sandbox_operation_id = OperationId::generate();
+    let sandbox_required_capabilities = BTreeSet::from([RuntimeCapability::Filesystem]);
+
+    let first_create_command = CreateSandboxSessionCommand {
+        tenant_id: sandbox_tenant_id.clone(),
+        sandbox_workspace_id: sandbox_workspace_id.clone(),
+        sandbox_session_id: sandbox_session_id.clone(),
+        sandbox_operation_id: sandbox_operation_id.clone(),
+        sandbox_required_capabilities: sandbox_required_capabilities.clone(),
+        sandbox_minimum_assurance: IsolationAssurance::HostUser,
+    };
+    sandbox_lifecycle_service
+        .create_sandbox_session(first_create_command)
+        .await
+        .unwrap_or_else(|error| panic!("sandbox session creation failed: {error}"));
+
+    let reused_sandbox_session_id = sandbox_session_id.clone();
+    let reused_sandbox_session_id_command = CreateSandboxSessionCommand {
+        tenant_id: sandbox_tenant_id,
+        sandbox_workspace_id,
+        sandbox_session_id,
+        sandbox_operation_id: OperationId::generate(),
+        sandbox_required_capabilities,
+        sandbox_minimum_assurance: IsolationAssurance::HostUser,
+    };
+    assert!(matches!(
+        sandbox_lifecycle_service
+            .create_sandbox_session(reused_sandbox_session_id_command)
+            .await,
+        Err(SandboxLifecycleError::SandboxSessionIdConflict {
+            tenant_id: conflict_tenant_id,
+            sandbox_session_id: conflict_sandbox_session_id,
+        }) if conflict_tenant_id == tenant_id("tenant-a")
+            && conflict_sandbox_session_id == reused_sandbox_session_id
+    ));
+}
+
+#[tokio::test]
+async fn sandbox_create_recovers_when_a_concurrent_identical_create_commits_first() {
+    let sandbox_session_repository = Arc::new(TestSandboxSessionRepository::default());
+    let sandbox_lifecycle_service = sandbox_lifecycle_service_with_repository(
+        sandbox_session_repository.clone(),
+        Arc::new(FakeSandboxProvider::ready(
+            BTreeSet::from([RuntimeCapability::Filesystem]),
+            IsolationAssurance::HostUser,
+        )),
+    );
+    let sandbox_tenant_id = tenant_id("tenant-a");
+    let sandbox_workspace_id = sandbox_workspace_id("workspace-a");
+    let sandbox_session_id = next_sandbox_session_id();
+    let sandbox_operation_id = OperationId::generate();
+    let sandbox_required_capabilities = BTreeSet::from([RuntimeCapability::Filesystem]);
+    let sandbox_minimum_assurance = IsolationAssurance::HostUser;
+    let sandbox_race_winner = SandboxSession::create(
+        sandbox_tenant_id.clone(),
+        sandbox_workspace_id.clone(),
+        sandbox_session_id.clone(),
+        sandbox_operation_id.clone(),
+        sandbox_required_capabilities.clone(),
+        sandbox_minimum_assurance,
+    );
+    sandbox_session_repository.fail_sandbox_insert_call_with_race_winner(1, sandbox_race_winner);
+
+    let create_command = CreateSandboxSessionCommand {
+        tenant_id: sandbox_tenant_id.clone(),
+        sandbox_workspace_id: sandbox_workspace_id.clone(),
+        sandbox_session_id: sandbox_session_id.clone(),
+        sandbox_operation_id: sandbox_operation_id.clone(),
+        sandbox_required_capabilities: sandbox_required_capabilities.clone(),
+        sandbox_minimum_assurance,
+    };
+    let recovered_sandbox_session = sandbox_lifecycle_service
+        .create_sandbox_session(create_command.clone())
+        .await
+        .unwrap_or_else(|error| panic!("concurrent identical create must recover: {error}"));
+    assert_eq!(
+        recovered_sandbox_session.sandbox_session_id(),
+        &sandbox_session_id
+    );
+
+    let replayed_sandbox_session = sandbox_lifecycle_service
+        .create_sandbox_session(create_command)
+        .await
+        .unwrap_or_else(|error| panic!("later identical create must be idempotent: {error}"));
+    assert_eq!(
+        replayed_sandbox_session.sandbox_session_id(),
+        &sandbox_session_id
+    );
+    assert_eq!(replayed_sandbox_session.sandbox_version(), 0);
 }
 
 #[tokio::test]

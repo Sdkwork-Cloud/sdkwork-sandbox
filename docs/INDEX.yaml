@@ -450,6 +450,11 @@ entries:
     layer: evidence
     audience: [engineering, operations, review]
     status: active
+  - id: CHANGELOG-2026-08-05
+    path: docs/changelogs/CHANGELOG-2026-08-05.md
+    layer: evidence
+    audience: [engineering, operations, review]
+    status: active
   - id: VIEW-DEPLOYMENT
     path: docs/architecture/views/deployment-view.md
     layer: canon

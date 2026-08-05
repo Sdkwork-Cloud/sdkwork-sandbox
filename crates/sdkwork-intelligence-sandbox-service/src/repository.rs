@@ -1164,4 +1164,72 @@ mod tests {
             Err(SandboxSessionRepositoryError::InvalidStoredData)
         );
     }
+
+    #[test]
+    fn sandbox_protected_allocation_reference_enforces_storage_bounds() {
+        assert_eq!(
+            SandboxProtectedProviderAllocationRef::new("", "sandbox-key", 1, 1),
+            Err(SandboxSessionRepositoryError::InvalidStoredData)
+        );
+        assert_eq!(
+            SandboxProtectedProviderAllocationRef::new("x".repeat(8_193), "sandbox-key", 1, 1,),
+            Err(SandboxSessionRepositoryError::InvalidStoredData)
+        );
+        for sandbox_invalid_key_id in ["", "key id", "key\nid", "密钥"] {
+            assert_eq!(
+                SandboxProtectedProviderAllocationRef::new(
+                    "ciphertext",
+                    sandbox_invalid_key_id,
+                    1,
+                    1,
+                ),
+                Err(SandboxSessionRepositoryError::InvalidStoredData)
+            );
+        }
+        assert_eq!(
+            SandboxProtectedProviderAllocationRef::new("ciphertext", "sandbox-key", 0, 1),
+            Err(SandboxSessionRepositoryError::InvalidStoredData)
+        );
+        assert_eq!(
+            SandboxProtectedProviderAllocationRef::new("ciphertext", "sandbox-key", 1, 0),
+            Err(SandboxSessionRepositoryError::InvalidStoredData)
+        );
+        assert!(SandboxProtectedProviderAllocationRef::new(
+            "x".repeat(8_192),
+            "kms/key:v2",
+            i64::MAX as u64,
+            i16::MAX as u16,
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn sandbox_session_lease_rejects_non_positive_expiry() {
+        for sandbox_invalid_expiry in [0, -1] {
+            assert_eq!(
+                SandboxSessionLease::new(
+                    TenantId::parse("tenant-test")
+                        .unwrap_or_else(|error| panic!("invalid test tenant id: {error}")),
+                    SandboxSessionId::parse("session-test")
+                        .unwrap_or_else(|error| panic!("invalid test session id: {error}")),
+                    SandboxLeaseOwnerId::generate(),
+                    SandboxFencingToken::new(1)
+                        .unwrap_or_else(|error| panic!("invalid test fencing token: {error}")),
+                    sandbox_invalid_expiry,
+                ),
+                Err(SandboxSessionRepositoryError::InvalidStoredData)
+            );
+        }
+        assert!(SandboxSessionLease::new(
+            TenantId::parse("tenant-test")
+                .unwrap_or_else(|error| panic!("invalid test tenant id: {error}")),
+            SandboxSessionId::parse("session-test")
+                .unwrap_or_else(|error| panic!("invalid test session id: {error}")),
+            SandboxLeaseOwnerId::generate(),
+            SandboxFencingToken::new(1)
+                .unwrap_or_else(|error| panic!("invalid test fencing token: {error}")),
+            1,
+        )
+        .is_ok());
+    }
 }

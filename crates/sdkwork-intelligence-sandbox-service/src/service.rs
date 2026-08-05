@@ -241,6 +241,33 @@ impl SandboxLifecycleService {
                     })
                 }
             }
+            Err(SandboxSessionRepositoryError::VersionConflict) => {
+                // A concurrent identical create committed between the
+                // operation lookup and this insert, or the sandbox session id
+                // already belongs to another lifecycle operation. Re-read by
+                // operation id so a completed identical create returns the
+                // authoritative sandbox session instead of a raw conflict.
+                let existing_sandbox_session = self
+                    .sandbox_session_repository
+                    .find_by_sandbox_operation(&command.tenant_id, &command.sandbox_operation_id)
+                    .await?
+                    .ok_or(SandboxLifecycleError::SandboxSessionIdConflict {
+                        tenant_id: command.tenant_id.clone(),
+                        sandbox_session_id: sandbox_session.sandbox_session_id().clone(),
+                    })?;
+                if existing_sandbox_session.matches_create(
+                    sandbox_session.sandbox_workspace_id(),
+                    sandbox_session.sandbox_session_id(),
+                    sandbox_session.sandbox_required_capabilities(),
+                    sandbox_session.sandbox_minimum_assurance(),
+                ) {
+                    Ok(existing_sandbox_session)
+                } else {
+                    Err(SandboxLifecycleError::IdempotencyConflict {
+                        sandbox_operation_id: command.sandbox_operation_id,
+                    })
+                }
+            }
             Err(sandbox_repository_error) => Err(sandbox_repository_error.into()),
         }
     }
@@ -334,7 +361,23 @@ impl SandboxLifecycleService {
                     )
                     .await
                 }
-                authoritative_sandbox_result => authoritative_sandbox_result,
+                Ok(authoritative_sandbox_session) => Ok(authoritative_sandbox_session),
+                Err(SandboxLifecycleError::SandboxSessionNotFound { .. }) => {
+                    // The sandbox session disappeared between listing and
+                    // lease acquisition; release the lease best-effort and
+                    // skip the item instead of aborting the whole page.
+                    let _ = self
+                        .sandbox_session_repository
+                        .release_sandbox_session_lease(&sandbox_session_lease)
+                        .await;
+                    sandbox_items.push(SandboxSessionReconciliationItem::new(
+                        sandbox_session_id,
+                        sandbox_session.sandbox_session_state(),
+                        SandboxSessionReconciliationOutcome::LeaseUnavailable,
+                    ));
+                    continue;
+                }
+                Err(sandbox_lifecycle_error) => Err(sandbox_lifecycle_error),
             };
             let sandbox_reconciliation_result = self
                 .release_sandbox_session_lease(
@@ -354,14 +397,31 @@ impl SandboxLifecycleService {
                     SandboxLifecycleError::Provider(_)
                     | SandboxLifecycleError::ProviderReadinessRejected { .. },
                 ) => {
-                    let sandbox_session = self
+                    match self
                         .get_sandbox_session(tenant_id, &sandbox_session_id)
-                        .await?;
-                    sandbox_items.push(SandboxSessionReconciliationItem::new(
-                        sandbox_session_id,
-                        sandbox_session.sandbox_session_state(),
-                        SandboxSessionReconciliationOutcome::Failed,
-                    ));
+                        .await
+                    {
+                        Ok(sandbox_session) => {
+                            sandbox_items.push(SandboxSessionReconciliationItem::new(
+                                sandbox_session_id,
+                                sandbox_session.sandbox_session_state(),
+                                SandboxSessionReconciliationOutcome::Failed,
+                            ));
+                        }
+                        Err(SandboxLifecycleError::SandboxSessionNotFound { .. }) => {
+                            // The sandbox session disappeared while the failed
+                            // provider reconciliation was in flight; skip the
+                            // item instead of aborting the whole page.
+                            sandbox_items.push(SandboxSessionReconciliationItem::new(
+                                sandbox_session_id,
+                                sandbox_session.sandbox_session_state(),
+                                SandboxSessionReconciliationOutcome::LeaseUnavailable,
+                            ));
+                        }
+                        Err(sandbox_lifecycle_error) => {
+                            return Err(sandbox_lifecycle_error);
+                        }
+                    }
                 }
                 Err(sandbox_lifecycle_error) => return Err(sandbox_lifecycle_error),
             }

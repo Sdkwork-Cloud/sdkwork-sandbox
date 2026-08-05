@@ -6,4 +6,5 @@ See `DOCUMENTATION_SPEC.md` section 2.
 
 ## 变更日志索引
 
+- [CHANGELOG-2026-08-05](CHANGELOG-2026-08-05.md) - 生命周期核心加固与构建基线修复
 - [CHANGELOG-2026-07-29](CHANGELOG-2026-07-29.md) - Gate 0 合规清理和评审准备文档

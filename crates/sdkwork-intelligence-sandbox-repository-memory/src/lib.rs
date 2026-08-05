@@ -389,8 +389,8 @@ mod tests {
     use std::time::Duration;
 
     use sdkwork_intelligence_sandbox_service::{
-        CreateSandboxSessionCommand, SandboxLifecycleService, SandboxSessionRepository,
-        SandboxSessionRepositoryError,
+        CreateSandboxSessionCommand, SandboxLifecycleService, SandboxSession,
+        SandboxSessionRepository, SandboxSessionRepositoryError,
     };
     use sdkwork_sandbox_provider_spi::{
         IsolationAssurance, OperationId, SandboxLeaseOwnerId, SandboxSessionId, SandboxWorkspaceId,
@@ -502,6 +502,71 @@ mod tests {
                 Err(SandboxSessionRepositoryError::InvalidPageRequest)
             );
         }
+    }
+
+    #[tokio::test]
+    async fn sandbox_session_insert_is_scoped_by_tenant_and_operation() {
+        let sandbox_session_repository = InMemorySandboxSessionRepository::new();
+        let sandbox_tenant_a = tenant_id("tenant-a");
+        let sandbox_tenant_b = tenant_id("tenant-b");
+        let sandbox_session_id = sandbox_session_id();
+        let sandbox_operation_id = OperationId::generate();
+        let sandbox_create = |sandbox_tenant: TenantId,
+                              sandbox_operation_id: OperationId,
+                              sandbox_session_id: SandboxSessionId| {
+            SandboxSession::create(
+                sandbox_tenant,
+                sandbox_workspace_id(),
+                sandbox_session_id,
+                sandbox_operation_id,
+                BTreeSet::new(),
+                IsolationAssurance::HostUser,
+            )
+        };
+
+        sandbox_session_repository
+            .insert_sandbox_session(sandbox_create(
+                sandbox_tenant_a.clone(),
+                sandbox_operation_id.clone(),
+                sandbox_session_id.clone(),
+            ))
+            .await
+            .unwrap_or_else(|error| panic!("sandbox session insert failed: {error}"));
+
+        // The same tenant and session id is a version conflict; the same
+        // session id under another tenant is isolated and accepted.
+        assert_eq!(
+            sandbox_session_repository
+                .insert_sandbox_session(sandbox_create(
+                    sandbox_tenant_a.clone(),
+                    OperationId::generate(),
+                    sandbox_session_id.clone(),
+                ))
+                .await,
+            Err(SandboxSessionRepositoryError::VersionConflict)
+        );
+        assert!(sandbox_session_repository
+            .insert_sandbox_session(sandbox_create(
+                sandbox_tenant_b,
+                OperationId::generate(),
+                sandbox_session_id.clone(),
+            ))
+            .await
+            .is_ok());
+
+        // The same tenant and operation id under another session id is a
+        // duplicate operation.
+        assert_eq!(
+            sandbox_session_repository
+                .insert_sandbox_session(sandbox_create(
+                    sandbox_tenant_a,
+                    sandbox_operation_id,
+                    SandboxSessionId::parse("session-b")
+                        .unwrap_or_else(|error| panic!("invalid test session id: {error}")),
+                ))
+                .await,
+            Err(SandboxSessionRepositoryError::DuplicateOperation)
+        );
     }
 
     #[tokio::test]

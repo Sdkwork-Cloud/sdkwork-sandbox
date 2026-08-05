@@ -64,7 +64,7 @@ flowchart LR
 | 组件 | Crate | 状态 | 门禁证据 |
 | --- | --- | --- | --- |
 | Provider SPI | `sdkwork-sandbox-provider-spi` | active | `SandboxProvider` Port + Identity Types |
-| Lifecycle Service | `sdkwork-intelligence-sandbox-service` | active | 24 tests, Lease/Fencing/Readiness |
+| Lifecycle Service | `sdkwork-intelligence-sandbox-service` | active | 26 tests, Lease/Fencing/Readiness/Idempotency |
 | Memory Repository | `sdkwork-intelligence-sandbox-repository-memory` | active (test-only) | 4 tests |
 | PostgreSQL Repository | `sdkwork-intelligence-sandbox-repository-sqlx` | candidate | 6 tests + live PG evidence |
 | Local Provider | `sdkwork-sandbox-provider-local` | gate-0 | 5 Fake Host Boundary tests |
