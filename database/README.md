@@ -39,3 +39,24 @@ cargo test -p sdkwork-intelligence-sandbox-repository-sqlx
 ```
 
 Related: `../docs/product/requirements/REQ-2026-0005-durable-sandbox-session-repository-and-reconciliation.md`, `../docs/product/requirements/REQ-2026-0006-sandbox-provider-allocation-key-rotation.md`, `../docs/product/requirements/REQ-2026-0018-sandbox-postgresql-quota-and-capacity-reservation-persistence.md`, `../docs/architecture/decisions/ADR-20260728-postgresql-sandbox-lifecycle-persistence-and-reconciliation.md`, `../docs/architecture/decisions/ADR-20260729-sandbox-postgresql-quota-and-capacity-reservation-persistence.md`, `../docs/engineering/reviews/REVIEW-20260729-sandbox-provider-allocation-key-rotation-verification.md`, `../../sdkwork-specs/DATABASE_SPEC.md`, `../../sdkwork-specs/DATABASE_FRAMEWORK_SPEC.md`, `../../sdkwork-specs/MIGRATION_SPEC.md`, `../../sdkwork-specs/SECURITY_SPEC.md`, `../../sdkwork-specs/SUBJECT_ID_SPEC.md`.
+
+## Initialization state
+
+This module is in **initialization state** for greenfield deployments:
+
+1. **Baseline** — `database/ddl/baseline/{engine}/0001_sandbox_baseline.sql` contains the full DDL snapshot.
+2. **Migrations** — `database/migrations/{engine}/` is reserved for post-GA incremental schema changes only. It is intentionally empty at initialization.
+3. **Drift** — run `pnpm db:drift:check` before release.
+
+## Commands
+
+```bash
+pnpm run db:validate
+pnpm run db:materialize:contract
+pnpm run db:plan
+pnpm run db:init
+pnpm run db:migrate
+pnpm run db:seed
+pnpm run db:status
+pnpm run db:drift:check
+```

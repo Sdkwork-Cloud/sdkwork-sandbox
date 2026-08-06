@@ -6,19 +6,31 @@
   "serviceCode": "SANDBOX",
   "displayName": "SDKWork Sandbox Database",
   "owner": "sdkwork-runtime-platform",
-  "engines": ["postgres"],
+  "engines": [
+    "postgres"
+  ],
   "defaultEngine": "postgres",
   "tablePrefix": "sandbox_",
   "contractVersion": "0.1.0",
-  "baselineStrategy": "migrations-only",
+  "baselineStrategy": "baseline-plus-migrations",
   "modules": [],
   "lifecycle": {
     "autoMigrate": false,
     "seedOnBoot": false,
     "defaultSeedLocale": "zh-CN",
     "defaultSeedProfile": "standard",
-    "supportedSeedLocales": ["zh-CN", "en-US", "ja-JP", "de-DE", "fr-FR", "ru-RU", "ko-KR"],
-    "activeSeedLocales": ["zh-CN"],
+    "supportedSeedLocales": [
+      "zh-CN",
+      "en-US",
+      "ja-JP",
+      "de-DE",
+      "fr-FR",
+      "ru-RU",
+      "ko-KR"
+    ],
+    "activeSeedLocales": [
+      "zh-CN"
+    ],
     "driftCheckIntervalSec": 60
   },
   "paths": {
