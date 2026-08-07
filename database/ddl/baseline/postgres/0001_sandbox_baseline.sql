@@ -20,7 +20,7 @@
 -- recovery: fix the migration forward or restore the empty pre-release schema
 -- contract_version: 0.1.0
 
-CREATE TABLE sandbox_session (
+CREATE TABLE IF NOT EXISTS sandbox_session (
     tenant_id TEXT NOT NULL,
     sandbox_session_id TEXT NOT NULL,
     sandbox_workspace_id TEXT NOT NULL,
@@ -51,14 +51,14 @@ CREATE TABLE sandbox_session (
     CONSTRAINT ck_sandbox_session_version CHECK (version >= 0)
 );
 
-CREATE INDEX idx_sandbox_session_reconciliation
+CREATE INDEX IF NOT EXISTS idx_sandbox_session_reconciliation
     ON sandbox_session (tenant_id, sandbox_session_state, sandbox_session_id)
     WHERE sandbox_session_state IN ('starting', 'stopping', 'destroying');
 
-CREATE INDEX idx_sandbox_session_workspace
+CREATE INDEX IF NOT EXISTS idx_sandbox_session_workspace
     ON sandbox_session (tenant_id, sandbox_workspace_id, sandbox_session_id);
 
-CREATE TABLE sandbox_session_operation (
+CREATE TABLE IF NOT EXISTS sandbox_session_operation (
     tenant_id TEXT NOT NULL,
     sandbox_operation_id TEXT NOT NULL,
     sandbox_session_id TEXT NOT NULL,
@@ -88,7 +88,7 @@ CREATE TABLE sandbox_session_operation (
     )
 );
 
-CREATE TABLE sandbox_runtime_binding (
+CREATE TABLE IF NOT EXISTS sandbox_runtime_binding (
     tenant_id TEXT NOT NULL,
     sandbox_runtime_binding_id TEXT NOT NULL,
     sandbox_session_id TEXT NOT NULL,
@@ -125,10 +125,10 @@ CREATE TABLE sandbox_runtime_binding (
     )
 );
 
-CREATE INDEX idx_sandbox_runtime_binding_provider
+CREATE INDEX IF NOT EXISTS idx_sandbox_runtime_binding_provider
     ON sandbox_runtime_binding (tenant_id, sandbox_provider_id, sandbox_runtime_binding_id);
 
-CREATE TABLE sandbox_session_lease (
+CREATE TABLE IF NOT EXISTS sandbox_session_lease (
     tenant_id TEXT NOT NULL,
     sandbox_session_id TEXT NOT NULL,
     sandbox_lease_owner_id TEXT,
@@ -149,6 +149,6 @@ CREATE TABLE sandbox_session_lease (
     CONSTRAINT ck_sandbox_session_lease_fencing_token CHECK (sandbox_fencing_token >= 0)
 );
 
-CREATE INDEX idx_sandbox_session_lease_expiry
+CREATE INDEX IF NOT EXISTS idx_sandbox_session_lease_expiry
     ON sandbox_session_lease (tenant_id, sandbox_lease_expires_at, sandbox_session_id)
     WHERE sandbox_lease_owner_id IS NOT NULL;
